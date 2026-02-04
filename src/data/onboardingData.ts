@@ -1,39 +1,37 @@
 // Onboarding Mock Data
 
-// Role options
+// Role options for autocomplete (14 options)
 export const roleOptions = [
-  { value: 'founder', label: 'Fundador(a) / CEO' },
-  { value: 'marketing_head', label: 'Head de Marketing' },
-  { value: 'content_creator', label: 'Criador(a) de Conteúdo' },
-  { value: 'social_media', label: 'Social Media Manager' },
-  { value: 'consultant', label: 'Consultor(a)' },
-  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'founder', label: 'Founder / CEO' },
+  { value: 'cpo', label: 'CPO' },
+  { value: 'cto', label: 'CTO' },
+  { value: 'head_product', label: 'Head of Product' },
   { value: 'product_manager', label: 'Product Manager' },
-  { value: 'developer', label: 'Desenvolvedor(a)' },
+  { value: 'growth_manager', label: 'Growth Manager' },
+  { value: 'marketing_manager', label: 'Marketing Manager' },
   { value: 'designer', label: 'Designer' },
-  { value: 'sales', label: 'Vendas' },
-  { value: 'hr', label: 'RH / People' },
-  { value: 'finance', label: 'Finanças' },
-  { value: 'coach', label: 'Coach / Mentor' },
+  { value: 'tech_lead', label: 'Tech Lead' },
+  { value: 'consultant', label: 'Consultor(a)' },
   { value: 'educator', label: 'Educador(a)' },
-  { value: 'other', label: 'Outro' },
+  { value: 'creator', label: 'Criador(a) de Conteúdo' },
+  { value: 'freelancer', label: 'Freelancer' },
 ];
 
-// Experience levels
+// Experience levels for slider
 export const experienceLevels = [
-  { value: '0-2', label: '0-2 anos' },
-  { value: '3-5', label: '3-5 anos' },
-  { value: '6-10', label: '6-10 anos' },
-  { value: '10+', label: '10+ anos' },
+  { value: 0, label: '0-2 anos' },
+  { value: 1, label: '3-5 anos' },
+  { value: 2, label: '6-10 anos' },
+  { value: 3, label: '10+ anos' },
 ];
 
-// Areas of expertise
+// Areas of expertise (15 options including "Other")
 export const expertiseAreas = [
   { 
-    id: 'tech', 
-    label: 'Tecnologia', 
-    icon: 'Code',
-    subareas: ['Desenvolvimento', 'DevOps', 'IA/ML', 'Cloud', 'Segurança', 'Mobile']
+    id: 'product', 
+    label: 'Produto', 
+    icon: 'Package',
+    subareas: ['Product Management', 'UX/UI', 'Research', 'Analytics', 'Growth', 'Roadmapping']
   },
   { 
     id: 'marketing', 
@@ -42,28 +40,46 @@ export const expertiseAreas = [
     subareas: ['Growth', 'Performance', 'Branding', 'SEO', 'Email Marketing', 'Influência']
   },
   { 
-    id: 'business', 
-    label: 'Negócios', 
-    icon: 'Briefcase',
-    subareas: ['Estratégia', 'Vendas', 'Operações', 'Finanças', 'Jurídico', 'RH']
+    id: 'tech', 
+    label: 'Tecnologia', 
+    icon: 'Code',
+    subareas: ['Desenvolvimento', 'DevOps', 'IA/ML', 'Cloud', 'Segurança', 'Mobile']
   },
   { 
-    id: 'product', 
-    label: 'Produto', 
-    icon: 'Package',
-    subareas: ['Product Management', 'UX/UI', 'Research', 'Analytics', 'Growth', 'Roadmap']
+    id: 'sales', 
+    label: 'Vendas', 
+    icon: 'Target',
+    subareas: ['B2B', 'B2C', 'Inside Sales', 'Field Sales', 'Partnerships', 'Account Management']
   },
   { 
-    id: 'creative', 
-    label: 'Criativo', 
+    id: 'design', 
+    label: 'Design', 
     icon: 'Palette',
-    subareas: ['Design Gráfico', 'Vídeo', 'Fotografia', 'Copywriting', 'Ilustração', 'Motion']
+    subareas: ['UI Design', 'UX Design', 'Brand Design', 'Motion', 'Ilustração', 'Design System']
   },
   { 
-    id: 'health', 
-    label: 'Saúde', 
-    icon: 'Heart',
-    subareas: ['Fitness', 'Nutrição', 'Mental', 'Medicina', 'Terapias', 'Bem-estar']
+    id: 'data', 
+    label: 'Dados', 
+    icon: 'BarChart',
+    subareas: ['Analytics', 'Data Science', 'BI', 'Data Engineering', 'Machine Learning', 'Visualização']
+  },
+  { 
+    id: 'operations', 
+    label: 'Operações', 
+    icon: 'Settings',
+    subareas: ['Processos', 'Supply Chain', 'Qualidade', 'Logística', 'Customer Success', 'Suporte']
+  },
+  { 
+    id: 'hr', 
+    label: 'RH / People', 
+    icon: 'Users',
+    subareas: ['Recrutamento', 'Cultura', 'Desenvolvimento', 'Employer Branding', 'Compensation', 'People Analytics']
+  },
+  { 
+    id: 'finance', 
+    label: 'Finanças', 
+    icon: 'TrendingUp',
+    subareas: ['Investimentos', 'Contabilidade', 'Planejamento', 'M&A', 'Valuation', 'FP&A']
   },
   { 
     id: 'education', 
@@ -72,14 +88,38 @@ export const expertiseAreas = [
     subareas: ['Cursos Online', 'Mentoria', 'Treinamento', 'E-learning', 'Workshops', 'Coaching']
   },
   { 
-    id: 'finance', 
-    label: 'Finanças', 
-    icon: 'TrendingUp',
-    subareas: ['Investimentos', 'Contabilidade', 'Planejamento', 'Crypto', 'Trading', 'Consultoria']
+    id: 'entrepreneurship', 
+    label: 'Empreendedorismo', 
+    icon: 'Briefcase',
+    subareas: ['Startups', 'Bootstrapping', 'Fundraising', 'Scaling', 'Pivoting', 'Exit']
+  },
+  { 
+    id: 'career', 
+    label: 'Carreira', 
+    icon: 'Award',
+    subareas: ['Transição', 'Promoção', 'Networking', 'Marca Pessoal', 'Liderança', 'Produtividade']
+  },
+  { 
+    id: 'leadership', 
+    label: 'Liderança', 
+    icon: 'Crown',
+    subareas: ['Gestão de Times', 'Estratégia', 'Comunicação', 'Mentoria', 'Cultura', 'Decisão']
+  },
+  { 
+    id: 'creator_economy', 
+    label: 'Creator Economy', 
+    icon: 'Sparkles',
+    subareas: ['YouTube', 'Newsletter', 'Podcasting', 'Monetização', 'Comunidade', 'Infoprodutos']
+  },
+  { 
+    id: 'other', 
+    label: 'Outro', 
+    icon: 'Plus',
+    subareas: []
   },
 ];
 
-// Goals
+// Goals (6 options + Other)
 export const goalOptions = [
   { id: 'authority', label: 'Construir autoridade', description: 'Ser reconhecido como expert na área', icon: 'Award' },
   { id: 'audience', label: 'Crescer audiência', description: 'Aumentar alcance e seguidores', icon: 'Users' },
@@ -87,53 +127,53 @@ export const goalOptions = [
   { id: 'sales', label: 'Vender mais', description: 'Converter seguidores em clientes', icon: 'ShoppingBag' },
   { id: 'community', label: 'Criar comunidade', description: 'Engajar e conectar pessoas', icon: 'Heart' },
   { id: 'personal_brand', label: 'Marca pessoal', description: 'Fortalecer sua imagem', icon: 'Star' },
+  { id: 'other', label: 'Outro', description: 'Defina seu objetivo', icon: 'Plus' },
 ];
 
-// Content topics by area
+// Content topics grouped by category
+export const topicCategories = [
+  {
+    category: 'Estratégia',
+    topics: ['Posicionamento', 'Growth', 'Inovação', 'Liderança', 'Cultura']
+  },
+  {
+    category: 'Execução',
+    topics: ['Produtividade', 'Processos', 'Ferramentas', 'Métricas', 'Gestão de Projetos']
+  },
+  {
+    category: 'Carreira',
+    topics: ['Transição de Carreira', 'Marca Pessoal', 'Networking', 'Mentoria', 'Soft Skills']
+  },
+  {
+    category: 'Técnico',
+    topics: ['Desenvolvimento', 'Design', 'Dados', 'IA', 'Cloud']
+  },
+  {
+    category: 'Negócios',
+    topics: ['Vendas', 'Marketing', 'Finanças', 'Jurídico', 'Operações']
+  }
+];
+
+// Legacy topic mapping for backward compatibility
 export const topicsByArea: Record<string, string[]> = {
-  tech: [
-    'Desenvolvimento Web', 'Arquitetura de Software', 'Cloud Computing', 
-    'IA & Machine Learning', 'DevOps', 'Segurança', 'Open Source',
-    'Carreira em Tech', 'Novas Tecnologias', 'Code Reviews'
-  ],
-  marketing: [
-    'Growth Hacking', 'Marketing de Conteúdo', 'SEO', 'Mídia Paga',
-    'Copywriting', 'Branding', 'Analytics', 'Automação',
-    'Influencer Marketing', 'Email Marketing'
-  ],
-  business: [
-    'Empreendedorismo', 'Gestão', 'Liderança', 'Vendas B2B',
-    'Estratégia', 'Startups', 'Inovação', 'Negociação',
-    'Produtividade', 'Cultura Organizacional'
-  ],
-  product: [
-    'Product Management', 'UX/UI Design', 'Métricas de Produto',
-    'Roadmapping', 'Discovery', 'User Research', 'Priorização',
-    'Metodologias Ágeis', 'Product-Led Growth', 'OKRs'
-  ],
-  creative: [
-    'Design Visual', 'Branding', 'UI Design', 'Motion Graphics',
-    'Storytelling Visual', 'Direção de Arte', 'Tipografia',
-    'Fotografia', 'Ilustração', 'Video'
-  ],
-  health: [
-    'Fitness', 'Nutrição', 'Saúde Mental', 'Mindfulness',
-    'Hábitos Saudáveis', 'Sono', 'Produtividade Pessoal',
-    'Bem-estar', 'Medicina Preventiva', 'Lifestyle'
-  ],
-  education: [
-    'Educação Online', 'Metodologias de Ensino', 'Criação de Cursos',
-    'Mentoria', 'Aprendizado Contínuo', 'Didática',
-    'Tecnologia Educacional', 'Gamificação', 'Soft Skills', 'Hard Skills'
-  ],
-  finance: [
-    'Investimentos', 'Finanças Pessoais', 'Planejamento Financeiro',
-    'Mercado de Ações', 'Renda Passiva', 'Criptomoedas',
-    'Educação Financeira', 'Economia', 'Empreendedorismo Financeiro', 'Independência Financeira'
-  ],
+  tech: ['Desenvolvimento Web', 'Arquitetura de Software', 'Cloud Computing', 'IA & Machine Learning', 'DevOps', 'Segurança'],
+  marketing: ['Growth Hacking', 'Marketing de Conteúdo', 'SEO', 'Mídia Paga', 'Copywriting', 'Branding'],
+  product: ['Product Management', 'UX/UI Design', 'Métricas de Produto', 'Roadmapping', 'Discovery', 'User Research'],
+  sales: ['Vendas B2B', 'Inside Sales', 'Negociação', 'Pipeline', 'CRM', 'Social Selling'],
+  design: ['UI Design', 'UX Research', 'Design System', 'Prototipação', 'Design Thinking', 'Visual Design'],
+  data: ['Analytics', 'Data Science', 'Business Intelligence', 'Machine Learning', 'Data Engineering', 'Visualização de Dados'],
+  operations: ['Processos', 'Customer Success', 'Qualidade', 'Logística', 'Automação', 'Suporte'],
+  hr: ['Recrutamento', 'Cultura Organizacional', 'Employer Branding', 'Desenvolvimento de Pessoas', 'Engajamento', 'Diversidade'],
+  finance: ['Investimentos', 'Finanças Pessoais', 'Planejamento Financeiro', 'Valuation', 'M&A', 'FP&A'],
+  education: ['Educação Online', 'Criação de Cursos', 'Mentoria', 'Metodologias de Ensino', 'EdTech', 'Aprendizado Contínuo'],
+  entrepreneurship: ['Startups', 'Bootstrapping', 'Fundraising', 'Scaling', 'Pivoting', 'Validação'],
+  career: ['Transição de Carreira', 'Promoção', 'Networking Profissional', 'Entrevistas', 'Negociação Salarial', 'LinkedIn'],
+  leadership: ['Gestão de Times', 'Comunicação', 'Feedback', 'Delegação', 'Tomada de Decisão', 'Resolução de Conflitos'],
+  creator_economy: ['YouTube', 'Newsletter', 'Podcasting', 'Monetização', 'Comunidade', 'Infoprodutos'],
+  other: ['Estratégia', 'Inovação', 'Produtividade', 'Comunicação', 'Networking', 'Marca Pessoal'],
 };
 
-// Audience types
+// Audience types (6 options + Other)
 export const audienceTypes = [
   { id: 'beginners', label: 'Iniciantes', description: 'Pessoas começando na área', icon: 'Sprout' },
   { id: 'intermediate', label: 'Intermediários', description: 'Profissionais em evolução', icon: 'TrendingUp' },
@@ -141,9 +181,10 @@ export const audienceTypes = [
   { id: 'leaders', label: 'Líderes', description: 'Gestores e executivos', icon: 'Crown' },
   { id: 'entrepreneurs', label: 'Empreendedores', description: 'Donos de negócio', icon: 'Briefcase' },
   { id: 'career_changers', label: 'Transição', description: 'Mudando de carreira', icon: 'RefreshCw' },
+  { id: 'other', label: 'Outro', description: 'Defina sua audiência', icon: 'Plus' },
 ];
 
-// Challenges
+// Challenges (8 options + Other as conditional)
 export const challengeOptions = [
   { id: 'consistency', label: 'Manter consistência', icon: 'Calendar' },
   { id: 'ideas', label: 'Ter ideias de conteúdo', icon: 'Lightbulb' },
@@ -153,6 +194,7 @@ export const challengeOptions = [
   { id: 'differentiation', label: 'Me diferenciar', icon: 'Sparkles' },
   { id: 'writing', label: 'Escrever bem', icon: 'Pen' },
   { id: 'monetization', label: 'Monetizar conteúdo', icon: 'DollarSign' },
+  { id: 'other', label: 'Outro', icon: 'Plus' },
 ];
 
 // Communication style dimensions
@@ -286,22 +328,29 @@ export interface OnboardingFormData {
   
   // Step 2: Role & Experience
   role: string;
+  customRole: string;
   experienceLevel: number;
   
   // Step 3: Area of Expertise
   primaryArea: string;
+  customArea: string;
   subareas: string[];
   
   // Step 4: Goals
   primaryGoal: string;
+  customPrimaryGoal: string;
   secondaryGoal: string;
+  customSecondaryGoal: string;
   
   // Step 5: Content Topics
   selectedTopics: string[];
+  customTopics: string[];
   
   // Step 6: Audience & Challenges
   audienceType: string;
+  customAudience: string;
   challenges: string[];
+  customChallenge: string;
   
   // Step 7: Communication Style
   communicationStyle: {
@@ -317,14 +366,21 @@ export const initialFormData: OnboardingFormData = {
   email: 'pedro@flui.app',
   profilePhoto: null,
   role: '',
+  customRole: '',
   experienceLevel: 1,
   primaryArea: '',
+  customArea: '',
   subareas: [],
   primaryGoal: '',
+  customPrimaryGoal: '',
   secondaryGoal: '',
+  customSecondaryGoal: '',
   selectedTopics: [],
+  customTopics: [],
   audienceType: '',
+  customAudience: '',
   challenges: [],
+  customChallenge: '',
   communicationStyle: {
     formality: 50,
     approach: 50,
