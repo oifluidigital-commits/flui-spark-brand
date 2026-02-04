@@ -156,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser,
         isAuthenticated,
         setIsAuthenticated,
+        logout,
         brand,
         setBrand,
         sprints,
