@@ -23,6 +23,9 @@ interface AppContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   
+  // Auth actions
+  logout: () => void;
+  
   // Brand state
   brand: Brand;
   setBrand: React.Dispatch<React.SetStateAction<Brand>>;
