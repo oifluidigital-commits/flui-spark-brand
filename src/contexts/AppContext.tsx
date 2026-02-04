@@ -143,6 +143,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
   
+  // Logout
+  const logout = () => {
+    setIsAuthenticated(false);
+    setUser(mockUser);
+  };
+  
   return (
     <AppContext.Provider
       value={{
