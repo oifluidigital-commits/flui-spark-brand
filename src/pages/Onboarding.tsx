@@ -87,13 +87,19 @@ export default function Onboarding() {
       case 2:
         return formData.role !== '';
       case 3:
-        return formData.primaryArea !== '';
+        // Allow "other" if customArea is filled, or any non-other area
+        return formData.primaryArea !== '' && 
+          (formData.primaryArea !== 'other' || formData.customArea.trim().length > 0);
       case 4:
-        return formData.primaryGoal !== '';
+        // Allow "other" if customPrimaryGoal is filled, or any non-other goal
+        return formData.primaryGoal !== '' &&
+          (formData.primaryGoal !== 'other' || formData.customPrimaryGoal.trim().length > 0);
       case 5:
-        return formData.selectedTopics.length >= 1;
+        return (formData.selectedTopics.length + formData.customTopics.length) >= 1;
       case 6:
-        return formData.audienceType !== '';
+        // Allow "other" if customAudience is filled, or any non-other audience
+        return formData.audienceType !== '' &&
+          (formData.audienceType !== 'other' || formData.customAudience.trim().length > 0);
       case 7:
         return true; // Sliders always have values
       default:
