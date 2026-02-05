@@ -8,7 +8,8 @@
  import { Progress } from '@/components/ui/progress';
  import { StrategyLoadingState } from '@/components/strategy/StrategyLoadingState';
  import { StrategyBlockedState } from '@/components/strategy/StrategyBlockedState';
-  import { mockStrategy, Strategy } from '@/data/strategyData';
+ import { mockStrategy } from '@/data/strategyData';
+ import type { Strategy } from '@/data/strategyData';
   import { useStrategy } from '@/hooks/useStrategy';
   import { toast } from 'sonner';
  import {
