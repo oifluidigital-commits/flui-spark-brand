@@ -71,6 +71,9 @@
    Check,
    ChevronDown,
    AlertTriangle,
+   Bot,
+   User,
+   RefreshCw,
  } from 'lucide-react';
  import { Sprint, SprintStatus } from '@/types';
  import { formatDatePTBR, mockPillars, mockSprints } from '@/data/mockData';
@@ -81,6 +84,8 @@
  // Types for Sprint Content
  type ContentStatus = 'idea' | 'review' | 'scheduled' | 'backlog' | 'completed';
  type FunnelStage = 'tofu' | 'mofu' | 'bofu';
+ 
+ type FrameworkOrigin = 'ai' | 'manual';
  
  interface SprintContent {
    id: string;
@@ -94,6 +99,7 @@
    targetDate?: string;
    framework: string;
    frameworkReason?: string;
+   frameworkOrigin?: FrameworkOrigin;
    intention: 'educate' | 'engage' | 'convert';
    suggestedCta: string;
    createdAt: string;
@@ -166,14 +172,49 @@
  ];
  
  // Framework configuration
- const contentFrameworks: { id: string; name: string; description: string }[] = [
-   { id: 'aida', name: 'AIDA', description: 'Atenção → Interesse → Desejo → Ação' },
-   { id: 'pas', name: 'PAS', description: 'Problema → Agitação → Solução' },
-   { id: 'storytelling', name: 'Storytelling', description: 'Narrativa com início, meio e fim' },
-   { id: 'bab', name: 'Before/After/Bridge', description: 'Antes → Depois → Como chegar lá' },
-   { id: 'hvc', name: 'Hook → Value → CTA', description: 'Gancho → Valor → Chamada para ação' },
-   { id: 'educational', name: 'Educacional', description: 'Contexto → Conceito → Exemplos → Aplicação' },
-   { id: 'authority', name: 'Autoridade', description: 'Opinião → Evidência → Insight' },
+ const contentFrameworks: { id: string; name: string; description: string; bestUse: string }[] = [
+   { 
+     id: 'aida', 
+     name: 'AIDA', 
+     description: 'Atenção → Interesse → Desejo → Ação',
+     bestUse: 'Ideal para conteúdos de conversão e vendas'
+   },
+   { 
+     id: 'pas', 
+     name: 'PAS', 
+     description: 'Problema → Agitação → Solução',
+     bestUse: 'Perfeito para abordar dores do público'
+   },
+   { 
+     id: 'storytelling', 
+     name: 'Storytelling', 
+     description: 'Narrativa com início, meio e fim',
+     bestUse: 'Gera conexão emocional e engajamento'
+   },
+   { 
+     id: 'bab', 
+     name: 'Before/After/Bridge', 
+     description: 'Antes → Depois → Como chegar lá',
+     bestUse: 'Mostra transformação e resultados'
+   },
+   { 
+     id: 'hvc', 
+     name: 'Hook → Value → CTA', 
+     description: 'Gancho → Valor → Chamada para ação',
+     bestUse: 'Formato direto para redes sociais'
+   },
+   { 
+     id: 'educational', 
+     name: 'Educacional', 
+     description: 'Contexto → Conceito → Exemplos → Aplicação',
+     bestUse: 'Conteúdo didático e carrosséis'
+   },
+   { 
+     id: 'authority', 
+     name: 'Autoridade', 
+     description: 'Opinião → Evidência → Insight',
+     bestUse: 'Posicionamento como especialista'
+   },
  ];
  
  // Mock sprint contents
@@ -190,6 +231,7 @@
      targetDate: '2024-02-15',
      framework: 'educational',
      frameworkReason: 'Formato de carrossel combina com estrutura didática em etapas',
+     frameworkOrigin: 'ai',
      intention: 'educate',
      suggestedCta: 'Salve para consultar depois',
      createdAt: '2024-02-01T10:00:00Z',
@@ -207,6 +249,7 @@
      targetDate: '2024-02-12',
      framework: 'storytelling',
      frameworkReason: 'Narrativa gera conexão emocional e comentários',
+     frameworkOrigin: 'manual',
      intention: 'engage',
      suggestedCta: 'Conta sua experiência',
      createdAt: '2024-02-02T09:00:00Z',
@@ -224,6 +267,7 @@
      targetDate: '2024-02-20',
      framework: 'hvc',
      frameworkReason: 'Formato direto para redes sociais',
+     frameworkOrigin: 'ai',
      intention: 'educate',
      suggestedCta: 'Comente sua dúvida',
      createdAt: '2024-02-03T16:00:00Z',
@@ -240,6 +284,7 @@
      funnelStage: 'bofu',
      framework: 'aida',
      frameworkReason: 'Estrutura ideal para conteúdos de conversão',
+     frameworkOrigin: 'ai',
      intention: 'convert',
      suggestedCta: 'Agende uma conversa gratuita',
      createdAt: '2024-02-04T10:00:00Z',
@@ -256,6 +301,7 @@
      funnelStage: 'tofu',
      targetDate: '2024-02-08',
      framework: 'educational',
+     frameworkOrigin: 'ai',
      intention: 'educate',
      suggestedCta: 'Salve para consultar depois',
      createdAt: '2024-02-01T10:00:00Z',
@@ -409,17 +455,46 @@
    onSave: (content: SprintContent) => void;
  }) => {
    const [editedContent, setEditedContent] = useState<SprintContent | null>(content);
+   const [isEditingFramework, setIsEditingFramework] = useState(false);
+   const [tempFramework, setTempFramework] = useState<string>('');
  
    // Update local state when content prop changes
    useEffect(() => {
      if (content) {
        setEditedContent(content);
+       setIsEditingFramework(false);
+       setTempFramework(content.framework);
      }
    }, [content]);
  
    if (!content || !editedContent) return null;
  
    const currentFramework = contentFrameworks.find((f) => f.id === editedContent.framework);
+   
+   // Determine framework origin - fallback to AI if not defined
+   const frameworkOrigin = editedContent.frameworkOrigin || 'ai';
+ 
+   const handleStartEditingFramework = () => {
+     setTempFramework(editedContent.framework);
+     setIsEditingFramework(true);
+   };
+ 
+   const handleSaveFramework = () => {
+     if (tempFramework) {
+       setEditedContent({
+         ...editedContent,
+         framework: tempFramework,
+         frameworkOrigin: 'manual',
+         frameworkReason: undefined,
+       });
+       setIsEditingFramework(false);
+     }
+   };
+ 
+   const handleCancelFrameworkEdit = () => {
+     setTempFramework(editedContent.framework);
+     setIsEditingFramework(false);
+   };
  
    return (
      <Sheet open={isOpen} onOpenChange={onClose}>
@@ -459,25 +534,123 @@
              />
            </div>
  
-           {/* Framework */}
-           <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-             <div className="flex items-center gap-2 mb-2">
-               <Sparkles className="h-4 w-4 text-primary" />
-               <span className="font-medium text-sm">Framework Selecionado</span>
+           {/* Framework Section */}
+           <div className="space-y-3">
+             <div className="flex items-center justify-between">
+               <Label className="text-base font-medium">Framework do Conteúdo</Label>
              </div>
-             <p className="text-foreground">{currentFramework?.name}</p>
-             <p className="text-xs text-muted-foreground mt-1">
-               {currentFramework?.description}
-             </p>
-             {editedContent.frameworkReason && (
-               <p className="text-xs text-muted-foreground mt-2 italic">
-                 "{editedContent.frameworkReason}"
-               </p>
+ 
+             {/* State 1: Framework já definido (visualização) */}
+             {!isEditingFramework && (
+               <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                 <div className="flex items-center justify-between mb-3">
+                   <div className="flex items-center gap-2">
+                     {frameworkOrigin === 'ai' ? (
+                       <Bot className="h-4 w-4 text-primary" />
+                     ) : (
+                       <User className="h-4 w-4 text-primary" />
+                     )}
+                     <span className="font-medium text-foreground">{currentFramework?.name}</span>
+                   </div>
+                   <Badge 
+                     variant="outline" 
+                     className={cn(
+                       'text-xs',
+                       frameworkOrigin === 'ai' 
+                         ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
+                         : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
+                     )}
+                   >
+                     {frameworkOrigin === 'ai' ? 'Sugerido pela IA' : 'Definido manualmente'}
+                   </Badge>
+                 </div>
+                 <p className="text-sm text-muted-foreground">
+                   {currentFramework?.description}
+                 </p>
+                 {editedContent.frameworkReason && (
+                   <p className="text-xs text-muted-foreground mt-2 italic border-l-2 border-primary/30 pl-2">
+                     "{editedContent.frameworkReason}"
+                   </p>
+                 )}
+                 <Button 
+                   variant="outline" 
+                   size="sm" 
+                   className="mt-4 w-full"
+                   onClick={handleStartEditingFramework}
+                 >
+                   <RefreshCw className="h-4 w-4 mr-2" />
+                   Alterar framework
+                 </Button>
+               </div>
+             )}
+ 
+             {/* State 2: Editando Framework */}
+             {isEditingFramework && (
+               <div className="space-y-4">
+                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                   <p className="text-sm text-amber-500 flex items-center gap-2">
+                     <AlertTriangle className="h-4 w-4" />
+                     Selecione um framework para este conteúdo
+                   </p>
+                 </div>
+ 
+                 {/* Framework Selection Cards */}
+                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                   {contentFrameworks.map((framework) => (
+                     <button
+                       key={framework.id}
+                       type="button"
+                       onClick={() => setTempFramework(framework.id)}
+                       className={cn(
+                         'w-full p-4 rounded-lg border text-left transition-all',
+                         tempFramework === framework.id
+                           ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                           : 'border-border hover:border-primary/50 bg-card'
+                       )}
+                     >
+                       <div className="flex items-center justify-between mb-1">
+                         <span className="font-medium text-foreground flex items-center gap-2">
+                           {tempFramework === framework.id && (
+                             <Check className="h-4 w-4 text-primary" />
+                           )}
+                           {framework.name}
+                         </span>
+                       </div>
+                       <p className="text-sm text-muted-foreground">
+                         {framework.description}
+                       </p>
+                       <p className="text-xs text-primary/80 mt-1">
+                         {framework.bestUse}
+                       </p>
+                     </button>
+                   ))}
+                 </div>
+ 
+                 {/* Framework Edit Actions */}
+                 <div className="flex items-center gap-3 pt-2">
+                   <Button 
+                     variant="outline" 
+                     className="flex-1"
+                     onClick={handleCancelFrameworkEdit}
+                   >
+                     Cancelar
+                   </Button>
+                   <Button 
+                     className="flex-1"
+                     onClick={handleSaveFramework}
+                     disabled={!tempFramework}
+                   >
+                     <Check className="h-4 w-4 mr-2" />
+                     Salvar framework
+                   </Button>
+                 </div>
+               </div>
              )}
            </div>
  
            {/* Format and Status */}
-           <div className="grid grid-cols-2 gap-4">
+           {!isEditingFramework && (
+             <div className="grid grid-cols-2 gap-4">
              <div className="space-y-2">
                <Label>Formato</Label>
                <Select
@@ -517,9 +690,11 @@
                </Select>
              </div>
            </div>
+           )}
  
            {/* Target Date */}
-           <div className="space-y-2">
+           {!isEditingFramework && (
+             <div className="space-y-2">
              <Label>Data Alvo</Label>
              <Popover>
                <PopoverTrigger asChild>
@@ -552,31 +727,38 @@
                </PopoverContent>
              </Popover>
            </div>
+           )}
  
            {/* CTA */}
-           <div className="space-y-2">
+           {!isEditingFramework && (
+             <div className="space-y-2">
              <Label>CTA Sugerido</Label>
              <Input
                value={editedContent.suggestedCta}
                onChange={(e) => setEditedContent({ ...editedContent, suggestedCta: e.target.value })}
              />
            </div>
+           )}
  
            {/* AI Actions */}
-           <div className="pt-4 border-t border-border">
+           {!isEditingFramework && (
+             <div className="pt-4 border-t border-border">
              <Button variant="outline" className="w-full">
                <Sparkles className="h-4 w-4 mr-2" />
                Gerar Texto com IA
              </Button>
            </div>
+           )}
          </div>
  
-         <SheetFooter>
-           <Button variant="outline" onClick={onClose}>
-             Cancelar
-           </Button>
-           <Button onClick={() => onSave(editedContent)}>Salvar Alterações</Button>
-         </SheetFooter>
+         {!isEditingFramework && (
+           <SheetFooter>
+             <Button variant="outline" onClick={onClose}>
+               Cancelar
+             </Button>
+             <Button onClick={() => onSave(editedContent)}>Salvar Alterações</Button>
+           </SheetFooter>
+         )}
        </SheetContent>
      </Sheet>
    );
