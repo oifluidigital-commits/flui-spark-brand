@@ -1,219 +1,192 @@
 
-# Plano de Implementacao — Dropdowns com Subitens no Menu Desktop
+# Plano de Implementacao — Opcao de Pular Onboarding
 
 ## Visao Geral
 
-Modificar o menu horizontal desktop no `TopNavigation` para exibir dropdowns com subitens nos itens "Planejamento" e "Conteudos", preservando toda a navegacao existente.
+Adicionar uma opcao para o usuario pular o onboarding apos preencher nome e email (Step 1), permitindo ir diretamente para o dashboard sem completar o diagnostico completo.
 
 ---
 
 ## 1. Situacao Atual
 
-O componente `TopNavigation.tsx` ja possui:
+O onboarding possui 7 etapas obrigatorias:
+1. Conta e Identidade (nome + email)
+2. Cargo e Experiencia
+3. Area de Atuacao
+4. Objetivos
+5. Topicos de Conteudo
+6. Audiencia e Desafios
+7. Estilo de Comunicacao
 
-- Estrutura de dados `menuItems` com `children` definidos para "Planejamento" e "Conteudos"
-- Imports do `DropdownMenu` do Shadcn UI
-- Renderizacao de botoes simples no desktop (linhas 177-202) que NAO utilizam os children
-
-**Problema**: Os subitens so aparecem no mobile drawer, nao no menu desktop.
+**Problema**: O usuario nao pode acessar o dashboard sem completar todas as 7 etapas.
 
 ---
 
-## 2. Estrutura dos Subitens Existentes
+## 2. Comportamento Proposto
+
+| Condicao | Comportamento |
+|----------|---------------|
+| Step 1 com nome preenchido | Exibe link "Pular e ir para o dashboard" |
+| Steps 2-7 | Link continua visivel para pular |
+| Usuario clica em "Pular" | Navega para /dashboard com status `in_progress` |
+
+---
+
+## 3. Regras de Negocio
+
+1. O nome deve estar preenchido (minimo 2 caracteres) para habilitar o skip
+2. O email ja vem preenchido automaticamente (read-only)
+3. Ao pular, o usuario:
+   - Tem acesso completo ao dashboard
+   - Mantem status de onboarding como `in_progress`
+   - Ve o card de progresso no dashboard para retomar depois
+4. O skip NAO marca o onboarding como completo
+
+---
+
+## 4. Modificacoes no Onboarding.tsx
+
+### 4.1 Adicionar Funcao de Skip
+
+```typescript
+const handleSkipOnboarding = () => {
+  // Update user with minimal data (name from step 1)
+  setUser((prev) => ({
+    ...prev,
+    name: formData.name,
+    onboardingStatus: 'in_progress',
+    onboardingStep: currentStep,
+  }));
+  
+  navigate('/dashboard');
+};
+```
+
+### 4.2 Condicao para Exibir Skip
+
+O botao de skip so aparece quando:
+- O nome tem pelo menos 2 caracteres (`formData.name.trim().length >= 2`)
+
+### 4.3 Estrutura Visual
+
+Adicionar abaixo do indicador de passo atual:
+
+```tsx
+{/* Skip option */}
+{formData.name.trim().length >= 2 && (
+  <button
+    onClick={handleSkipOnboarding}
+    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+  >
+    Pular e ir para o dashboard
+  </button>
+)}
+```
+
+---
+
+## 5. Posicionamento do Skip
 
 ```text
-Planejamento (dropdown)
-  └── Sprints
++--------------------------------------------------+
+|  [Card do Wizard]                                 |
+|  ...                                              |
+|  [Voltar]                          [Continuar]    |
++--------------------------------------------------+
 
-Conteudos (dropdown)
-  ├── Ideias
-  └── Frameworks
+  Passo 3 de 7
+
+  Pular e ir para o dashboard   <-- Nova opcao
 ```
 
 ---
 
-## 3. Modificacoes no TopNavigation.tsx
+## 6. Estilizacao
 
-### 3.1 Atualizar a Renderizacao do Menu Desktop
+Seguindo o Visual Dictionary:
 
-Substituir a logica de renderizacao (linhas 177-202) para:
-- Itens SEM children: botao simples (comportamento atual)
-- Itens COM children: DropdownMenu com subitens
-
-**Estrutura do dropdown:**
-```tsx
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <button className="flex items-center gap-2 ...">
-      <Icon className="h-4 w-4" />
-      <span>{item.label}</span>
-      <ChevronDown className="h-3 w-3" />
-      {/* Active indicator */}
-    </button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="center">
-    {item.children.map((child) => (
-      <DropdownMenuItem onClick={() => navigate(child.route)}>
-        <ChildIcon className="h-4 w-4 mr-2" />
-        {child.label}
-      </DropdownMenuItem>
-    ))}
-  </DropdownMenuContent>
-</DropdownMenu>
-```
-
-### 3.2 Ajustar Estado Ativo
-
-O indicador de ativo deve aparecer no item pai quando qualquer rota filha estiver ativa:
-- `/content-lab/sprints` → "Planejamento" ativo
-- `/content-lab/ideas` → "Conteudos" ativo
-- `/content-lab/frameworks` → "Conteudos" ativo
-
-### 3.3 Adicionar Indicador de Ativo nos Subitens
-
-Dentro do dropdown, o subitem ativo deve ter destaque visual (texto primary ou background sutil).
+- `text-muted-foreground` → Cor sutil (nao compete com CTA principal)
+- `hover:text-foreground` → Destaque no hover
+- `hover:underline` → Indicador visual de link clicavel
+- `text-sm` → Tamanho discreto
 
 ---
 
-## 4. Componentes Shadcn Utilizados
+## 7. Estados do Usuario Apos Skip
 
-| Componente | Uso |
-|------------|-----|
-| DropdownMenu | Container do dropdown |
-| DropdownMenuTrigger | Botao que abre o dropdown |
-| DropdownMenuContent | Container dos itens |
-| DropdownMenuItem | Cada subitem clicavel |
+| Campo | Valor |
+|-------|-------|
+| `name` | Valor preenchido no Step 1 |
+| `onboardingStatus` | `'in_progress'` |
+| `onboardingStep` | Step atual no momento do skip |
 
-Todos ja estao importados no arquivo.
-
----
-
-## 5. Estilizacao
-
-Seguindo o Visual Dictionary existente:
-
-- `bg-popover` → Background do dropdown (ja definido no componente)
-- `border-border` → Borda do dropdown
-- `text-foreground` → Texto dos itens
-- `text-primary` → Subitem ativo
-- `hover:bg-accent` → Hover nos itens
-- `z-50` → Z-index alto para garantir visibilidade
+Isso garante que:
+- O card de progresso aparece no dashboard
+- O usuario pode retomar de onde parou
+- O badge de status mostra "Em andamento" (amber)
 
 ---
 
-## 6. Detalhes Tecnicos
-
-### Renderizacao Condicional no Desktop
-
-```tsx
-<nav className="hidden lg:flex items-center gap-1">
-  {menuItems.map((item) => {
-    const Icon = item.icon;
-    const isActive = activeMenuItem === item.id;
-    
-    // Se o item tem children, renderiza dropdown
-    if (item.children && item.children.length > 0) {
-      return (
-        <DropdownMenu key={item.id}>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
-                'hover:text-foreground/80',
-                isActive ? 'text-foreground' : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
-              <ChevronDown className="h-3 w-3 ml-1" />
-              {isActive && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="min-w-[140px]">
-            {item.children.map((child) => {
-              const ChildIcon = child.icon;
-              const isChildActive = location.pathname === child.route;
-              return (
-                <DropdownMenuItem
-                  key={child.id}
-                  onClick={() => navigate(child.route)}
-                  className={cn(
-                    'cursor-pointer',
-                    isChildActive && 'text-primary'
-                  )}
-                >
-                  <ChildIcon className="h-4 w-4 mr-2" />
-                  {child.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-    
-    // Se nao tem children, renderiza botao simples
-    return (
-      <button
-        key={item.id}
-        onClick={() => handleMenuItemClick(item.id)}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
-          'hover:text-foreground/80',
-          isActive ? 'text-foreground' : 'text-muted-foreground'
-        )}
-      >
-        <Icon className="h-4 w-4" />
-        <span>{item.label}</span>
-        {isActive && (
-          <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
-        )}
-      </button>
-    );
-  })}
-</nav>
-```
-
----
-
-## 7. Comportamento
-
-| Acao | Resultado |
-|------|-----------|
-| Hover em "Planejamento" | Cursor pointer, texto claro |
-| Click em "Planejamento" | Abre dropdown com "Sprints" |
-| Click em "Sprints" | Navega para `/content-lab/sprints`, fecha dropdown |
-| Hover em "Conteudos" | Cursor pointer, texto claro |
-| Click em "Conteudos" | Abre dropdown com "Ideias" e "Frameworks" |
-| Click em "Ideias" | Navega para `/content-lab/ideas`, fecha dropdown |
-| Click em "Frameworks" | Navega para `/content-lab/frameworks`, fecha dropdown |
-
----
-
-## 8. Responsividade
-
-| Breakpoint | Comportamento |
-|------------|---------------|
-| Desktop (lg+) | Dropdowns horizontais na top bar |
-| Mobile/Tablet | Drawer lateral com subitens aninhados (ja implementado) |
-
----
-
-## 9. Arquivo a Modificar
+## 8. Arquivo a Modificar
 
 | Arquivo | Modificacao |
 |---------|-------------|
-| `src/components/layout/TopNavigation.tsx` | Atualizar renderizacao do menu desktop para usar dropdowns em itens com children |
+| `src/pages/Onboarding.tsx` | Adicionar funcao `handleSkipOnboarding` e link de skip |
 
 ---
 
-## 10. Checklist de Entrega
+## 9. Detalhes Tecnicos
 
-- [ ] Modificar renderizacao do menu desktop para dropdowns condicionais
-- [ ] Adicionar ChevronDown nos itens com children
-- [ ] Estilizar subitens ativos dentro do dropdown
-- [ ] Manter indicador de ativo no item pai
-- [ ] Testar navegacao para todas as rotas
-- [ ] Verificar z-index e posicionamento do dropdown
+### Codigo Completo da Modificacao
+
+```tsx
+// Nova funcao de skip
+const handleSkipOnboarding = () => {
+  setUser((prev) => ({
+    ...prev,
+    name: formData.name,
+    onboardingStatus: 'in_progress',
+    onboardingStep: currentStep,
+  }));
+  
+  navigate('/dashboard');
+};
+
+// No JSX, substituir o paragrafo de "Passo X de Y" por:
+<div className="flex flex-col items-center gap-2 mt-4">
+  <p className="text-xs text-muted-foreground">
+    Passo {currentStep} de {stepConfig.length}
+  </p>
+  
+  {formData.name.trim().length >= 2 && (
+    <button
+      onClick={handleSkipOnboarding}
+      className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+    >
+      Pular e ir para o dashboard
+    </button>
+  )}
+</div>
+```
+
+---
+
+## 10. Comportamento UX
+
+| Acao | Resultado |
+|------|-----------|
+| Usuario preenche nome no Step 1 | Link de skip aparece |
+| Usuario avanca para Step 2+ | Link de skip continua visivel |
+| Usuario clica no skip | Vai para dashboard com dados salvos |
+| Usuario acessa dashboard | Ve card de progresso para retomar |
+
+---
+
+## 11. Checklist de Entrega
+
+- [ ] Adicionar funcao `handleSkipOnboarding`
+- [ ] Adicionar condicional para exibir link de skip
+- [ ] Estilizar link conforme design system
+- [ ] Testar que skip preserva dados do nome
+- [ ] Testar que card de progresso aparece no dashboard
+- [ ] Testar que usuario pode retomar onboarding
