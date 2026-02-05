@@ -1,4 +1,5 @@
- import { useState } from 'react';
+ import { useState, useEffect } from 'react';
+ import { useNavigate, useLocation } from 'react-router-dom';
  import { Activity, Target, Calendar, FileText, BarChart2, Menu, X, ChevronDown, User, Settings, HelpCircle, LogOut } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
@@ -25,28 +26,48 @@
    id: string;
    label: string;
    icon: React.ElementType;
+   route: string;
  }
  
- // Menu items configuration (visual only, no routes)
+ // Menu items configuration with routes
  const menuItems: MenuItem[] = [
-   { id: 'diagnostico', label: 'Diagnóstico', icon: Activity },
-   { id: 'estrategia', label: 'Estratégia', icon: Target },
-   { id: 'planejamento', label: 'Planejamento', icon: Calendar },
-   { id: 'conteudos', label: 'Conteúdos', icon: FileText },
-   { id: 'insights', label: 'Insights', icon: BarChart2 },
+   { id: 'diagnostico', label: 'Diagnóstico', icon: Activity, route: '/dashboard' },
+   { id: 'estrategia', label: 'Estratégia', icon: Target, route: '/strategy' },
+   { id: 'planejamento', label: 'Planejamento', icon: Calendar, route: '/content-lab/sprints' },
+   { id: 'conteudos', label: 'Conteúdos', icon: FileText, route: '/content-lab/ideas' },
+   { id: 'insights', label: 'Insights', icon: BarChart2, route: '/content-lab/radar' },
  ];
  
- // Diagnostic status type
- type DiagnosticStatus = 'em_andamento' | 'concluido';
+ // Route to menu item mapping
+ const routeToMenuItem: Record<string, string> = {
+   '/dashboard': 'diagnostico',
+   '/strategy': 'estrategia',
+   '/content-lab/sprints': 'planejamento',
+   '/content-lab/ideas': 'conteudos',
+   '/content-lab/frameworks': 'conteudos',
+   '/content-lab/radar': 'insights',
+ };
  
  export function TopNavigation() {
    const { user, setIsAuthenticated } = useApp();
+   const navigate = useNavigate();
+   const location = useLocation();
    
-   // Local mock state for active menu item
-   const [activeMenuItem, setActiveMenuItem] = useState<string>('diagnostico');
+   // Derive active menu item from current route
+   const [activeMenuItem, setActiveMenuItem] = useState<string>(() => {
+     return routeToMenuItem[location.pathname] || 'diagnostico';
+   });
    
-   // Local mock state for diagnostic status
-   const [diagnosticStatus] = useState<DiagnosticStatus>('em_andamento');
+   // Update active menu item when route changes
+   useEffect(() => {
+     const menuItem = routeToMenuItem[location.pathname];
+     if (menuItem) {
+       setActiveMenuItem(menuItem);
+     }
+   }, [location.pathname]);
+   
+   // Derive diagnostic status from user context
+   const diagnosticStatus = user.onboardingStatus === 'completed' ? 'concluido' : 'em_andamento';
    
    // Mobile drawer state
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -61,10 +82,14 @@
        .slice(0, 2);
    };
    
-   // Handle menu item click (visual state only)
+   // Handle menu item click with navigation
    const handleMenuItemClick = (itemId: string) => {
      setActiveMenuItem(itemId);
      setMobileMenuOpen(false);
+     const item = menuItems.find((m) => m.id === itemId);
+     if (item) {
+       navigate(item.route);
+     }
    };
    
    // Handle logout (visual only)
