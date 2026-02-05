@@ -1041,9 +1041,10 @@
                  <Plus className="h-4 w-4 mr-2" />
                  Adicionar Conteúdo
                </Button>
-               <Button variant="outline">
+               <Button variant="outline" disabled={!aiGate.allowed}>
                  <Sparkles className="h-4 w-4 mr-2" />
                  Gerar Sugestões IA
+                 {!aiGate.allowed && <PlanBadge requiredPlan="pro" />}
                </Button>
              </div>
              <div className="flex items-center gap-2">
