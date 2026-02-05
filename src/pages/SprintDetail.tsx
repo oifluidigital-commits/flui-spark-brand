@@ -1219,6 +1219,7 @@
            }}
            content={editingContent}
            onSave={handleSaveContent}
+           aiAllowed={aiGate.allowed}
          />
        </TooltipProvider>
      </MainLayout>
