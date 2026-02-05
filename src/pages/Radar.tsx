@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,7 @@ import {
   Zap,
   Clock,
    Lightbulb,
+   RefreshCw,
 } from 'lucide-react';
  import { useNavigate } from 'react-router-dom';
 import { TrendRelevance } from '@/types';
@@ -27,6 +27,9 @@ import { formatDatePTBR } from '@/data/mockData';
 import { cn } from '@/lib/utils';
  import { useGate } from '@/hooks/useGate';
  import { UpgradePrompt } from '@/components/gates/UpgradePrompt';
+ import { useTrends } from '@/hooks/useTrends';
+ import { TrendSkeleton, StatsSkeleton } from '@/components/radar/TrendSkeleton';
+ import { EmptyTrends } from '@/components/radar/EmptyTrends';
 
 const relevanceColors: Record<TrendRelevance, string> = {
   high: 'bg-destructive text-destructive-foreground',
@@ -41,7 +44,7 @@ const relevanceLabels: Record<TrendRelevance, string> = {
 };
 
 export default function Radar() {
-  const { trends } = useApp();
+   const { trends, isLoading, isRefreshing, refreshTrends, lastUpdated } = useTrends();
    const navigate = useNavigate();
    const radarGate = useGate('access-radar');
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,17 +74,23 @@ export default function Radar() {
      );
    }
  
-  const filteredTrends = trends.filter((trend) => {
+   const filteredTrends = useMemo(() => trends.filter((trend) => {
     const matchesSearch = trend.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       trend.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRelevance = relevanceFilter === 'all' || trend.relevance === relevanceFilter;
     return matchesSearch && matchesRelevance;
-  });
+   }), [trends, searchQuery, relevanceFilter]);
   
-  const sortedTrends = [...filteredTrends].sort((a, b) => {
+   const sortedTrends = useMemo(() => [...filteredTrends].sort((a, b) => {
     const order: Record<TrendRelevance, number> = { high: 0, medium: 1, low: 2 };
     return order[a.relevance] - order[b.relevance];
-  });
+   }), [filteredTrends]);
+   
+   const statsData = useMemo(() => ({
+     high: trends.filter((t) => t.relevance === 'high').length,
+     medium: trends.filter((t) => t.relevance === 'medium').length,
+     total: trends.length,
+   }), [trends]);
   
   return (
     <MainLayout>
@@ -91,59 +100,78 @@ export default function Radar() {
             <h2 className="text-2xl font-bold">Radar</h2>
             <p className="text-muted-foreground">
               Tendências e oportunidades de conteúdo
+               {lastUpdated && (
+                 <span className="ml-2 text-xs">
+                   · Atualizado em {formatDatePTBR(lastUpdated.toISOString())}
+                 </span>
+               )}
             </p>
           </div>
-          <Button variant="outline">
-            <TrendingUp className="h-4 w-4 mr-2" />
+           <Button 
+             variant="outline" 
+             onClick={refreshTrends}
+             disabled={isLoading || isRefreshing}
+           >
+             <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
             Atualizar Radar
           </Button>
         </div>
         
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-destructive">
-                    {trends.filter((t) => t.relevance === 'high').length}
+           {isLoading ? (
+             <>
+               <StatsSkeleton />
+               <StatsSkeleton />
+               <StatsSkeleton />
+             </>
+           ) : (
+             <>
+               <Card className="border-border">
+                 <CardContent className="pt-6">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <div className="text-2xl font-bold text-destructive">
+                         {statsData.high}
+                       </div>
+                       <div className="text-sm text-muted-foreground">Alta Relevância</div>
+                     </div>
+                     <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                       <Zap className="h-5 w-5 text-destructive" />
+                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Alta Relevância</div>
-                </div>
-                <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-warning">
-                    {trends.filter((t) => t.relevance === 'medium').length}
+                 </CardContent>
+               </Card>
+               <Card className="border-border">
+                 <CardContent className="pt-6">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <div className="text-2xl font-bold text-warning">
+                         {statsData.medium}
+                       </div>
+                       <div className="text-sm text-muted-foreground">Média Relevância</div>
+                     </div>
+                     <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                       <TrendingUp className="h-5 w-5 text-warning" />
+                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Média Relevância</div>
-                </div>
-                <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">{trends.length}</div>
-                  <div className="text-sm text-muted-foreground">Total de Tendências</div>
-                </div>
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                 </CardContent>
+               </Card>
+               <Card className="border-border">
+                 <CardContent className="pt-6">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <div className="text-2xl font-bold">{statsData.total}</div>
+                       <div className="text-sm text-muted-foreground">Total de Tendências</div>
+                     </div>
+                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                       <TrendingUp className="h-5 w-5 text-primary" />
+                     </div>
+                   </div>
+                 </CardContent>
+               </Card>
+             </>
+           )}
         </div>
         
         {/* Filters */}
@@ -172,7 +200,20 @@ export default function Radar() {
         </div>
         
         {/* Trends List */}
-        <div className="space-y-4">
+         <div className={cn("space-y-4", isRefreshing && "opacity-50 pointer-events-none")}>
+           {isLoading ? (
+             <>
+               <TrendSkeleton />
+               <TrendSkeleton />
+               <TrendSkeleton />
+             </>
+           ) : trends.length === 0 ? (
+             <EmptyTrends onDiscover={refreshTrends} isLoading={isRefreshing} />
+           ) : sortedTrends.length === 0 ? (
+             <div className="text-center py-12">
+               <p className="text-muted-foreground">Nenhuma tendência encontrada para os filtros selecionados</p>
+             </div>
+           ) : (
           {sortedTrends.map((trend) => (
             <Card
               key={trend.id}
@@ -241,13 +282,8 @@ export default function Radar() {
               </CardContent>
             </Card>
           ))}
+           )}
         </div>
-        
-        {sortedTrends.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Nenhuma tendência encontrada</p>
-          </div>
-        )}
       </div>
     </MainLayout>
   );
