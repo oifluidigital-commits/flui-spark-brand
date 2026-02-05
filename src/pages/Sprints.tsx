@@ -9,14 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import {
   Select,
   SelectContent,
@@ -112,15 +112,6 @@ const getScoreDetails = (sprintId: string) => {
   return details[sprintId] || { strategyAlignment: 0, publishConsistency: 0, audienceAlignment: 0, formatDiversity: 0 };
 };
 
-// Sprint types for wizard
-const sprintTypes = [
-  { id: 'authority', label: 'Autoridade', description: 'Demonstrar expertise' },
-  { id: 'educational', label: 'Educacional', description: 'Ensinar conceitos' },
-  { id: 'launch', label: 'Lançamento', description: 'Campanha de vendas' },
-  { id: 'relationship', label: 'Relacionamento', description: 'Conexão com audiência' },
-  { id: 'conversion', label: 'Conversão', description: 'Gerar vendas diretas' },
-];
-
 // Content formats for wizard
 const contentFormats = [
   { id: 'post', label: 'Post' },
@@ -132,13 +123,63 @@ const contentFormats = [
   { id: 'article', label: 'Artigo' },
 ];
 
-// Objective options for wizard
-const objectiveOptions = [
-  { id: 'build_authority', label: 'Construir autoridade no tema' },
-  { id: 'educate_audience', label: 'Educar minha audiência' },
-  { id: 'launch_product', label: 'Lançar produto/serviço' },
-  { id: 'strengthen_relationship', label: 'Fortalecer relacionamento' },
-  { id: 'generate_conversions', label: 'Gerar conversões' },
+// Content Frameworks
+interface ContentFramework {
+  id: string;
+  name: string;
+  description: string;
+  bestUse: string;
+}
+
+const contentFrameworks: ContentFramework[] = [
+  {
+    id: 'aida',
+    name: 'AIDA',
+    description: 'Atenção → Interesse → Desejo → Ação',
+    bestUse: 'Ideal para conteúdos de conversão e vendas'
+  },
+  {
+    id: 'pas',
+    name: 'PAS',
+    description: 'Problema → Agitação → Solução',
+    bestUse: 'Perfeito para identificar dores e apresentar soluções'
+  },
+  {
+    id: 'storytelling',
+    name: 'Storytelling',
+    description: 'Narrativa com início, meio e fim',
+    bestUse: 'Conexão emocional e memorabilidade'
+  },
+  {
+    id: 'bab',
+    name: 'Before / After / Bridge',
+    description: 'Antes → Depois → Como chegar lá',
+    bestUse: 'Mostrar transformação e resultados'
+  },
+  {
+    id: '4ps',
+    name: '4Ps',
+    description: 'Promessa → Prova → Proposta → Push',
+    bestUse: 'Estrutura persuasiva para vendas'
+  },
+  {
+    id: 'hvc',
+    name: 'Hook → Value → CTA',
+    description: 'Gancho → Entrega de valor → Chamada para ação',
+    bestUse: 'Formato direto para redes sociais'
+  },
+  {
+    id: 'educational',
+    name: 'Educacional Estruturado',
+    description: 'Contexto → Conceito → Exemplos → Aplicação',
+    bestUse: 'Ensinar conceitos complexos de forma clara'
+  },
+  {
+    id: 'authority',
+    name: 'Autoridade',
+    description: 'Opinião → Evidência → Insight',
+    bestUse: 'Posicionamento como referência no tema'
+  },
 ];
 
 // Suggested content type
@@ -150,6 +191,7 @@ interface SuggestedContent {
   strategicObjective: string;
   hook: string;
   suggestedCta: string;
+  framework: string;
 }
 
 // Reference types
@@ -277,6 +319,10 @@ export default function Sprints() {
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [isWizardMode, setIsWizardMode] = useState(false);
+  const [contentDetailSheet, setContentDetailSheet] = useState<{
+    isOpen: boolean;
+    contentId: string | null;
+  }>({ isOpen: false, contentId: null });
 
   const [formData, setFormData] = useState({
     title: '',
@@ -290,9 +336,8 @@ export default function Sprints() {
   });
 
   const [wizardData, setWizardData] = useState({
-    objective: '',
+    objective: '', // Now a free-text field
     pillarId: '',
-    sprintType: '',
     startDate: '',
     endDate: '',
     contentsPlanned: 8,
@@ -322,9 +367,9 @@ export default function Sprints() {
   // Calculate estimated initial score based on wizard data
   const estimatedScore = useMemo(() => {
     let score = 0;
-    if (wizardData.objective) score += 20;
+    if (wizardData.objective.trim().length >= 10) score += 20;
     if (wizardData.pillarId) score += 20;
-    if (wizardData.sprintType) score += 15;
+    score += 15; // Base score since sprintType removed
     if (wizardData.formats.length >= 2) score += 15;
     if (wizardData.formats.length >= 3) score += 10;
     if (wizardData.contentsPlanned >= 4 && wizardData.contentsPlanned <= 12) score += 10;
@@ -371,7 +416,6 @@ export default function Sprints() {
       setWizardData({
         objective: '',
         pillarId: '',
-        sprintType: '',
         startDate: '',
         endDate: '',
         contentsPlanned: 8,
@@ -392,13 +436,12 @@ export default function Sprints() {
     if (editingSprint) {
       updateSprint(editingSprint.id, formData);
     } else {
-      const sprintTypeLabel = sprintTypes.find(t => t.id === wizardData.sprintType)?.label || '';
       const pillar = mockPillars.find(p => p.id === wizardData.pillarId);
       const newSprint: Sprint = {
         id: `sprint-${Date.now()}`,
         title: wizardData.title,
         description: wizardData.description,
-        theme: sprintTypeLabel,
+        theme: wizardData.objective.slice(0, 50),
         status: 'draft' as SprintStatus,
         startDate: wizardData.startDate,
         endDate: wizardData.endDate,
@@ -469,6 +512,7 @@ export default function Sprints() {
           : 'Converter seguidores em leads/clientes',
         hook: hooks[index % hooks.length],
         suggestedCta: ctas[index % ctas.length],
+        framework: '', // No framework initially - user must define
       };
     };
     
@@ -502,11 +546,12 @@ export default function Sprints() {
   };
   const prevStep = () => setWizardStep((prev) => Math.max(prev - 1, 1));
 
-  const canProceedStep1 = wizardData.objective && wizardData.pillarId && wizardData.sprintType;
+  const canProceedStep1 = wizardData.objective.trim().length >= 10 && wizardData.pillarId;
   const canProceedStep2 = wizardData.startDate && wizardData.endDate && wizardData.contentsPlanned >= 1;
   const canProceedStep3 = wizardData.formats.length >= 1;
   const canProceedStep6 = wizardData.approvedContents.length >= 1;
-  const canCreateSprint = wizardData.title.trim().length >= 2;
+  const allContentsHaveFramework = wizardData.approvedContents.every(c => c.framework);
+  const canCreateSprint = wizardData.title.trim().length >= 2 && allContentsHaveFramework;
 
   const toggleFormat = (formatId: string) => {
     setWizardData((prev) => ({
@@ -589,11 +634,25 @@ export default function Sprints() {
       strategicObjective: 'Defina o objetivo estratégico',
       hook: 'Adicione um gancho',
       suggestedCta: 'Adicione um CTA',
+      framework: '',
     };
     setWizardData(prev => ({
       ...prev,
       approvedContents: [...prev.approvedContents, newContent]
     }));
+  };
+
+  // Content detail sheet handlers
+  const openContentDetailSheet = (contentId: string) => {
+    setContentDetailSheet({ isOpen: true, contentId });
+  };
+
+  const closeContentDetailSheet = () => {
+    setContentDetailSheet({ isOpen: false, contentId: null });
+  };
+
+  const getFrameworkLabel = (frameworkId: string) => {
+    return contentFrameworks.find(f => f.id === frameworkId)?.name || frameworkId;
   };
 
   // Wizard step title helper
@@ -628,21 +687,16 @@ export default function Sprints() {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Qual é o objetivo principal desta sprint?</Label>
-        <Select
+        <Textarea
           value={wizardData.objective}
-          onValueChange={(value) => setWizardData({ ...wizardData, objective: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o objetivo" />
-          </SelectTrigger>
-          <SelectContent>
-            {objectiveOptions.map((opt) => (
-              <SelectItem key={opt.id} value={opt.id}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(e) => setWizardData({ ...wizardData, objective: e.target.value })}
+          placeholder="Ex: Consolidar autoridade como referência em Produto / Educar o público sobre fundamentos de marketing / Preparar audiência para lançamento de um curso"
+          rows={3}
+          className="resize-none"
+        />
+        <p className="text-xs text-muted-foreground">
+          Mínimo de 10 caracteres ({wizardData.objective.trim().length}/10)
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -670,27 +724,6 @@ export default function Sprints() {
               <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                 {pillar.description}
               </p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <Label>Tipo de Sprint</Label>
-        <div className="flex flex-wrap gap-2">
-          {sprintTypes.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              onClick={() => setWizardData({ ...wizardData, sprintType: type.id })}
-              className={cn(
-                'px-4 py-2 rounded-full text-sm border transition-all',
-                wizardData.sprintType === type.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              {type.label}
             </button>
           ))}
         </div>
@@ -999,7 +1032,6 @@ export default function Sprints() {
   // Step 5 - AI Suggestions
   const renderWizardStep5Suggestions = () => {
     const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
-    const selectedObjective = objectiveOptions.find((o) => o.id === wizardData.objective);
 
     const intentionLabel = (intention: string) => {
       switch (intention) {
@@ -1015,7 +1047,13 @@ export default function Sprints() {
         {/* AI Notice */}
         <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm">A IA está sugerindo, não decidindo. Você revisará na próxima etapa.</span>
+          <div className="text-sm">
+            <span className="font-medium">A IA está sugerindo, não decidindo.</span>
+            <br />
+            <span className="text-muted-foreground">
+              Baseado em: "{wizardData.objective.slice(0, 50)}{wizardData.objective.length > 50 ? '...' : ''}"
+            </span>
+          </div>
         </div>
 
         {/* Context analyzed */}
@@ -1024,7 +1062,7 @@ export default function Sprints() {
           <div className="text-xs space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">→ Objetivo:</span>
-              <span>{selectedObjective?.label || '-'}</span>
+              <span className="truncate max-w-[250px]">{wizardData.objective || '-'}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">→ Pilar:</span>
@@ -1081,6 +1119,10 @@ export default function Sprints() {
       }
     };
 
+    const selectedContent = contentDetailSheet.contentId 
+      ? wizardData.approvedContents.find(c => c.id === contentDetailSheet.contentId)
+      : null;
+
     return (
       <div className="space-y-4">
         {/* Human control notice */}
@@ -1096,7 +1138,7 @@ export default function Sprints() {
         </Button>
 
         {/* Editable content cards */}
-        <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
           {wizardData.approvedContents.map((content, index) => (
             <div key={content.id} className="p-3 rounded-lg border border-border bg-card space-y-3">
               <div className="flex items-center gap-2">
@@ -1143,40 +1185,38 @@ export default function Sprints() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Input
-                  placeholder="Gancho"
-                  value={content.hook}
-                  onChange={(e) => updateApprovedContent(content.id, { hook: e.target.value })}
-                  className="h-8 text-xs"
-                />
-                <Input
-                  placeholder="CTA sugerido"
-                  value={content.suggestedCta}
-                  onChange={(e) => updateApprovedContent(content.id, { suggestedCta: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => duplicateApprovedContent(content.id)}
-                  className="h-7 text-xs"
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openContentDetailSheet(content.id)}
+                  className={cn(
+                    "h-7 text-xs",
+                    !content.framework && "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                  )}
                 >
-                  <Copy className="h-3 w-3 mr-1" />
-                  Duplicar
+                  {content.framework
+                    ? `Framework: ${getFrameworkLabel(content.framework)}`
+                    : 'Selecionar Framework'}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => removeApprovedContent(content.id)}
-                  className="h-7 text-xs text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Remover
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => duplicateApprovedContent(content.id)}
+                    className="h-7 text-xs px-2"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeApprovedContent(content.id)}
+                    className="h-7 text-xs text-destructive hover:text-destructive px-2"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -1188,6 +1228,121 @@ export default function Sprints() {
             <p className="text-xs text-muted-foreground mt-1">Adicione conteúdos manualmente ou volte para gerar sugestões</p>
           </div>
         )}
+
+        {/* Content Detail Sheet */}
+        <Sheet open={contentDetailSheet.isOpen} onOpenChange={(open) => !open && closeContentDetailSheet()}>
+          <SheetContent side="right" className="w-[480px] sm:max-w-[480px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Detalhamento do Conteúdo</SheetTitle>
+              <SheetDescription>Configure todos os detalhes antes da geração</SheetDescription>
+            </SheetHeader>
+
+            {selectedContent && (
+              <div className="py-6 space-y-6">
+                {/* Editable fields */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Pauta / Tema</Label>
+                    <Input
+                      value={selectedContent.theme}
+                      onChange={(e) => updateApprovedContent(selectedContent.id, { theme: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Formato</Label>
+                      <Select
+                        value={selectedContent.format}
+                        onValueChange={(value) => updateApprovedContent(selectedContent.id, { format: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contentFormats.map((format) => (
+                            <SelectItem key={format.id} value={format.id}>
+                              {format.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Intenção</Label>
+                      <Select
+                        value={selectedContent.intention}
+                        onValueChange={(value) => updateApprovedContent(selectedContent.id, {
+                          intention: value as 'educate' | 'engage' | 'convert'
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="educate">Educar</SelectItem>
+                          <SelectItem value="engage">Engajar</SelectItem>
+                          <SelectItem value="convert">Converter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Gancho Principal</Label>
+                    <Textarea
+                      value={selectedContent.hook}
+                      onChange={(e) => updateApprovedContent(selectedContent.id, { hook: e.target.value })}
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>CTA</Label>
+                    <Input
+                      value={selectedContent.suggestedCta}
+                      onChange={(e) => updateApprovedContent(selectedContent.id, { suggestedCta: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Framework Selection - Required */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    Framework de Conteúdo
+                    <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
+                  </Label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto">
+                    {contentFrameworks.map((framework) => (
+                      <button
+                        key={framework.id}
+                        type="button"
+                        onClick={() => updateApprovedContent(selectedContent.id, { framework: framework.id })}
+                        className={cn(
+                          'p-3 rounded-lg border text-left transition-all',
+                          selectedContent.framework === framework.id
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        )}
+                      >
+                        <div className="font-medium text-sm">{framework.name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
+                        <div className="text-xs text-primary/80 mt-2">{framework.bestUse}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <SheetFooter className="mt-4">
+              <Button onClick={closeContentDetailSheet} className="w-full">
+                Salvar Detalhes
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
     );
   };
@@ -1195,8 +1350,6 @@ export default function Sprints() {
   // Step 7 - Final Confirmation
   const renderWizardStep7Confirmation = () => {
     const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
-    const selectedType = sprintTypes.find((t) => t.id === wizardData.sprintType);
-    const selectedObjective = objectiveOptions.find((o) => o.id === wizardData.objective);
 
     const intentionLabel = (intention: string) => {
       switch (intention) {
@@ -1207,15 +1360,17 @@ export default function Sprints() {
       }
     };
 
+    const contentsWithoutFramework = wizardData.approvedContents.filter(c => !c.framework);
+
     return (
       <div className="space-y-4">
         {/* Strategic Summary */}
         <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
           <p className="font-medium text-sm">Resumo Estratégico</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-4">
               <span className="text-muted-foreground">Objetivo:</span>
-              <span>{selectedObjective?.label || '-'}</span>
+              <span className="text-right max-w-[60%]">{wizardData.objective || '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pilar:</span>
@@ -1252,6 +1407,9 @@ export default function Sprints() {
               <div key={content.id} className="flex items-center gap-2 text-sm">
                 <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                 <span className="truncate flex-1">{content.theme}</span>
+                <Badge variant="outline" className="text-xs shrink-0">
+                  {content.framework ? getFrameworkLabel(content.framework) : 'Sem framework'}
+                </Badge>
                 <Badge variant="secondary" className="text-xs shrink-0">
                   {contentFormats.find(f => f.id === content.format)?.label || content.format}
                 </Badge>
@@ -1259,6 +1417,16 @@ export default function Sprints() {
             ))}
           </div>
         </div>
+
+        {/* Warning if contents missing framework */}
+        {contentsWithoutFramework.length > 0 && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              {contentsWithoutFramework.length} conteúdo(s) sem framework. Volte e selecione um framework para cada conteúdo.
+            </span>
+          </div>
+        )}
 
         {/* Title and description */}
         <div className="space-y-3">
@@ -1407,26 +1575,26 @@ export default function Sprints() {
               Organize seu conteúdo em ciclos de produção
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+          <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <SheetTrigger asChild>
               <Button onClick={() => handleOpenDialog()}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Sprint
               </Button>
-            </DialogTrigger>
-              <DialogContent className="sm:max-w-[560px]">
-              <DialogHeader>
-                <DialogTitle>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[540px] sm:max-w-[540px] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>
                     {editingSprint
                       ? 'Editar Sprint'
                       : `Etapa ${wizardStep} de ${totalSteps} — ${getStepTitle(wizardStep)}`}
-                </DialogTitle>
-                <DialogDescription>
+                </SheetTitle>
+                <SheetDescription>
                     {editingSprint
                       ? 'Atualize as informações do sprint'
                       : getStepDescription(wizardStep)}
-                </DialogDescription>
-              </DialogHeader>
+                </SheetDescription>
+              </SheetHeader>
 
                 {editingSprint ? (
                   renderEditForm()
@@ -1442,7 +1610,7 @@ export default function Sprints() {
                   </div>
                 )}
 
-              <DialogFooter>
+              <SheetFooter className="flex-row gap-2 sm:justify-between">
                   {editingSprint ? (
                     <>
                       <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -1462,35 +1630,37 @@ export default function Sprints() {
                           Voltar
                         </Button>
                       )}
-                      {wizardStep === 4 && (
-                        <Button variant="ghost" onClick={nextStep}>
-                          Pular
-                        </Button>
-                      )}
-                      {wizardStep < totalSteps ? (
-                        <Button
-                          onClick={nextStep}
-                          disabled={
-                            (wizardStep === 1 && !canProceedStep1) ||
-                            (wizardStep === 2 && !canProceedStep2) ||
-                            (wizardStep === 3 && !canProceedStep3) ||
-                            (wizardStep === 6 && !canProceedStep6)
-                          }
-                        >
-                          {wizardStep === 5 ? 'Revisar Sugestões' : 'Próximo'}
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      ) : (
-                        <Button onClick={handleSave} disabled={!canCreateSprint}>
-                          <Check className="h-4 w-4 mr-1" />
-                          Confirmar Sprint
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {wizardStep === 4 && (
+                          <Button variant="ghost" onClick={nextStep}>
+                            Pular
+                          </Button>
+                        )}
+                        {wizardStep < totalSteps ? (
+                          <Button
+                            onClick={nextStep}
+                            disabled={
+                              (wizardStep === 1 && !canProceedStep1) ||
+                              (wizardStep === 2 && !canProceedStep2) ||
+                              (wizardStep === 3 && !canProceedStep3) ||
+                              (wizardStep === 6 && !canProceedStep6)
+                            }
+                          >
+                            {wizardStep === 5 ? 'Revisar Sugestões' : 'Próximo'}
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        ) : (
+                          <Button onClick={handleSave} disabled={!canCreateSprint}>
+                            <Check className="h-4 w-4 mr-1" />
+                            Confirmar Sprint
+                          </Button>
+                        )}
+                      </div>
                     </>
                   )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
 
         {/* Filters */}
