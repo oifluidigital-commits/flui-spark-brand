@@ -8,7 +8,9 @@
  import { Progress } from '@/components/ui/progress';
  import { StrategyLoadingState } from '@/components/strategy/StrategyLoadingState';
  import { StrategyBlockedState } from '@/components/strategy/StrategyBlockedState';
- import { mockStrategy } from '@/data/strategyData';
+  import { mockStrategy, Strategy } from '@/data/strategyData';
+  import { useStrategy } from '@/hooks/useStrategy';
+  import { toast } from 'sonner';
  import {
    ChevronRight,
    Users,
@@ -27,6 +29,7 @@
    FileText,
    CheckCircle2,
    Palette,
+    RefreshCw,
  } from 'lucide-react';
  
  // Icon mapping for content types
@@ -40,33 +43,104 @@
  
  export default function Strategy() {
    const navigate = useNavigate();
-   const { user } = useApp();
-   const [isLoading, setIsLoading] = useState(true);
+   const { user, diagnosticResult, strategy: cachedStrategy, setStrategy: setCachedStrategy } = useApp();
+   const { generateStrategy, isLoading: isGenerating, error } = useStrategy();
+   const [localStrategy, setLocalStrategy] = useState<Strategy | null>(null);
+   const [hasError, setHasError] = useState(false);
  
    // Check if diagnostic is completed (onboarding completed = diagnostic done)
    const diagnosticCompleted = user.onboardingStatus === 'completed';
  
-   // Simulate loading
+   // Determine strategy source
+   const strategy = localStrategy || cachedStrategy;
+ 
+   // Generate strategy when component mounts and diagnostic is available
    useEffect(() => {
-     if (diagnosticCompleted) {
-       const timer = setTimeout(() => {
-         setIsLoading(false);
-       }, 3000);
-       return () => clearTimeout(timer);
+     if (!diagnosticCompleted) return;
+     
+     // If we already have a strategy cached, use it
+     if (cachedStrategy) {
+       setLocalStrategy(cachedStrategy);
+       return;
      }
-   }, [diagnosticCompleted]);
+ 
+     // If we have a diagnostic result, generate strategy
+     if (diagnosticResult) {
+       const generate = async () => {
+         const result = await generateStrategy(diagnosticResult);
+         if (result) {
+           setLocalStrategy(result);
+           setCachedStrategy(result);
+         } else {
+           setHasError(true);
+         }
+       };
+       generate();
+     } else {
+       // No diagnostic result available, use mock for demo
+       setLocalStrategy(mockStrategy);
+     }
+   }, [diagnosticCompleted, diagnosticResult, cachedStrategy, generateStrategy, setCachedStrategy]);
+ 
+   const handleRetry = async () => {
+     if (!diagnosticResult) {
+       toast.error('Diagnóstico não encontrado. Complete o onboarding primeiro.');
+       return;
+     }
+     
+     setHasError(false);
+     const result = await generateStrategy(diagnosticResult);
+     if (result) {
+       setLocalStrategy(result);
+       setCachedStrategy(result);
+     } else {
+       setHasError(true);
+     }
+   };
  
    // Show blocked state if diagnostic not completed
    if (!diagnosticCompleted) {
      return <StrategyBlockedState />;
    }
  
-   // Show loading state
-   if (isLoading) {
+   // Show loading state while generating
+   if (isGenerating || (!strategy && !hasError)) {
      return <StrategyLoadingState />;
    }
  
-   const strategy = mockStrategy;
+   // Show error state with retry option
+   if (hasError || !strategy) {
+     return (
+       <MainLayout>
+         <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh]">
+           <div className="w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
+             <RefreshCw className="h-10 w-10 text-destructive" />
+           </div>
+           <h3 className="text-xl font-semibold text-foreground mb-2">
+             Erro ao gerar estratégia
+           </h3>
+           <p className="text-muted-foreground text-center mb-6 max-w-md">
+             {error || 'Ocorreu um erro inesperado. Por favor, tente novamente.'}
+           </p>
+           <div className="flex gap-3">
+             <Button variant="outline" onClick={() => navigate('/dashboard')}>
+               Voltar ao Dashboard
+             </Button>
+             <Button onClick={handleRetry} disabled={isGenerating}>
+               {isGenerating ? (
+                 <>
+                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                   Gerando...
+                 </>
+               ) : (
+                 'Tentar Novamente'
+               )}
+             </Button>
+           </div>
+         </div>
+       </MainLayout>
+     );
+   }
  
    return (
      <MainLayout>
