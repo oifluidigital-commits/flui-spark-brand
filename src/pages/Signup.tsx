@@ -9,39 +9,51 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
 // Validation schema
-const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, { message: 'Email é obrigatório' })
-    .email({ message: 'Email inválido' })
-    .max(255, { message: 'Email muito longo' }),
-  password: z
-    .string()
-    .min(1, { message: 'Senha é obrigatória' })
-    .min(6, { message: 'Senha deve ter no mínimo 6 caracteres' }),
-});
+const signupSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, { message: 'Nome deve ter no mínimo 2 caracteres' })
+      .max(100, { message: 'Nome muito longo' }),
+    email: z
+      .string()
+      .trim()
+      .min(1, { message: 'Email é obrigatório' })
+      .email({ message: 'Email inválido' })
+      .max(255, { message: 'Email muito longo' }),
+    password: z
+      .string()
+      .min(6, { message: 'Senha deve ter no mínimo 6 caracteres' }),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Senhas não conferem',
+    path: ['confirmPassword'],
+  });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type SignupFormData = z.infer<typeof signupSchema>;
 
-export default function Login() {
+export default function Signup() {
   const navigate = useNavigate();
-  const { signInWithEmail, signInWithGoogle, isAuthenticated, profile, isLoading, isInitialized } = useAuth();
+  const { signUp, signInWithGoogle, isAuthenticated, profile, isLoading, isInitialized } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     setError,
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
   });
 
   // Redirect if already authenticated
@@ -55,16 +67,17 @@ export default function Login() {
     }
   }, [isInitialized, isAuthenticated, profile, navigate]);
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: SignupFormData) => {
     setIsSubmitting(true);
 
-    const { error } = await signInWithEmail(data.email, data.password);
+    const { error, needsEmailConfirmation } = await signUp(data.email, data.password, data.name);
 
     if (error) {
       setIsSubmitting(false);
       
-      // Show error inline
-      if (error.message.includes('Email ou senha')) {
+      if (error.message.includes('já está cadastrado')) {
+        setError('email', { message: error.message });
+      } else if (error.message.includes('Senha')) {
         setError('password', { message: error.message });
       } else {
         setError('email', { message: error.message });
@@ -74,14 +87,20 @@ export default function Login() {
       return;
     }
 
-    // Success - onAuthStateChange will handle redirect
-    toast.success('Login realizado com sucesso!');
+    setIsSubmitting(false);
+
+    if (needsEmailConfirmation) {
+      setSubmittedEmail(data.email);
+      setShowConfirmation(true);
+    } else {
+      toast.success('Conta criada com sucesso!');
+      navigate('/onboarding');
+    }
   };
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     await signInWithGoogle();
-    // If we're still here (no redirect), an error occurred
     setIsGoogleLoading(false);
   };
 
@@ -96,17 +115,67 @@ export default function Login() {
     );
   }
 
+  // Show email confirmation message
+  if (showConfirmation) {
+    return (
+      <AuthLayout>
+        <Card className="border-border">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+            </div>
+            <CardTitle className="text-2xl">Verifique seu email</CardTitle>
+            <CardDescription className="mt-2">
+              Enviamos um link de confirmação para{' '}
+              <span className="font-medium text-foreground">{submittedEmail}</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Clique no link do email para ativar sua conta e começar a usar o Flui.
+            </p>
+            <div className="pt-4">
+              <Link to="/login">
+                <Button variant="outline" className="w-full">
+                  Voltar para o login
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout>
       <Card className="border-border">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
+          <CardTitle className="text-2xl">Criar conta</CardTitle>
           <CardDescription>
-            Entre na sua conta para continuar
+            Comece a planejar sua estratégia de conteúdo
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Seu nome"
+                  {...register('name')}
+                  className={`pl-10 ${errors.name ? 'border-destructive' : ''}`}
+                  disabled={isSubmitting || isGoogleLoading}
+                />
+              </div>
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -143,14 +212,32 @@ export default function Login() {
               )}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register('confirmPassword')}
+                  className={`pl-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                  disabled={isSubmitting || isGoogleLoading}
+                />
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+
             <Button type="submit" className="w-full" disabled={isSubmitting || isGoogleLoading}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Entrando...
+                  Criando conta...
                 </>
               ) : (
-                'Entrar'
+                'Criar conta'
               )}
             </Button>
           </form>
@@ -199,9 +286,9 @@ export default function Login() {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Não tem uma conta?{' '}
-            <Link to="/signup" className="text-primary hover:underline font-medium">
-              Criar conta
+            Já tem uma conta?{' '}
+            <Link to="/login" className="text-primary hover:underline font-medium">
+              Fazer login
             </Link>
           </p>
         </CardContent>
