@@ -875,10 +875,12 @@ export default function Sprints() {
   // Content detail sheet handlers
   const openContentDetailSheet = (contentId: string) => {
     setContentDetailSheet({ isOpen: true, contentId });
+    setShowFrameworkOptions(false);
   };
 
   const closeContentDetailSheet = () => {
     setContentDetailSheet({ isOpen: false, contentId: null });
+    setShowFrameworkOptions(false);
   };
 
   const getFrameworkLabel = (frameworkId: string) => {
