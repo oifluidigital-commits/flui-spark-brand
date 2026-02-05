@@ -19,7 +19,7 @@ import DiagnosticLoading from '@/components/onboarding/DiagnosticLoading';
 import DiagnosticResults from '@/components/onboarding/DiagnosticResults';
 
 // Data
-import { OnboardingFormData, initialFormData } from '@/data/onboardingData';
+ import { OnboardingFormData, DiagnosticResult, initialFormData } from '@/data/onboardingData';
 
 type OnboardingPhase = 'wizard' | 'loading' | 'results';
 
@@ -86,6 +86,7 @@ export default function Onboarding() {
      return user.onboardingStep >= 1 ? Math.min(user.onboardingStep, stepConfig.length) : 1;
    });
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
+   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
  
    // Update user's onboarding status when step changes
    useEffect(() => {
@@ -155,10 +156,15 @@ export default function Onboarding() {
     navigate('/dashboard');
   };
 
-  const handleDiagnosticComplete = () => {
+   const handleDiagnosticComplete = (result: DiagnosticResult) => {
+     setDiagnosticResult(result);
     setPhase('results');
   };
 
+   const handleDiagnosticError = () => {
+     setPhase('wizard');
+   };
+ 
   const handleFinishOnboarding = () => {
     // Update user with form data
     setUser((prev) => ({
@@ -177,18 +183,22 @@ export default function Onboarding() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          <DiagnosticLoading onComplete={handleDiagnosticComplete} />
+           <DiagnosticLoading 
+             formData={formData}
+             onComplete={handleDiagnosticComplete} 
+             onError={handleDiagnosticError}
+           />
         </div>
       </div>
     );
   }
 
   // Render results phase
-  if (phase === 'results') {
+   if (phase === 'results' && diagnosticResult) {
     return (
       <div className="min-h-screen bg-background py-8 px-4">
         <div className="w-full max-w-3xl mx-auto">
-          <DiagnosticResults onComplete={handleFinishOnboarding} />
+           <DiagnosticResults result={diagnosticResult} onComplete={handleFinishOnboarding} />
         </div>
       </div>
     );
