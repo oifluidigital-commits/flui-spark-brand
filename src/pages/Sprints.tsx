@@ -364,6 +364,8 @@ interface SuggestedContent {
   hook: string;
   suggestedCta: string;
   framework: string;
+  frameworkReason?: string;
+  frameworkBenefit?: string;
 }
 
 // Reference types
