@@ -23,6 +23,8 @@ import {
 import { TrendRelevance } from '@/types';
 import { formatDatePTBR } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+ import { useGate } from '@/hooks/useGate';
+ import { UpgradePrompt } from '@/components/gates/UpgradePrompt';
 
 const relevanceColors: Record<TrendRelevance, string> = {
   high: 'bg-destructive text-destructive-foreground',
@@ -38,9 +40,34 @@ const relevanceLabels: Record<TrendRelevance, string> = {
 
 export default function Radar() {
   const { trends } = useApp();
+   const radarGate = useGate('access-radar');
   const [searchQuery, setSearchQuery] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState<string>('all');
   
+   // If user doesn't have access to Radar, show upgrade prompt
+   if (!radarGate.allowed) {
+     return (
+       <MainLayout>
+         <div className="space-y-6">
+           <div>
+             <h2 className="text-2xl font-bold">Radar</h2>
+             <p className="text-muted-foreground">
+               Tendências e oportunidades de conteúdo
+             </p>
+           </div>
+           
+           <div className="max-w-md mx-auto mt-12">
+             <UpgradePrompt
+               reason={radarGate.reason}
+               requiredPlan="pro"
+               variant="card"
+             />
+           </div>
+         </div>
+       </MainLayout>
+     );
+   }
+ 
   const filteredTrends = trends.filter((trend) => {
     const matchesSearch = trend.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       trend.description.toLowerCase().includes(searchQuery.toLowerCase());
