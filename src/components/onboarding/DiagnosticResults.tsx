@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { mockDiagnosticResult, DiagnosticResult } from '@/data/onboardingData';
+ import { DiagnosticResult } from '@/data/onboardingData';
  import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -17,11 +17,11 @@ import {
 } from 'lucide-react';
 
 interface DiagnosticResultsProps {
+   result: DiagnosticResult;
   onComplete: () => void;
 }
 
-export default function DiagnosticResults({ onComplete }: DiagnosticResultsProps) {
-  const result = mockDiagnosticResult;
+ export default function DiagnosticResults({ result, onComplete }: DiagnosticResultsProps) {
    const navigate = useNavigate();
 
   return (
