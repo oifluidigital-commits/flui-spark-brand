@@ -1694,24 +1694,78 @@ export default function Sprints() {
     </div>
   );
 
+  // Archive handler
+  const handleArchive = (sprint: Sprint) => {
+    updateSprint(sprint.id, { status: 'archived' });
+  };
+
   return (
     <MainLayout>
       <TooltipProvider>
-        <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">Sprints</h2>
-            <p className="text-muted-foreground">
-              Organize seu conteúdo em ciclos de produção
-            </p>
-          </div>
-          <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <SheetTrigger asChild>
-              <Button onClick={() => handleOpenDialog()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Sprint
-              </Button>
-            </SheetTrigger>
+        <div className="space-y-6 bg-zinc-950 min-h-screen">
+          {/* Page Header */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-50">Sprints de Conteúdo</h2>
+              <p className="text-zinc-400">
+                Organize suas campanhas estratégicas e ciclos de produção
+              </p>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+              {/* Search */}
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                <Input
+                  placeholder="Buscar sprints..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-zinc-900 border-zinc-800"
+                />
+              </div>
+
+              {/* Tabs + Button */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                  <TabsList className="bg-zinc-900 border border-zinc-800">
+                    <TabsTrigger
+                      value="all"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Todas
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="active"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Ativas
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="draft"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Planejamento
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="completed"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Concluídas
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      onClick={() => handleOpenDialog()}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Sprint
+                    </Button>
+                  </SheetTrigger>
             <SheetContent side="right" className="w-[540px] sm:max-w-[540px] overflow-y-auto">
               <SheetHeader>
                 <SheetTitle>
