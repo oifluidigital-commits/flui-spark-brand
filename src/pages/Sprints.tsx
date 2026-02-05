@@ -2065,6 +2065,7 @@ export default function Sprints() {
                 onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
                 onDelete={deleteSprint}
+                 onViewDetails={handleViewDetails}
               />
             ))}
           </div>
