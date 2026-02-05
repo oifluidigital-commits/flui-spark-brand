@@ -51,7 +51,7 @@ function AppRoutes() {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
-       <Route path="/estrategia" element={<ProtectedRoute><Strategy /></ProtectedRoute>} />
+       <Route path="/strategy" element={<ProtectedRoute><Strategy /></ProtectedRoute>} />
       
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<NotFound />} />
