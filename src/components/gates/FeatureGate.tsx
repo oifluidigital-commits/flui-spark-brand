@@ -56,11 +56,11 @@
      return <>{fallback}</>;
    }
  
-   if (showUpgradePrompt && gateResult.action === 'upgrade') {
+   if (showUpgradePrompt && gateResult.action === 'upgrade' && gateResult.requiredPlan && gateResult.requiredPlan !== 'free') {
      return (
        <UpgradePrompt
          reason={gateResult.reason}
-         requiredPlan={gateResult.requiredPlan || 'pro'}
+         requiredPlan={gateResult.requiredPlan}
        />
      );
    }
