@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+ import { useState, useCallback, useEffect } from 'react';
+ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,11 +70,33 @@ const stepConfig = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { completeOnboarding, setUser } = useApp();
+   const [searchParams] = useSearchParams();
+   const { completeOnboarding, setUser, user } = useApp();
   
   const [phase, setPhase] = useState<OnboardingPhase>('wizard');
-  const [currentStep, setCurrentStep] = useState(1);
+   const [currentStep, setCurrentStep] = useState(() => {
+     const stepParam = searchParams.get('step');
+     if (stepParam) {
+       const parsedStep = parseInt(stepParam, 10);
+       if (!isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= stepConfig.length) {
+         return parsedStep;
+       }
+     }
+     // Fall back to user's current step if available
+     return user.onboardingStep >= 1 ? Math.min(user.onboardingStep, stepConfig.length) : 1;
+   });
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
+ 
+   // Update user's onboarding status when step changes
+   useEffect(() => {
+     if (phase === 'wizard' && currentStep >= 1) {
+       setUser((prev) => ({
+         ...prev,
+         onboardingStatus: prev.onboardingStatus === 'completed' ? 'completed' : 'in_progress',
+         onboardingStep: currentStep,
+       }));
+     }
+   }, [currentStep, phase, setUser]);
 
   const updateFormData = useCallback((updates: Partial<OnboardingFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
