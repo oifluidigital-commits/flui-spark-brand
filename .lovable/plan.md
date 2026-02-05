@@ -1,202 +1,273 @@
 
-# Plano: Integrar Onboarding com Edge Function generate-diagnostic
+
+# Plano: Pagina de Login com Autenticacao Real (Supabase)
 
 ## Objetivo
-Substituir a geracao mock de diagnostico por chamada real a edge function `generate-diagnostic`, persistindo os dados no banco e exibindo resultados reais gerados por IA.
+Construir uma pagina de login completa e funcional com autenticacao real usando Supabase Auth (Email/Password + Google OAuth), substituindo toda logica mock por integracao real com o backend.
 
 ---
 
 ## Arquitetura da Solucao
 
 ```text
-+-------------------+       +---------------------+       +------------------------+
-|   Onboarding.tsx  |  -->  |  DiagnosticLoading  |  -->  |  generate-diagnostic   |
-| (Coleta formData) |       | (Chama edge func)   |       |  (Edge Function)       |
-+-------------------+       +---------------------+       +------------------------+
-        |                           |                              |
-        v                           v                              v
-  - 7 steps wizard           - Fetch com retry            - Lovable AI Gateway
-  - Form validation          - Progress real              - gemini-3-flash-preview
-  - formData state           - Error handling             - Tool calling
-                                    |
-                                    v
-                          +---------------------+
-                          | DiagnosticResults   |
-                          | (Exibe resultado)   |
-                          +---------------------+
-                                    |
-                                    v
-                          +---------------------+
-                          | Tabela diagnostics  |
-                          | (Persistencia)      |
-                          +---------------------+
++------------------+       +-------------------+       +------------------+
+|   Login.tsx      |  -->  |  useAuth hook     |  -->  |  Supabase Auth   |
+| (UI + Forms)     |       | (Auth logic)      |       |  (Backend)       |
++------------------+       +-------------------+       +------------------+
+        |                         |                          |
+        v                         v                          v
+  - Email/Password        - signInWithPassword       - auth.users
+  - Google OAuth          - signInWithOAuth          - Session mgmt
+  - Error handling        - getSession               - JWT tokens
+  - Loading states        - onAuthStateChange        
+                                  |
+                                  v
+                          +------------------+
+                          |  profiles table  |
+                          | (User data)      |
+                          +------------------+
+                                  |
+                                  v
+                          +------------------+
+                          |   AppContext     |
+                          | (Global state)   |
+                          +------------------+
 ```
 
 ---
 
-## Componentes a Modificar
+## Componentes a Criar/Modificar
 
-### 1. Onboarding.tsx (MODIFICAR)
-**Arquivo:** `src/pages/Onboarding.tsx`
-
-Alteracoes:
-- Passar `formData` para `DiagnosticLoading` como prop
-- Receber `diagnosticResult` do loading para passar ao results
-- Adicionar estado para armazenar resultado do diagnostico
-- Gerenciar fluxo de erro (mostrar toast e permitir retry)
-
-```typescript
-// Novo estado
-const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
-
-// Prop para loading
-<DiagnosticLoading 
-  formData={formData}
-  onComplete={(result) => {
-    setDiagnosticResult(result);
-    setPhase('results');
-  }}
-  onError={() => setPhase('wizard')}
-/>
-```
-
-### 2. DiagnosticLoading.tsx (REFATORAR)
-**Arquivo:** `src/components/onboarding/DiagnosticLoading.tsx`
-
-Alteracoes:
-- Receber `formData` como prop
-- Chamar edge function `generate-diagnostic` via Supabase invoke
-- Exibir progresso baseado em tempo estimado (nao fake progress)
-- Tratar erros 429 (rate limit) e 402 (creditos)
-- Callback `onComplete` passa resultado real
-- Callback `onError` para retry
-
-```typescript
-interface DiagnosticLoadingProps {
-  formData: OnboardingFormData;
-  onComplete: (result: DiagnosticResult) => void;
-  onError: (error: string) => void;
-}
-
-// Chamada a edge function
-const { data, error } = await supabase.functions.invoke('generate-diagnostic', {
-  body: { formData }
-});
-```
-
-### 3. DiagnosticResults.tsx (REFATORAR)
-**Arquivo:** `src/components/onboarding/DiagnosticResults.tsx`
-
-Alteracoes:
-- Receber `result` como prop em vez de usar mock
-- Remover import de `mockDiagnosticResult`
-- Renderizar dados dinamicos da IA
-
-```typescript
-interface DiagnosticResultsProps {
-  result: DiagnosticResult;
-  onComplete: () => void;
-}
-```
-
----
-
-## Novo Hook useDiagnostic (CRIAR)
-**Arquivo:** `src/hooks/useDiagnostic.ts`
+### 1. Hook useAuth (NOVO)
+**Arquivo:** `src/hooks/useAuth.ts`
 
 Responsabilidades:
-- Encapsular logica de chamada a edge function
-- Gerenciar estados de loading/error/success
-- Implementar retry com exponential backoff
-- Retornar resultado tipado
+- Encapsular toda logica de autenticacao Supabase
+- Gerenciar estados de loading/error
+- Expor funcoes de login, logout, signup
+- Monitorar mudancas de sessao
 
 ```typescript
-export function useDiagnostic() {
+export function useAuth() {
   return {
-    generateDiagnostic: (formData: OnboardingFormData) => Promise<DiagnosticResult>,
+    // Auth state
+    user: AuthUser | null,
+    session: Session | null,
     isLoading: boolean,
-    error: string | null,
-    retry: () => void,
+    
+    // Auth methods
+    signInWithEmail: (email, password) => Promise<{ error }>,
+    signInWithGoogle: () => Promise<{ error }>,
+    signUp: (email, password, name) => Promise<{ error }>,
+    signOut: () => Promise<void>,
+    
+    // Profile methods
+    fetchProfile: (userId) => Promise<Profile>,
+    createProfile: (userData) => Promise<void>,
   }
 }
 ```
+
+### 2. Login.tsx (REFATORAR COMPLETAMENTE)
+**Arquivo:** `src/pages/Login.tsx`
+
+Alteracoes:
+- Remover toda logica mock
+- Integrar hook useAuth
+- Adicionar validacao de formularios com Zod
+- Implementar estados de loading, erro e sucesso
+- Adicionar toggle para criar conta
+- Exibir erros inline abaixo dos inputs
+- Chamar Google OAuth via Lovable Cloud
+
+### 3. Signup.tsx (NOVO)
+**Arquivo:** `src/pages/Signup.tsx`
+
+Responsabilidades:
+- Formulario de criacao de conta
+- Campos: nome, email, senha, confirmar senha
+- Validacao com Zod
+- Chamada a supabase.auth.signUp
+- Redirecionamento para /onboarding apos sucesso
+
+### 4. AppContext.tsx (MODIFICAR)
+**Arquivo:** `src/contexts/AppContext.tsx`
+
+Alteracoes:
+- Adicionar verificacao de sessao no mount
+- Integrar com onAuthStateChange listener
+- Sincronizar estado do usuario com profile do banco
+- Expor funcao de logout global
+
+### 5. App.tsx (MODIFICAR)
+**Arquivo:** `src/App.tsx`
+
+Alteracoes:
+- Adicionar rota /signup
+- Melhorar ProtectedRoute para verificar sessao real
+- Adicionar AuthProvider wrapper
+
+### 6. AuthLayout.tsx (MELHORAR)
+**Arquivo:** `src/components/layout/AuthLayout.tsx`
+
+Alteracoes:
+- Adicionar suporte a dark/light mode
+- Melhorar layout visual conforme design system
+- Adicionar animacoes suaves
 
 ---
 
 ## Estados de Interface
 
-### Loading State (Durante Geracao)
-- Icones animados rotacionando
-- Mensagens de progresso reais (baseadas em etapas da IA)
-- Progress bar com estimativa de tempo (10-15 segundos tipico)
-- Skeleton cards de preview
+### Loading State (Verificando Sessao)
+- Tela de loading centralizada com spinner
+- Logo Flui animado
+- Mensagem "Verificando sessao..."
 
-### Error State (Falha na Geracao)
-- Toast com mensagem de erro especifica
-- Botao "Tentar Novamente" visivel
-- Mensagens especiais para:
-  - 429: "Limite de requisicoes atingido. Aguarde alguns minutos."
-  - 402: "Creditos de IA esgotados. Adicione mais creditos para continuar."
-  - Generico: "Erro ao gerar diagnostico. Tente novamente."
+### Login Form State
+- Inputs para email e senha
+- Botao "Entrar" com loading spinner
+- Separador "ou continue com"
+- Botao Google OAuth
+- Link para "Criar conta"
+- Link para "Esqueci minha senha"
 
-### Success State (Diagnostico Gerado)
-- Transicao suave para tela de resultados
-- Dados reais da IA renderizados
-- Opcao de navegar para Estrategia ou Dashboard
+### Error States
+- Erro inline vermelho abaixo do input afetado
+- Toast com mensagem de erro
+- Mensagens especificas para:
+  - "Email ou senha incorretos"
+  - "Conta nao encontrada"
+  - "Email ja cadastrado"
+  - "Senha muito fraca"
+
+### Success State
+- Redirecionamento automatico
+- Toast de boas-vindas (opcional)
 
 ---
 
 ## Detalhes Tecnicos
 
-### Chamada a Edge Function
+### Verificacao de Sessao (On Mount)
 ```typescript
-const { data, error } = await supabase.functions.invoke('generate-diagnostic', {
-  body: { 
-    formData: {
-      name: formData.name,
-      role: formData.role || formData.customRole,
-      experienceLevel: formData.experienceLevel,
-      primaryArea: formData.primaryArea === 'other' ? formData.customArea : formData.primaryArea,
-      subareas: formData.subareas,
-      primaryGoal: formData.primaryGoal === 'other' ? formData.customPrimaryGoal : formData.primaryGoal,
-      secondaryGoal: formData.secondaryGoal === 'other' ? formData.customSecondaryGoal : formData.secondaryGoal,
-      selectedTopics: [...formData.selectedTopics, ...formData.customTopics],
-      customTopics: formData.customTopics,
-      audienceType: formData.audienceType === 'other' ? formData.customAudience : formData.audienceType,
-      challenges: formData.challenges.filter(c => c !== 'other'),
-      communicationStyle: formData.communicationStyle,
+useEffect(() => {
+  // Setup listener BEFORE getSession
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (session) {
+        const profile = await fetchProfile(session.user.id);
+        updateAppState(profile);
+        redirectBasedOnOnboarding(profile);
+      } else {
+        setIsAuthenticated(false);
+      }
     }
+  );
+
+  // Then check existing session
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      handleSession(session);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+```
+
+### Email/Password Login
+```typescript
+const signInWithEmail = async (email: string, password: string) => {
+  setIsLoading(true);
+  setError(null);
+  
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+  
+  if (error) {
+    if (error.message.includes('Invalid login credentials')) {
+      setError('Email ou senha incorretos');
+    } else {
+      setError('Erro ao fazer login. Tente novamente.');
+    }
+    return { error };
   }
-});
+  
+  // Fetch profile and redirect
+  const profile = await fetchProfile(data.user.id);
+  return { error: null, profile };
+};
 ```
 
-### Mapeamento de Resposta
-A edge function ja retorna estrutura compativel com `DiagnosticResult`:
+### Google OAuth (Lovable Cloud)
 ```typescript
-{
-  profileAnalysis: { title, summary, strengths, opportunities },
-  strategicPatterns: { patterns: [...] },
-  personaMap: { primaryPersona, characteristics, contentPreferences },
-  brandArchetype: { archetype, description, traits },
-  toneCalibration: { dimensions: [...] },
-  contentPillars: { pillars: [...] },
-  metadata: { generatedAt, model, version }
-}
+// Necessita configurar via supabase--configure-social-auth tool
+import { lovable } from "@/integrations/lovable/index";
+
+const signInWithGoogle = async () => {
+  const { error } = await lovable.auth.signInWithOAuth("google", {
+    redirect_uri: window.location.origin,
+  });
+  
+  if (error) {
+    toast.error('Erro ao conectar com Google');
+  }
+};
 ```
 
-### Tratamento de Erros
+### Fetch/Create Profile
 ```typescript
-if (error) {
-  if (error.message.includes('429') || error.status === 429) {
-    toast.error('Limite de requisicoes atingido. Aguarde alguns minutos.');
-  } else if (error.message.includes('402') || error.status === 402) {
-    toast.error('Creditos de IA esgotados.');
+const fetchProfile = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+  
+  if (error && error.code === 'PGRST116') {
+    // Profile not found - should not happen if trigger is working
+    return null;
+  }
+  
+  return data;
+};
+```
+
+### Redirect Logic
+```typescript
+const redirectBasedOnOnboarding = (profile: Profile) => {
+  if (profile.onboarding_status === 'completed') {
+    navigate('/dashboard');
   } else {
-    toast.error('Erro ao gerar diagnostico. Tente novamente.');
+    navigate('/onboarding');
   }
-  onError(error.message);
-  return;
-}
+};
+```
+
+### Form Validation (Zod)
+```typescript
+const loginSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: 'Email invalido' })
+    .max(255, { message: 'Email muito longo' }),
+  password: z.string()
+    .min(6, { message: 'Senha deve ter no minimo 6 caracteres' }),
+});
+
+const signupSchema = loginSchema.extend({
+  name: z.string()
+    .trim()
+    .min(2, { message: 'Nome deve ter no minimo 2 caracteres' })
+    .max(100, { message: 'Nome muito longo' }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Senhas nao conferem',
+  path: ['confirmPassword'],
+});
 ```
 
 ---
@@ -205,47 +276,127 @@ if (error) {
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| `src/hooks/useDiagnostic.ts` | Hook | Encapsula chamada a edge function |
+| `src/hooks/useAuth.ts` | Hook | Encapsula autenticacao Supabase |
+| `src/pages/Signup.tsx` | Pagina | Formulario de cadastro |
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/Onboarding.tsx` | Passar formData e gerenciar resultado |
-| `src/components/onboarding/DiagnosticLoading.tsx` | Chamar edge function real |
-| `src/components/onboarding/DiagnosticResults.tsx` | Receber resultado como prop |
-| `src/data/onboardingData.ts` | Adicionar titulos aos tipos se necessario |
+| `src/pages/Login.tsx` | Refatorar para auth real |
+| `src/contexts/AppContext.tsx` | Adicionar sessao real e onAuthStateChange |
+| `src/App.tsx` | Adicionar rota /signup |
+| `src/components/layout/AuthLayout.tsx` | Melhorar visual |
 
 ---
 
 ## Fluxo do Usuario
 
-1. Usuario completa as 7 etapas do wizard
-2. Clica em "Gerar Diagnostico" na ultima etapa
-3. Tela de loading aparece com mensagens rotativas
-4. Hook `useDiagnostic` chama edge function `generate-diagnostic`
-5. Durante loading: icones animados + progress estimado
-6. Se sucesso: transicao para tela de resultados com dados reais
-7. Se erro: toast com mensagem + botao retry
-8. Na tela de resultados: usuario ve diagnostico personalizado
-9. Clica em "Ver Estrategia" ou "Ir para Dashboard"
+### Login com Email/Password
+1. Usuario acessa /login
+2. App verifica sessao existente (getSession)
+3. Se sessao valida: redireciona baseado em onboarding
+4. Se nao: exibe formulario de login
+5. Usuario preenche email e senha
+6. Clica em "Entrar"
+7. Loading spinner no botao
+8. Se sucesso: fetch profile -> redirect
+9. Se erro: exibe mensagem inline + toast
+
+### Login com Google
+1. Usuario clica em "Continuar com Google"
+2. Lovable Cloud redireciona para Google OAuth
+3. Usuario autoriza
+4. Retorna para /login com sessao
+5. onAuthStateChange detecta sessao
+6. Fetch profile (ja criado pelo trigger)
+7. Redirect baseado em onboarding
+
+### Novo Usuario (Signup)
+1. Usuario clica em "Criar conta" no login
+2. Navega para /signup
+3. Preenche nome, email, senha
+4. Clica em "Criar conta"
+5. signUp cria usuario em auth.users
+6. Trigger handle_new_user cria profile
+7. Redirect para /onboarding
 
 ---
 
-## Consumo de Creditos
+## Integracao com Google OAuth
 
-Esta integracao consome aproximadamente 50-100 creditos por diagnostico devido ao uso do modelo `google/gemini-3-flash-preview` com tool calling estruturado. O diagnostico e gerado uma unica vez por usuario durante o onboarding.
+Para habilitar o Google OAuth, sera necessario usar a ferramenta `supabase--configure-social-auth` com provider "google". Isso ira:
+
+1. Gerar o modulo `@lovable.dev/cloud-auth-js`
+2. Criar arquivos em `src/integrations/lovable/`
+3. Configurar OAuth managed pelo Lovable Cloud
+
+O codigo usara:
+```typescript
+import { lovable } from "@/integrations/lovable/index";
+
+await lovable.auth.signInWithOAuth("google", {
+  redirect_uri: window.location.origin,
+});
+```
 
 ---
 
 ## Secao Tecnica
 
-### Dependencias
+### Dependencias Existentes
 - `@supabase/supabase-js` (ja instalado)
-- `sonner` para toasts (ja instalado)
+- `zod` (ja instalado)
+- `react-hook-form` (ja instalado)
+- `@hookform/resolvers` (ja instalado)
+- `sonner` (ja instalado)
 
-### Tipagem
-A interface `DiagnosticResult` ja existe em `src/data/onboardingData.ts` e e compativel com a resposta da edge function. Sera necessario adicionar campos `title` opcionais para algumas secoes conforme retorno da IA.
+### Trigger Existente
+O banco ja possui o trigger `handle_new_user` que cria automaticamente um profile quando um novo usuario e criado em auth.users:
 
-### Edge Function
-A edge function `generate-diagnostic` ja esta implementada e retorna a estrutura correta. Nao requer alteracoes.
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  INSERT INTO public.profiles (user_id, email, name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1))
+  );
+  RETURN NEW;
+END;
+$function$
+```
+
+### RLS Policies (profiles)
+- Users can insert own profile
+- Users can update own profile
+- Users can view own profile
+
+### Campos do Profile
+- user_id (uuid) - referencia auth.users
+- email (text)
+- name (text)
+- avatar_url (text)
+- onboarding_status (enum: not_started, in_progress, completed)
+- onboarding_step (integer)
+- plan (enum: free, pro, studio)
+- ai_credits_total (integer)
+- ai_credits_used (integer)
+- company (text)
+- role (text)
+
+---
+
+## Consideracoes de Seguranca
+
+1. Emails sao normalizados (lowercase + trim) antes de enviar
+2. Senhas nunca sao logadas no console
+3. Erros genericos para evitar enumeration attacks
+4. RLS garante isolamento de dados entre usuarios
+5. Sessoes persistidas com autoRefreshToken habilitado
+
