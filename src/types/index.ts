@@ -8,6 +8,7 @@ export interface User {
   role?: string;
   onboardingStatus: 'not_started' | 'in_progress' | 'completed';
   onboardingStep: number;
+  plan: 'free' | 'pro' | 'studio';
   aiCredits: {
     total: number;
     used: number;

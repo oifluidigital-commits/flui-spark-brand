@@ -122,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: auth.profile!.user_id,
         name: auth.profile!.name || prev.name,
         email: auth.profile!.email || prev.email,
-        avatarUrl: auth.profile!.avatar_url || prev.avatarUrl,
+        avatar: auth.profile!.avatar_url || prev.avatar,
         onboardingStatus: auth.profile!.onboarding_status,
         onboardingStep: auth.profile!.onboarding_step,
         plan: auth.profile!.plan,
