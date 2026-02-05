@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
+ import { useUserGate } from '@/contexts/UserGateContext';
+ import { useGate } from '@/hooks/useGate';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +76,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
  import { useNavigate } from 'react-router-dom';
+ import { SprintLimitCard } from '@/components/gates/SprintLimitCard';
 
 // Status configuration for card badges
 const getStatusConfig = (status: SprintStatus) => {
@@ -470,6 +473,8 @@ const mockCtas: Record<string, string[]> = {
 
 export default function Sprints() {
   const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
+   const { userGate, getPlanLimits } = useUserGate();
+   const createSprintGate = useGate('create-sprint');
    const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -2055,7 +2060,14 @@ export default function Sprints() {
           {/* Grid de Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* New Sprint Card */}
-            <NewSprintCard onClick={() => handleOpenDialog()} />
+             {createSprintGate.allowed ? (
+               <NewSprintCard onClick={() => handleOpenDialog()} />
+             ) : (
+               <SprintLimitCard
+                 currentSprints={userGate.activeSprints}
+                 maxSprints={getPlanLimits().maxActiveSprints}
+               />
+             )}
 
             {/* Sprint Cards */}
             {filteredSprints.map((sprint) => (
