@@ -55,6 +55,12 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
+   Link2,
+   FileText,
+   Upload,
+   User,
+   GripVertical,
+   X,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
 import { getStatusLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
@@ -135,6 +141,115 @@ const objectiveOptions = [
   { id: 'generate_conversions', label: 'Gerar conversões' },
 ];
 
+// Suggested content type
+interface SuggestedContent {
+  id: string;
+  theme: string;
+  intention: 'educate' | 'engage' | 'convert';
+  format: string;
+  strategicObjective: string;
+  hook: string;
+  suggestedCta: string;
+}
+
+// Reference types
+interface Reference {
+  id: string;
+  url?: string;
+  name?: string;
+  description: string;
+  type: 'link' | 'file';
+}
+
+// Mock themes for AI suggestion generation
+const mockThemesByPillar: Record<string, string[]> = {
+  'pillar-1': [
+    'Framework de priorização que todo PM deveria conhecer',
+    'Por que roadmaps falham (e como evitar)',
+    'Métricas de produto que realmente importam',
+    'Como alinhar stakeholders sem perder a sanidade',
+    'O segredo das empresas que escalam rápido',
+    'Decisões baseadas em dados vs intuição',
+    'Como criar uma cultura de experimentação',
+    'Lições de 10 anos liderando produtos',
+  ],
+  'pillar-2': [
+    'Tutorial: Configurando seu primeiro OKR',
+    '5 erros comuns ao definir personas',
+    'Template de discovery pronto para usar',
+    'Como fazer entrevistas com usuários',
+    'Passo a passo para priorização RICE',
+    'Guia completo de A/B testing',
+    'Como criar um backlog saudável',
+    'Checklist de lançamento de produto',
+  ],
+  'pillar-3': [
+    'Bastidores: como organizei minha semana',
+    'O dia que quase desisti (e o que aprendi)',
+    'Minha rotina de aprendizado contínuo',
+    'Ferramentas que uso todo dia',
+    'Como equilibro trabalho e vida pessoal',
+    'Respondendo suas dúvidas sobre carreira',
+    'Uma conversa honesta sobre síndrome do impostor',
+    'O que ninguém te conta sobre liderança',
+  ],
+  'pillar-4': [
+    'Case de sucesso: como ajudei empresa X',
+    'Resultados do meu último projeto',
+    'Por que meus clientes me escolhem',
+    'Vagas abertas na minha mentoria',
+    'Últimas vagas para o workshop',
+    'Oferta especial para seguidores',
+    'Depoimentos de quem já trabalhou comigo',
+    'Como posso ajudar você a crescer',
+  ],
+};
+
+const mockHooks: Record<string, string[]> = {
+  educate: [
+    '90% das pessoas erram nisso...',
+    'O método que mudou minha carreira:',
+    'Aprendi isso depois de 5 anos:',
+    'A técnica que poucos conhecem:',
+    'Simples, mas poderoso:',
+  ],
+  engage: [
+    'Você concorda com isso?',
+    'Qual sua maior dificuldade com...',
+    'Conta pra mim nos comentários:',
+    'Você já passou por isso?',
+    'Polêmico, mas verdade:',
+  ],
+  convert: [
+    'Resultado garantido ou dinheiro de volta',
+    'Últimas vagas disponíveis',
+    'Desconto exclusivo para você',
+    'A oportunidade que você esperava',
+    'Transforme sua carreira agora',
+  ],
+};
+
+const mockCtas: Record<string, string[]> = {
+  educate: [
+    'Salve para consultar depois',
+    'Compartilhe com alguém que precisa',
+    'Comente sua dúvida',
+    'Siga para mais conteúdo assim',
+  ],
+  engage: [
+    'Deixe sua opinião nos comentários',
+    'Marque alguém que precisa ver',
+    'Reposte nos seus stories',
+    'Conta sua experiência',
+  ],
+  convert: [
+    'Clique no link da bio',
+    'Envie "QUERO" por DM',
+    'Garanta sua vaga agora',
+    'Agende uma conversa gratuita',
+  ],
+};
+
 // Priority indicator component
 const PriorityDot = ({ priority }: { priority: 'high' | 'medium' | 'low' }) => (
   <Tooltip>
@@ -190,6 +305,11 @@ export default function Sprints() {
     },
     title: '',
     description: '',
+    // Step 4 - References
+    references: [] as Reference[],
+    // Steps 5-6 - Suggestions
+    suggestedContents: [] as SuggestedContent[],
+    approvedContents: [] as SuggestedContent[],
   });
 
   const filteredSprints = sprints.filter((sprint) => {
@@ -260,6 +380,9 @@ export default function Sprints() {
         intentionMix: { educate: 40, engage: 30, convert: 30 },
         title: '',
         description: '',
+        references: [],
+        suggestedContents: [],
+        approvedContents: [],
       });
     }
     setIsDialogOpen(true);
@@ -316,12 +439,73 @@ export default function Sprints() {
     handleOpenDialog(sprint);
   };
 
-  const nextStep = () => setWizardStep((prev) => Math.min(prev + 1, 4));
+  // Generate mock AI suggestions based on wizard data
+  const generateMockSuggestions = (): SuggestedContent[] => {
+    const { contentsPlanned, intentionMix, formats, pillarId } = wizardData;
+    const themes = mockThemesByPillar[pillarId] || mockThemesByPillar['pillar-1'];
+    
+    const educateCount = Math.round((intentionMix.educate / 100) * contentsPlanned);
+    const engageCount = Math.round((intentionMix.engage / 100) * contentsPlanned);
+    const convertCount = Math.max(0, contentsPlanned - educateCount - engageCount);
+    
+    const suggestions: SuggestedContent[] = [];
+    const availableFormats = formats.length > 0 ? formats : ['post'];
+    
+    const createSuggestion = (intention: 'educate' | 'engage' | 'convert', index: number): SuggestedContent => {
+      const hooks = mockHooks[intention];
+      const ctas = mockCtas[intention];
+      const format = availableFormats[index % availableFormats.length];
+      const theme = themes[index % themes.length];
+      
+      return {
+        id: `suggestion-${Date.now()}-${index}`,
+        theme,
+        intention,
+        format,
+        strategicObjective: intention === 'educate' 
+          ? 'Demonstrar expertise e educar a audiência'
+          : intention === 'engage'
+          ? 'Gerar conexão e interação com o público'
+          : 'Converter seguidores em leads/clientes',
+        hook: hooks[index % hooks.length],
+        suggestedCta: ctas[index % ctas.length],
+      };
+    };
+    
+    let themeIndex = 0;
+    for (let i = 0; i < educateCount; i++) {
+      suggestions.push(createSuggestion('educate', themeIndex++));
+    }
+    for (let i = 0; i < engageCount; i++) {
+      suggestions.push(createSuggestion('engage', themeIndex++));
+    }
+    for (let i = 0; i < convertCount; i++) {
+      suggestions.push(createSuggestion('convert', themeIndex++));
+    }
+    
+    return suggestions.slice(0, contentsPlanned);
+  };
+
+  const totalSteps = 7;
+  
+  const nextStep = () => {
+    if (wizardStep === 4) {
+      // Generate AI suggestions when entering step 5
+      const suggestions = generateMockSuggestions();
+      setWizardData(prev => ({ 
+        ...prev, 
+        suggestedContents: suggestions,
+        approvedContents: [...suggestions]
+      }));
+    }
+    setWizardStep((prev) => Math.min(prev + 1, totalSteps));
+  };
   const prevStep = () => setWizardStep((prev) => Math.max(prev - 1, 1));
 
   const canProceedStep1 = wizardData.objective && wizardData.pillarId && wizardData.sprintType;
   const canProceedStep2 = wizardData.startDate && wizardData.endDate && wizardData.contentsPlanned >= 1;
   const canProceedStep3 = wizardData.formats.length >= 1;
+  const canProceedStep6 = wizardData.approvedContents.length >= 1;
   const canCreateSprint = wizardData.title.trim().length >= 2;
 
   const toggleFormat = (formatId: string) => {
@@ -331,6 +515,112 @@ export default function Sprints() {
         ? prev.formats.filter((f) => f !== formatId)
         : [...prev.formats, formatId],
     }));
+  };
+
+  // Reference handlers
+  const addReference = (type: 'link' | 'file') => {
+    const newRef: Reference = {
+      id: `ref-${Date.now()}`,
+      type,
+      url: type === 'link' ? '' : undefined,
+      name: type === 'file' ? '' : undefined,
+      description: '',
+    };
+    setWizardData(prev => ({
+      ...prev,
+      references: [...prev.references, newRef]
+    }));
+  };
+
+  const updateReference = (id: string, updates: Partial<Reference>) => {
+    setWizardData(prev => ({
+      ...prev,
+      references: prev.references.map(ref => 
+        ref.id === id ? { ...ref, ...updates } : ref
+      )
+    }));
+  };
+
+  const removeReference = (id: string) => {
+    setWizardData(prev => ({
+      ...prev,
+      references: prev.references.filter(ref => ref.id !== id)
+    }));
+  };
+
+  // Content adjustment handlers
+  const updateApprovedContent = (id: string, updates: Partial<SuggestedContent>) => {
+    setWizardData(prev => ({
+      ...prev,
+      approvedContents: prev.approvedContents.map(content =>
+        content.id === id ? { ...content, ...updates } : content
+      )
+    }));
+  };
+
+  const removeApprovedContent = (id: string) => {
+    setWizardData(prev => ({
+      ...prev,
+      approvedContents: prev.approvedContents.filter(c => c.id !== id)
+    }));
+  };
+
+  const duplicateApprovedContent = (id: string) => {
+    const content = wizardData.approvedContents.find(c => c.id === id);
+    if (content) {
+      const duplicate: SuggestedContent = {
+        ...content,
+        id: `suggestion-${Date.now()}-dup`,
+        theme: `${content.theme} (cópia)`,
+      };
+      setWizardData(prev => ({
+        ...prev,
+        approvedContents: [...prev.approvedContents, duplicate]
+      }));
+    }
+  };
+
+  const addManualContent = () => {
+    const newContent: SuggestedContent = {
+      id: `manual-${Date.now()}`,
+      theme: 'Novo conteúdo',
+      intention: 'educate',
+      format: wizardData.formats[0] || 'post',
+      strategicObjective: 'Defina o objetivo estratégico',
+      hook: 'Adicione um gancho',
+      suggestedCta: 'Adicione um CTA',
+    };
+    setWizardData(prev => ({
+      ...prev,
+      approvedContents: [...prev.approvedContents, newContent]
+    }));
+  };
+
+  // Wizard step title helper
+  const getStepTitle = (step: number) => {
+    switch (step) {
+      case 1: return 'Intenção Estratégica';
+      case 2: return 'Escopo';
+      case 3: return 'Estrutura';
+      case 4: return 'Referências & Briefing';
+      case 5: return 'Plano Editorial Sugerido';
+      case 6: return 'Ajuste do Plano';
+      case 7: return 'Confirmação da Sprint';
+      default: return '';
+    }
+  };
+
+  const getStepDescription = (step: number) => {
+    switch (step) {
+      case 1: return 'Defina o propósito estratégico da sua sprint';
+      case 2: return 'Configure o período e volume de conteúdo';
+      case 3: return 'Escolha formatos e distribuição';
+      case 4: return 'Adicione referências para enriquecer as sugestões (opcional)';
+      case 5: return 'Revise as sugestões geradas pela IA';
+      case 6: return 'Ajuste, reordene ou remova conteúdos antes de confirmar';
+      case 7: return 'Revise e finalize sua sprint';
+      default: return '';
+    }
   };
 
   // Wizard Step Components
@@ -589,16 +879,339 @@ export default function Sprints() {
     </div>
   );
 
-  const renderWizardStep4 = () => {
-    const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
-    const selectedType = sprintTypes.find((t) => t.id === wizardData.sprintType);
-    const selectedObjective = objectiveOptions.find((o) => o.id === wizardData.objective);
-    const suggestions = getImprovementSuggestions();
+  // Step 4 - References & Briefing
+  const renderWizardStep4References = () => {
+    const linkRefs = wizardData.references.filter(r => r.type === 'link');
+    const fileRefs = wizardData.references.filter(r => r.type === 'file');
 
     return (
       <div className="space-y-6">
-        <div className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
-          <p className="font-medium text-sm">Resumo da Sprint</p>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50 border border-border">
+          <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground">
+            Esta etapa é opcional. Adicione materiais que podem enriquecer as sugestões da IA.
+          </span>
+        </div>
+
+        {/* Links Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Links Externos
+            </Label>
+            <Button variant="outline" size="sm" onClick={() => addReference('link')}>
+              <Plus className="h-3 w-3 mr-1" />
+              Adicionar link
+            </Button>
+          </div>
+          
+          {linkRefs.length === 0 ? (
+            <div className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border rounded-lg">
+              Nenhum link adicionado
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {linkRefs.map((ref) => (
+                <div key={ref.id} className="p-3 rounded-lg border border-border bg-card space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="https://exemplo.com/artigo"
+                      value={ref.url || ''}
+                      onChange={(e) => updateReference(ref.id, { url: e.target.value })}
+                      className="flex-1"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => removeReference(ref.id)}
+                      className="shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Por que isso é relevante? (opcional)"
+                    value={ref.description}
+                    onChange={(e) => updateReference(ref.id, { description: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Files Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Upload de Arquivos
+            </Label>
+            <Button variant="outline" size="sm" onClick={() => addReference('file')}>
+              <Upload className="h-3 w-3 mr-1" />
+              Adicionar arquivo
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Formatos aceitos: PDF, DOC, DOCX</p>
+          
+          {fileRefs.length === 0 ? (
+            <div className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border rounded-lg">
+              Nenhum arquivo adicionado
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {fileRefs.map((ref) => (
+                <div key={ref.id} className="p-3 rounded-lg border border-border bg-card space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Input
+                      placeholder="nome-do-arquivo.pdf"
+                      value={ref.name || ''}
+                      onChange={(e) => updateReference(ref.id, { name: e.target.value })}
+                      className="flex-1"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => removeReference(ref.id)}
+                      className="shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Por que isso é relevante? (opcional)"
+                    value={ref.description}
+                    onChange={(e) => updateReference(ref.id, { description: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Step 5 - AI Suggestions
+  const renderWizardStep5Suggestions = () => {
+    const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
+    const selectedObjective = objectiveOptions.find((o) => o.id === wizardData.objective);
+
+    const intentionLabel = (intention: string) => {
+      switch (intention) {
+        case 'educate': return 'Educar';
+        case 'engage': return 'Engajar';
+        case 'convert': return 'Converter';
+        default: return intention;
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* AI Notice */}
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm">A IA está sugerindo, não decidindo. Você revisará na próxima etapa.</span>
+        </div>
+
+        {/* Context analyzed */}
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Analisando estratégia...</p>
+          <div className="text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">→ Objetivo:</span>
+              <span>{selectedObjective?.label || '-'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">→ Pilar:</span>
+              <span>{selectedPillar?.name || '-'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">→ Público:</span>
+              <span>Profissionais em Ascensão</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">→ Tom:</span>
+              <span>Profissional mas acessível</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Suggestions list */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Sugestões ({wizardData.suggestedContents.length} conteúdos)</p>
+          <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+            {wizardData.suggestedContents.map((content, index) => (
+              <div key={content.id} className="p-3 rounded-lg border border-border bg-card">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-medium">{index + 1}. {content.theme}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Badge variant="outline" className="text-xs">
+                    {intentionLabel(content.intention)}
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {contentFormats.find(f => f.id === content.format)?.label || content.format}
+                  </Badge>
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <p><span className="font-medium text-foreground">Gancho:</span> "{content.hook}"</p>
+                  <p><span className="font-medium text-foreground">CTA:</span> "{content.suggestedCta}"</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Step 6 - Human Adjustment
+  const renderWizardStep6Adjustment = () => {
+    const intentionLabel = (intention: string) => {
+      switch (intention) {
+        case 'educate': return 'Educar';
+        case 'engage': return 'Engajar';
+        case 'convert': return 'Converter';
+        default: return intention;
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Human control notice */}
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <User className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-sm text-amber-600 dark:text-amber-400">Você aprova antes da criação. Edite, reordene ou remova sugestões.</span>
+        </div>
+
+        {/* Add manual content */}
+        <Button variant="outline" size="sm" onClick={addManualContent} className="w-full">
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar conteúdo manualmente
+        </Button>
+
+        {/* Editable content cards */}
+        <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+          {wizardData.approvedContents.map((content, index) => (
+            <div key={content.id} className="p-3 rounded-lg border border-border bg-card space-y-3">
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
+                <span className="text-xs text-muted-foreground shrink-0">{index + 1}.</span>
+                <Input
+                  value={content.theme}
+                  onChange={(e) => updateApprovedContent(content.id, { theme: e.target.value })}
+                  className="flex-1 h-8 text-sm font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={content.intention}
+                  onValueChange={(value) => updateApprovedContent(content.id, { 
+                    intention: value as 'educate' | 'engage' | 'convert' 
+                  })}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="educate">Educar</SelectItem>
+                    <SelectItem value="engage">Engajar</SelectItem>
+                    <SelectItem value="convert">Converter</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={content.format}
+                  onValueChange={(value) => updateApprovedContent(content.id, { format: value })}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contentFormats.map((format) => (
+                      <SelectItem key={format.id} value={format.id}>
+                        {format.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Input
+                  placeholder="Gancho"
+                  value={content.hook}
+                  onChange={(e) => updateApprovedContent(content.id, { hook: e.target.value })}
+                  className="h-8 text-xs"
+                />
+                <Input
+                  placeholder="CTA sugerido"
+                  value={content.suggestedCta}
+                  onChange={(e) => updateApprovedContent(content.id, { suggestedCta: e.target.value })}
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => duplicateApprovedContent(content.id)}
+                  className="h-7 text-xs"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Duplicar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => removeApprovedContent(content.id)}
+                  className="h-7 text-xs text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Remover
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {wizardData.approvedContents.length === 0 && (
+          <div className="text-center py-8 border border-dashed border-border rounded-lg">
+            <p className="text-sm text-muted-foreground">Nenhum conteúdo na lista</p>
+            <p className="text-xs text-muted-foreground mt-1">Adicione conteúdos manualmente ou volte para gerar sugestões</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Step 7 - Final Confirmation
+  const renderWizardStep7Confirmation = () => {
+    const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
+    const selectedType = sprintTypes.find((t) => t.id === wizardData.sprintType);
+    const selectedObjective = objectiveOptions.find((o) => o.id === wizardData.objective);
+
+    const intentionLabel = (intention: string) => {
+      switch (intention) {
+        case 'educate': return 'Educar';
+        case 'engage': return 'Engajar';
+        case 'convert': return 'Converter';
+        default: return intention;
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Strategic Summary */}
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
+          <p className="font-medium text-sm">Resumo Estratégico</p>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Objetivo:</span>
@@ -617,10 +1230,6 @@ export default function Sprints() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tipo:</span>
-              <span>{selectedType?.label || '-'}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-muted-foreground">Período:</span>
               <span>
                 {wizardData.startDate && wizardData.endDate
@@ -629,53 +1238,29 @@ export default function Sprints() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Volume:</span>
-              <span>{wizardData.contentsPlanned} conteúdos</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Formatos:</span>
-              <span>
-                {wizardData.formats
-                  .map((f) => contentFormats.find((cf) => cf.id === f)?.label)
-                  .join(', ') || '-'}
-              </span>
+              <span className="text-muted-foreground">Público:</span>
+              <span>Profissionais em Ascensão</span>
             </div>
           </div>
         </div>
 
+        {/* Approved contents */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Score Inicial Estimado</span>
-            <span
-              className={cn(
-                'font-bold',
-                estimatedScore >= 70 && 'text-emerald-500',
-                estimatedScore >= 50 && estimatedScore < 70 && 'text-amber-500',
-                estimatedScore < 50 && 'text-red-500'
-              )}
-            >
-              {estimatedScore}%
-            </span>
+          <p className="text-sm font-medium">Conteúdos Aprovados ({wizardData.approvedContents.length})</p>
+          <div className="p-3 rounded-lg border border-border bg-card max-h-[140px] overflow-y-auto space-y-1.5">
+            {wizardData.approvedContents.map((content, index) => (
+              <div key={content.id} className="flex items-center gap-2 text-sm">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <span className="truncate flex-1">{content.theme}</span>
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  {contentFormats.find(f => f.id === content.format)?.label || content.format}
+                </Badge>
+              </div>
+            ))}
           </div>
-          <Progress value={estimatedScore} className="h-2" />
         </div>
 
-        {suggestions.length > 0 && (
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-start gap-2">
-              <Sparkles className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-amber-500 mb-1">Sugestões de melhoria:</p>
-                <ul className="text-xs text-amber-500/80 space-y-1">
-                  {suggestions.map((s, i) => (
-                    <li key={i}>• {s}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Title and description */}
         <div className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="wizard-title">Título da Sprint</Label>
@@ -697,6 +1282,14 @@ export default function Sprints() {
               rows={2}
             />
           </div>
+        </div>
+
+        {/* Warning notice */}
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border border-border">
+          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground">
+            Este botão NÃO gera textos. Apenas consolida o planejamento.
+          </span>
         </div>
       </div>
     );
@@ -826,26 +1419,12 @@ export default function Sprints() {
                 <DialogTitle>
                     {editingSprint
                       ? 'Editar Sprint'
-                      : `Etapa ${wizardStep} de 4 — ${
-                          wizardStep === 1
-                            ? 'Intenção Estratégica'
-                            : wizardStep === 2
-                            ? 'Escopo'
-                            : wizardStep === 3
-                            ? 'Estrutura'
-                            : 'Confirmação'
-                        }`}
+                      : `Etapa ${wizardStep} de ${totalSteps} — ${getStepTitle(wizardStep)}`}
                 </DialogTitle>
                 <DialogDescription>
                     {editingSprint
                       ? 'Atualize as informações do sprint'
-                      : wizardStep === 1
-                      ? 'Defina o propósito estratégico da sua sprint'
-                      : wizardStep === 2
-                      ? 'Configure o período e volume de conteúdo'
-                      : wizardStep === 3
-                      ? 'Escolha formatos e distribuição'
-                      : 'Revise e finalize sua sprint'}
+                      : getStepDescription(wizardStep)}
                 </DialogDescription>
               </DialogHeader>
 
@@ -856,7 +1435,10 @@ export default function Sprints() {
                     {wizardStep === 1 && renderWizardStep1()}
                     {wizardStep === 2 && renderWizardStep2()}
                     {wizardStep === 3 && renderWizardStep3()}
-                    {wizardStep === 4 && renderWizardStep4()}
+                    {wizardStep === 4 && renderWizardStep4References()}
+                    {wizardStep === 5 && renderWizardStep5Suggestions()}
+                    {wizardStep === 6 && renderWizardStep6Adjustment()}
+                    {wizardStep === 7 && renderWizardStep7Confirmation()}
                   </div>
                 )}
 
@@ -880,22 +1462,28 @@ export default function Sprints() {
                           Voltar
                         </Button>
                       )}
-                      {wizardStep < 4 ? (
+                      {wizardStep === 4 && (
+                        <Button variant="ghost" onClick={nextStep}>
+                          Pular
+                        </Button>
+                      )}
+                      {wizardStep < totalSteps ? (
                         <Button
                           onClick={nextStep}
                           disabled={
                             (wizardStep === 1 && !canProceedStep1) ||
                             (wizardStep === 2 && !canProceedStep2) ||
-                            (wizardStep === 3 && !canProceedStep3)
+                            (wizardStep === 3 && !canProceedStep3) ||
+                            (wizardStep === 6 && !canProceedStep6)
                           }
                         >
-                          Próximo
+                          {wizardStep === 5 ? 'Revisar Sugestões' : 'Próximo'}
                           <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                       ) : (
                         <Button onClick={handleSave} disabled={!canCreateSprint}>
                           <Check className="h-4 w-4 mr-1" />
-                          Criar Sprint
+                          Confirmar Sprint
                         </Button>
                       )}
                     </>
