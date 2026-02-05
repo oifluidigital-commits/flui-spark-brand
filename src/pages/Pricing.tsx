@@ -9,7 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Check, Sparkles } from 'lucide-react';
+ import { Check, Sparkles, ArrowLeft } from 'lucide-react';
 import { mockPricingPlans } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +42,14 @@ export default function Pricing() {
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto space-y-8">
+         {/* Back Button */}
+         <div className="flex items-center">
+           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2">
+             <ArrowLeft className="h-4 w-4" />
+             Voltar
+           </Button>
+         </div>
+
         <div className="text-center">
           <h2 className="text-3xl font-bold">Escolha seu plano</h2>
           <p className="text-muted-foreground mt-2">

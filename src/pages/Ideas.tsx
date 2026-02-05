@@ -38,6 +38,7 @@ import {
   Filter,
   Calendar,
   Tag,
+   ArrowRight,
 } from 'lucide-react';
 import { Idea, IdeaStatus, ContentFormat } from '@/types';
 import { getStatusLabel, getFormatLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
@@ -417,6 +418,25 @@ export default function Ideas() {
                     <span>Até {formatDatePTBR(idea.dueDate)}</span>
                   </div>
                 )}
+
+               {/* Link to Sprint if assigned */}
+               {idea.sprintId && (
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   className="w-full mt-3 text-xs justify-center gap-1"
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     const sprint = sprints.find(s => s.id === idea.sprintId);
+                     if (sprint) {
+                       navigate(`/sprints/${idea.sprintId}`);
+                     }
+                   }}
+                 >
+                   Ver na Sprint
+                   <ArrowRight className="h-3 w-3" />
+                 </Button>
+               )}
               </CardContent>
             </Card>
           ))}

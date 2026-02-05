@@ -26,6 +26,7 @@
    Video,
    FileText,
    CheckCircle2,
+   Palette,
  } from 'lucide-react';
  
  // Icon mapping for content types
@@ -311,6 +312,26 @@
              </Card>
            </div>
          </section>
+
+         {/* Brand Hub Link */}
+         <section className="space-y-4">
+           <Card className="border-border hover:border-primary/30 transition-colors cursor-pointer" onClick={() => navigate('/brand')}>
+             <CardContent className="p-6 flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                   <Palette className="h-6 w-6 text-primary" />
+                 </div>
+                 <div>
+                   <p className="font-semibold text-foreground">Hub da Marca</p>
+                   <p className="text-sm text-muted-foreground">
+                     Gerencie identidade visual, tom de voz e diretrizes da marca
+                   </p>
+                 </div>
+               </div>
+               <ArrowRight className="h-5 w-5 text-muted-foreground" />
+             </CardContent>
+           </Card>
+         </section>
        </div>
  
        {/* Fixed Progression CTA */}
@@ -322,7 +343,7 @@
                Estratégia definida. Vamos transformar isso em planejamento.
              </span>
            </div>
-           <Button onClick={() => navigate('/planejamento')} className="gap-2">
+           <Button onClick={() => navigate('/content-lab/sprints')} className="gap-2">
              Ir para Planejamento de Conteúdo
              <ArrowRight className="h-4 w-4" />
            </Button>
