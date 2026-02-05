@@ -40,7 +40,7 @@ import {
   Copy,
   Archive,
   Trash2,
-  Calendar,
+  Calendar as CalendarIcon,
   Sparkles,
   AlertTriangle,
   Check,
@@ -52,10 +52,20 @@ import {
   User,
   GripVertical,
   X,
+  Crown,
+  GraduationCap,
+  Heart,
+  Target,
+  Circle,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
 import { formatDatePTBR, mockPillars } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, isBefore, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 import {
   Tooltip,
   TooltipContent,
@@ -216,7 +226,7 @@ const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: Sprint
       {/* Footer */}
       <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <Calendar className="h-4 w-4" />
+          <CalendarIcon className="h-4 w-4" />
           <span>
             {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
           </span>
@@ -262,15 +272,28 @@ const SprintCardSkeleton = () => (
 );
 
 // Content formats for wizard
-const contentFormats = [
-  { id: 'post', label: 'Post' },
-  { id: 'carousel', label: 'Carousel' },
-  { id: 'video', label: 'Vídeo' },
-  { id: 'story', label: 'Story' },
-  { id: 'thread', label: 'Thread' },
-  { id: 'newsletter', label: 'Newsletter' },
-  { id: 'article', label: 'Artigo' },
+const contentFormats: { id: string; label: string; category: string }[] = [
+  { id: 'post-linkedin-text', label: 'Post LinkedIn (texto curto)', category: 'social' },
+  { id: 'post-linkedin-carousel', label: 'Post LinkedIn (carrossel)', category: 'social' },
+  { id: 'article', label: 'Artigo longo', category: 'longform' },
+  { id: 'newsletter', label: 'Newsletter', category: 'longform' },
+  { id: 'video-short', label: 'Roteiro de vídeo curto', category: 'video' },
+  { id: 'video-long', label: 'Roteiro de vídeo longo', category: 'video' },
+  { id: 'thread', label: 'Thread', category: 'social' },
+  { id: 'case-study', label: 'Case', category: 'longform' },
+  { id: 'landing-page', label: 'Landing page', category: 'conversion' },
+  { id: 'email-marketing', label: 'Email marketing', category: 'conversion' },
+  { id: 'story', label: 'Story', category: 'social' },
+  { id: 'reels', label: 'Reels / TikTok', category: 'video' },
 ];
+
+// Pillar icon configuration
+const pillarIconConfig: Record<string, { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }> = {
+  'pillar-1': { icon: Crown, color: '#6366f1' },        // Autoridade
+  'pillar-2': { icon: GraduationCap, color: '#10b981' }, // Educacional
+  'pillar-3': { icon: Heart, color: '#f59e0b' },         // Conexão
+  'pillar-4': { icon: Target, color: '#ef4444' },        // Conversão
+};
 
 // Content Frameworks
 interface ContentFramework {
@@ -341,6 +364,8 @@ interface SuggestedContent {
   hook: string;
   suggestedCta: string;
   framework: string;
+  frameworkReason?: string;
+  frameworkBenefit?: string;
 }
 
 // Reference types
@@ -453,6 +478,7 @@ export default function Sprints() {
     isOpen: boolean;
     contentId: string | null;
   }>({ isOpen: false, contentId: null });
+  const [showFrameworkOptions, setShowFrameworkOptions] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -622,13 +648,85 @@ export default function Sprints() {
     const convertCount = Math.max(0, contentsPlanned - educateCount - engageCount);
     
     const suggestions: SuggestedContent[] = [];
-    const availableFormats = formats.length > 0 ? formats : ['post'];
+    const availableFormats = formats.length > 0 ? formats : ['post-linkedin-text'];
+    
+    // AI Framework recommendation based on intention and format
+    const getFrameworkRecommendation = (
+      intention: 'educate' | 'engage' | 'convert',
+      format: string
+    ): { id: string; reason: string; benefit: string } => {
+      // Format-specific recommendations
+      if (format.includes('carousel') || format === 'post-linkedin-carousel') {
+        return {
+          id: 'educational',
+          reason: 'Carrosséis funcionam melhor com estrutura de etapas didáticas',
+          benefit: 'Maior retenção e salvamentos'
+        };
+      }
+      
+      if (format === 'video-short' || format === 'reels' || format === 'story') {
+        return {
+          id: 'hvc',
+          reason: 'Vídeos curtos precisam de gancho imediato e CTA direto',
+          benefit: 'Maior taxa de visualização completa'
+        };
+      }
+      
+      if (format === 'case-study') {
+        return {
+          id: 'bab',
+          reason: 'Cases se beneficiam da estrutura Antes/Depois/Ponte',
+          benefit: 'Demonstra transformação com clareza'
+        };
+      }
+      
+      if (format === 'landing-page' || format === 'email-marketing') {
+        return {
+          id: 'aida',
+          reason: 'Estrutura ideal para páginas e emails de conversão',
+          benefit: 'Maior taxa de cliques e conversões'
+        };
+      }
+      
+      // Intention-based recommendations
+      if (intention === 'convert') {
+        return {
+          id: 'aida',
+          reason: 'Estrutura ideal para conteúdos de conversão, guiando o leitor até a ação',
+          benefit: 'Maior taxa de cliques e conversões'
+        };
+      }
+      
+      if (intention === 'engage') {
+        return {
+          id: 'storytelling',
+          reason: 'Narrativa gera conexão emocional e comentários',
+          benefit: 'Maior engajamento e compartilhamentos'
+        };
+      }
+      
+      if (intention === 'educate') {
+        return {
+          id: 'educational',
+          reason: 'Estrutura didática para ensinar conceitos de forma clara',
+          benefit: 'Retenção e compreensão do conteúdo'
+        };
+      }
+      
+      // Default
+      return {
+        id: 'hvc',
+        reason: 'Estrutura direta e eficaz para redes sociais',
+        benefit: 'Clareza e objetividade'
+      };
+    };
     
     const createSuggestion = (intention: 'educate' | 'engage' | 'convert', index: number): SuggestedContent => {
       const hooks = mockHooks[intention];
       const ctas = mockCtas[intention];
       const format = availableFormats[index % availableFormats.length];
       const theme = themes[index % themes.length];
+      const frameworkRec = getFrameworkRecommendation(intention, format);
       
       return {
         id: `suggestion-${Date.now()}-${index}`,
@@ -642,7 +740,9 @@ export default function Sprints() {
           : 'Converter seguidores em leads/clientes',
         hook: hooks[index % hooks.length],
         suggestedCta: ctas[index % ctas.length],
-        framework: '', // No framework initially - user must define
+        framework: frameworkRec.id, // AI recommends a framework
+        frameworkReason: frameworkRec.reason,
+        frameworkBenefit: frameworkRec.benefit,
       };
     };
     
@@ -760,7 +860,7 @@ export default function Sprints() {
       id: `manual-${Date.now()}`,
       theme: 'Novo conteúdo',
       intention: 'educate',
-      format: wizardData.formats[0] || 'post',
+      format: wizardData.formats[0] || 'post-linkedin-text',
       strategicObjective: 'Defina o objetivo estratégico',
       hook: 'Adicione um gancho',
       suggestedCta: 'Adicione um CTA',
@@ -775,10 +875,12 @@ export default function Sprints() {
   // Content detail sheet handlers
   const openContentDetailSheet = (contentId: string) => {
     setContentDetailSheet({ isOpen: true, contentId });
+    setShowFrameworkOptions(false);
   };
 
   const closeContentDetailSheet = () => {
     setContentDetailSheet({ isOpen: false, contentId: null });
+    setShowFrameworkOptions(false);
   };
 
   const getFrameworkLabel = (frameworkId: string) => {
@@ -832,30 +934,34 @@ export default function Sprints() {
       <div className="space-y-3">
         <Label>Em qual pilar este conteúdo se encaixa?</Label>
         <div className="grid grid-cols-2 gap-3">
-          {mockPillars.map((pillar) => (
-            <button
-              key={pillar.id}
-              type="button"
-              onClick={() => setWizardData({ ...wizardData, pillarId: pillar.id })}
-              className={cn(
-                'p-3 rounded-lg border text-left transition-all',
-                wizardData.pillarId === pillar.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: pillar.color }}
-                />
-                <span className="font-medium text-sm">{pillar.name}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                {pillar.description}
-              </p>
-            </button>
-          ))}
+          {mockPillars.map((pillar) => {
+            const iconConfig = pillarIconConfig[pillar.id];
+            const IconComponent = iconConfig?.icon || Circle;
+            return (
+              <button
+                key={pillar.id}
+                type="button"
+                onClick={() => setWizardData({ ...wizardData, pillarId: pillar.id })}
+                className={cn(
+                  'p-3 rounded-lg border text-left transition-all',
+                  wizardData.pillarId === pillar.id
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <IconComponent
+                    className="h-5 w-5"
+                    style={{ color: iconConfig?.color || pillar.color }}
+                  />
+                  <span className="font-medium text-sm">{pillar.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                  {pillar.description}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -865,30 +971,54 @@ export default function Sprints() {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Período da Sprint</Label>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="wizard-startDate" className="text-xs text-muted-foreground">
-              Data Início
-            </Label>
-            <Input
-              id="wizard-startDate"
-              type="date"
-              value={wizardData.startDate}
-              onChange={(e) => setWizardData({ ...wizardData, startDate: e.target.value })}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !wizardData.startDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {wizardData.startDate && wizardData.endDate ? (
+                <>
+                  {format(new Date(wizardData.startDate), "dd MMM yyyy", { locale: ptBR })} -{" "}
+                  {format(new Date(wizardData.endDate), "dd MMM yyyy", { locale: ptBR })}
+                </>
+              ) : wizardData.startDate ? (
+                format(new Date(wizardData.startDate), "dd MMM yyyy", { locale: ptBR })
+              ) : (
+                "Selecione o período"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+            <Calendar
+              mode="range"
+              selected={{
+                from: wizardData.startDate ? new Date(wizardData.startDate) : undefined,
+                to: wizardData.endDate ? new Date(wizardData.endDate) : undefined,
+              }}
+              onSelect={(range: DateRange | undefined) => {
+                setWizardData(prev => ({
+                  ...prev,
+                  startDate: range?.from?.toISOString().split('T')[0] || '',
+                  endDate: range?.to?.toISOString().split('T')[0] || '',
+                }));
+              }}
+              numberOfMonths={2}
+              locale={ptBR}
+              disabled={(date) => isBefore(date, startOfDay(new Date()))}
+              className="pointer-events-auto"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="wizard-endDate" className="text-xs text-muted-foreground">
-              Data Fim
-            </Label>
-            <Input
-              id="wizard-endDate"
-              type="date"
-              value={wizardData.endDate}
-              onChange={(e) => setWizardData({ ...wizardData, endDate: e.target.value })}
-            />
-          </div>
-        </div>
+          </PopoverContent>
+        </Popover>
+        {wizardData.startDate && wizardData.endDate && (
+          <p className="text-xs text-muted-foreground">
+            Duração: {Math.ceil((new Date(wizardData.endDate).getTime() - new Date(wizardData.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} dias
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -947,23 +1077,35 @@ export default function Sprints() {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Formatos de conteúdo (selecione múltiplos)</Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {contentFormats.map((format) => (
             <button
               key={format.id}
               type="button"
               onClick={() => toggleFormat(format.id)}
               className={cn(
-                'px-4 py-2 rounded-full text-sm border transition-all',
+                'p-3 rounded-lg border text-left transition-all text-sm',
                 wizardData.formats.includes(format.id)
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border hover:border-primary/50'
+                  ? 'bg-primary/10 border-primary text-foreground'
+                  : 'border-border hover:border-primary/50 text-muted-foreground'
               )}
             >
-              {format.label}
+              <div className="flex items-center gap-2">
+                {wizardData.formats.includes(format.id) && (
+                  <Check className="h-4 w-4 text-primary shrink-0" />
+                )}
+                <span className={cn(
+                  !wizardData.formats.includes(format.id) && "ml-6"
+                )}>
+                  {format.label}
+                </span>
+              </div>
             </button>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground">
+          {wizardData.formats.length} formato(s) selecionado(s)
+        </p>
       </div>
 
       <div className="space-y-4">
@@ -1439,29 +1581,83 @@ export default function Sprints() {
 
                 {/* Framework Selection - Required */}
                 <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
-                    Framework de Conteúdo
-                    <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
-                  </Label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto">
-                    {contentFrameworks.map((framework) => (
-                      <button
-                        key={framework.id}
-                        type="button"
-                        onClick={() => updateApprovedContent(selectedContent.id, { framework: framework.id })}
-                        className={cn(
-                          'p-3 rounded-lg border text-left transition-all',
-                          selectedContent.framework === framework.id
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        )}
-                      >
-                        <div className="font-medium text-sm">{framework.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
-                        <div className="text-xs text-primary/80 mt-2">{framework.bestUse}</div>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      Framework de Conteúdo
+                      <Badge variant="default" className="text-xs bg-primary">Obrigatório</Badge>
+                    </Label>
                   </div>
+
+                  {/* AI Recommendation Banner */}
+                  {selectedContent.frameworkReason && (
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <div className="space-y-1 flex-1">
+                          <p className="text-sm font-medium">Recomendação da IA</p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedContent.frameworkReason}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Framework Display */}
+                  {selectedContent.framework && !showFrameworkOptions && (
+                    <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-5 w-5 text-primary shrink-0" />
+                          <span className="font-medium">
+                            {contentFrameworks.find(f => f.id === selectedContent.framework)?.name}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowFrameworkOptions(true)}
+                        >
+                          Trocar
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {contentFrameworks.find(f => f.id === selectedContent.framework)?.description}
+                      </p>
+                      {selectedContent.frameworkBenefit && (
+                        <div className="flex items-center gap-2 mt-2 text-xs text-emerald-500">
+                          <Check className="h-3 w-3 shrink-0" />
+                          {selectedContent.frameworkBenefit}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Framework Options (shown when "Trocar" is clicked or no framework selected) */}
+                  {(showFrameworkOptions || !selectedContent.framework) && (
+                    <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                      {contentFrameworks.map((framework) => (
+                        <button
+                          key={framework.id}
+                          type="button"
+                          onClick={() => {
+                            updateApprovedContent(selectedContent.id, { framework: framework.id });
+                            setShowFrameworkOptions(false);
+                          }}
+                          className={cn(
+                            'w-full p-3 rounded-lg border text-left transition-all',
+                            selectedContent.framework === framework.id
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          )}
+                        >
+                          <div className="font-medium text-sm">{framework.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
+                          <div className="text-xs text-primary/80 mt-2">{framework.bestUse}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1505,12 +1701,16 @@ export default function Sprints() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pilar:</span>
               <span className="flex items-center gap-2">
-                {selectedPillar && (
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: selectedPillar.color }}
-                  />
-                )}
+                {selectedPillar && (() => {
+                  const iconConfig = pillarIconConfig[selectedPillar.id];
+                  const IconComponent = iconConfig?.icon || Circle;
+                  return (
+                    <IconComponent
+                      className="h-4 w-4"
+                      style={{ color: iconConfig?.color || selectedPillar.color }}
+                    />
+                  );
+                })()}
                 {selectedPillar?.name || '-'}
               </span>
             </div>
