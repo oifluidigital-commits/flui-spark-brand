@@ -1581,29 +1581,83 @@ export default function Sprints() {
 
                 {/* Framework Selection - Required */}
                 <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
-                    Framework de Conteúdo
-                    <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
-                  </Label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto">
-                    {contentFrameworks.map((framework) => (
-                      <button
-                        key={framework.id}
-                        type="button"
-                        onClick={() => updateApprovedContent(selectedContent.id, { framework: framework.id })}
-                        className={cn(
-                          'p-3 rounded-lg border text-left transition-all',
-                          selectedContent.framework === framework.id
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        )}
-                      >
-                        <div className="font-medium text-sm">{framework.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
-                        <div className="text-xs text-primary/80 mt-2">{framework.bestUse}</div>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      Framework de Conteúdo
+                      <Badge variant="default" className="text-xs bg-primary">Obrigatório</Badge>
+                    </Label>
                   </div>
+
+                  {/* AI Recommendation Banner */}
+                  {selectedContent.frameworkReason && (
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <div className="space-y-1 flex-1">
+                          <p className="text-sm font-medium">Recomendação da IA</p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedContent.frameworkReason}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Framework Display */}
+                  {selectedContent.framework && !showFrameworkOptions && (
+                    <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-5 w-5 text-primary shrink-0" />
+                          <span className="font-medium">
+                            {contentFrameworks.find(f => f.id === selectedContent.framework)?.name}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowFrameworkOptions(true)}
+                        >
+                          Trocar
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {contentFrameworks.find(f => f.id === selectedContent.framework)?.description}
+                      </p>
+                      {selectedContent.frameworkBenefit && (
+                        <div className="flex items-center gap-2 mt-2 text-xs text-emerald-500">
+                          <Check className="h-3 w-3 shrink-0" />
+                          {selectedContent.frameworkBenefit}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Framework Options (shown when "Trocar" is clicked or no framework selected) */}
+                  {(showFrameworkOptions || !selectedContent.framework) && (
+                    <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                      {contentFrameworks.map((framework) => (
+                        <button
+                          key={framework.id}
+                          type="button"
+                          onClick={() => {
+                            updateApprovedContent(selectedContent.id, { framework: framework.id });
+                            setShowFrameworkOptions(false);
+                          }}
+                          className={cn(
+                            'w-full p-3 rounded-lg border text-left transition-all',
+                            selectedContent.framework === framework.id
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          )}
+                        >
+                          <div className="font-medium text-sm">{framework.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
+                          <div className="text-xs text-primary/80 mt-2">{framework.bestUse}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
