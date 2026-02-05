@@ -647,13 +647,85 @@ export default function Sprints() {
     const convertCount = Math.max(0, contentsPlanned - educateCount - engageCount);
     
     const suggestions: SuggestedContent[] = [];
-    const availableFormats = formats.length > 0 ? formats : ['post'];
+    const availableFormats = formats.length > 0 ? formats : ['post-linkedin-text'];
+    
+    // AI Framework recommendation based on intention and format
+    const getFrameworkRecommendation = (
+      intention: 'educate' | 'engage' | 'convert',
+      format: string
+    ): { id: string; reason: string; benefit: string } => {
+      // Format-specific recommendations
+      if (format.includes('carousel') || format === 'post-linkedin-carousel') {
+        return {
+          id: 'educational',
+          reason: 'Carrosséis funcionam melhor com estrutura de etapas didáticas',
+          benefit: 'Maior retenção e salvamentos'
+        };
+      }
+      
+      if (format === 'video-short' || format === 'reels' || format === 'story') {
+        return {
+          id: 'hvc',
+          reason: 'Vídeos curtos precisam de gancho imediato e CTA direto',
+          benefit: 'Maior taxa de visualização completa'
+        };
+      }
+      
+      if (format === 'case-study') {
+        return {
+          id: 'bab',
+          reason: 'Cases se beneficiam da estrutura Antes/Depois/Ponte',
+          benefit: 'Demonstra transformação com clareza'
+        };
+      }
+      
+      if (format === 'landing-page' || format === 'email-marketing') {
+        return {
+          id: 'aida',
+          reason: 'Estrutura ideal para páginas e emails de conversão',
+          benefit: 'Maior taxa de cliques e conversões'
+        };
+      }
+      
+      // Intention-based recommendations
+      if (intention === 'convert') {
+        return {
+          id: 'aida',
+          reason: 'Estrutura ideal para conteúdos de conversão, guiando o leitor até a ação',
+          benefit: 'Maior taxa de cliques e conversões'
+        };
+      }
+      
+      if (intention === 'engage') {
+        return {
+          id: 'storytelling',
+          reason: 'Narrativa gera conexão emocional e comentários',
+          benefit: 'Maior engajamento e compartilhamentos'
+        };
+      }
+      
+      if (intention === 'educate') {
+        return {
+          id: 'educational',
+          reason: 'Estrutura didática para ensinar conceitos de forma clara',
+          benefit: 'Retenção e compreensão do conteúdo'
+        };
+      }
+      
+      // Default
+      return {
+        id: 'hvc',
+        reason: 'Estrutura direta e eficaz para redes sociais',
+        benefit: 'Clareza e objetividade'
+      };
+    };
     
     const createSuggestion = (intention: 'educate' | 'engage' | 'convert', index: number): SuggestedContent => {
       const hooks = mockHooks[intention];
       const ctas = mockCtas[intention];
       const format = availableFormats[index % availableFormats.length];
       const theme = themes[index % themes.length];
+      const frameworkRec = getFrameworkRecommendation(intention, format);
       
       return {
         id: `suggestion-${Date.now()}-${index}`,
@@ -667,7 +739,9 @@ export default function Sprints() {
           : 'Converter seguidores em leads/clientes',
         hook: hooks[index % hooks.length],
         suggestedCta: ctas[index % ctas.length],
-        framework: '', // No framework initially - user must define
+        framework: frameworkRec.id, // AI recommends a framework
+        frameworkReason: frameworkRec.reason,
+        frameworkBenefit: frameworkRec.benefit,
       };
     };
     
