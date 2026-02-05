@@ -1,4 +1,5 @@
 import { useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,6 +56,7 @@ const statusColors: Record<IdeaStatus, string> = {
 
 export default function Ideas() {
   const { ideas, sprints, addIdea, updateIdea, deleteIdea } = useApp();
+   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [formatFilter, setFormatFilter] = useState<string>('all');

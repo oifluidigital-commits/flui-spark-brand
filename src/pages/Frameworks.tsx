@@ -1,4 +1,5 @@
 import { useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
