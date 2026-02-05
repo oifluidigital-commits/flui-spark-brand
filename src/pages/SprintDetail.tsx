@@ -1,4 +1,4 @@
- import { useState, useMemo } from 'react';
+ import { useState, useMemo, useEffect } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
  import { useApp } from '@/contexts/AppContext';
  import { MainLayout } from '@/components/layout/MainLayout';
