@@ -606,35 +606,35 @@ export const activeUserGateScenario = 'free_near_limit';
 ## 17. Checklist de Entrega
 
 ### Contexto e Hook
-- [ ] Criar `src/contexts/UserGateContext.tsx`
-- [ ] Definir `UserGateState` interface
-- [ ] Criar `planLimits` configuration
-- [ ] Criar `src/hooks/useGate.ts`
-- [ ] Integrar com `AppContext.tsx`
+ - [x] Criar `src/contexts/UserGateContext.tsx`
+ - [x] Definir `UserGateState` interface
+ - [x] Criar `planLimits` configuration
+ - [x] Criar `src/hooks/useGate.ts`
+ - [x] Integrar com `App.tsx` (UserGateProvider)
 
 ### Componentes de Gate
-- [ ] Criar `FeatureGate.tsx`
-- [ ] Criar `PlanBadge.tsx`
-- [ ] Criar `UpgradePrompt.tsx` (3 variants)
-- [ ] Criar `CreditWarning.tsx`
-- [ ] Criar `SprintLimitCard.tsx`
+ - [x] Criar `FeatureGate.tsx`
+ - [x] Criar `PlanBadge.tsx`
+ - [x] Criar `UpgradePrompt.tsx` (3 variants)
+ - [x] Criar `CreditWarning.tsx`
+ - [x] Criar `SprintLimitCard.tsx`
 
 ### Aplicacao nas Paginas
-- [ ] Modificar `TopBar.tsx` com CreditWarning
-- [ ] Modificar `Sprints.tsx` com SprintLimitCard
-- [ ] Modificar `SprintDetail.tsx` com AI gate
-- [ ] Verificar `Strategy.tsx` (ja tem gate de onboarding)
-- [ ] Adicionar gate em `Radar.tsx`
+ - [x] Modificar `TopBar.tsx` com CreditWarning
+ - [x] Modificar `Sprints.tsx` com SprintLimitCard
+ - [x] Modificar `SprintDetail.tsx` com AI gate
+ - [x] Strategy.tsx (ja tem gate de onboarding)
+ - [x] Adicionar gate em `Radar.tsx`
 
 ### Mock Data
-- [ ] Adicionar `mockUserGateContext` em mockData
-- [ ] Criar cenarios de teste
-- [ ] Configurar cenario ativo para demo
+ - [x] Adicionar `mockUserGateScenarios` em mockData
+ - [x] Criar cenarios de teste
+ - [x] Configurar cenario ativo para demo
 
 ### Testes de Cenarios
-- [ ] Free user: limite de sprints
-- [ ] Free user: creditos baixos (< 20%)
-- [ ] Free user: creditos esgotados
-- [ ] Free user: onboarding incompleto
-- [ ] Pro user: acesso total
+ - [x] Free user: limite de sprints
+ - [x] Free user: creditos baixos (< 20%)
+ - [x] Free user: creditos esgotados
+ - [x] Free user: onboarding incompleto
+ - [ ] Pro user: acesso total (alterar cenário em UserGateContext para testar)
 
