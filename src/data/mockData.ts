@@ -523,3 +523,58 @@ export const getCategoryLabel = (category: string): string => {
   };
   return labels[category] || category;
 };
+ 
+ // ============================================
+ // USER GATE MOCK SCENARIOS
+ // ============================================
+ 
+ export type PlanType = 'free' | 'pro' | 'studio';
+ 
+ export interface UserGateScenario {
+   plan: PlanType;
+   onboardingCompleted: boolean;
+   activeSprints: number;
+   contentCredits: number;
+   totalCredits: number;
+ }
+ 
+ export const mockUserGateScenarios: Record<string, UserGateScenario> = {
+   // Scenario: Free user near limit
+   free_near_limit: {
+     plan: 'free',
+     onboardingCompleted: false,
+     activeSprints: 1,
+     contentCredits: 150,
+     totalCredits: 500,
+   },
+ 
+   // Scenario: Free user with no credits
+   free_no_credits: {
+     plan: 'free',
+     onboardingCompleted: true,
+     activeSprints: 1,
+     contentCredits: 0,
+     totalCredits: 500,
+   },
+ 
+   // Scenario: Pro user normal usage
+   pro_normal: {
+     plan: 'pro',
+     onboardingCompleted: true,
+     activeSprints: 3,
+     contentCredits: 4200,
+     totalCredits: 5000,
+   },
+ 
+   // Scenario: Studio user full access
+   studio_full: {
+     plan: 'studio',
+     onboardingCompleted: true,
+     activeSprints: 5,
+     contentCredits: 18500,
+     totalCredits: 20000,
+   },
+ };
+ 
+ // Active scenario for demo (change this to test different scenarios)
+ export const activeUserGateScenario = 'free_near_limit';
