@@ -826,6 +826,7 @@
    const { sprintId } = useParams<{ sprintId: string }>();
    const navigate = useNavigate();
    const { sprints } = useApp();
+   const aiGate = useGate('use-ai');
  
    // Find sprint from context or mock data
    const sprint = useMemo(() => {
@@ -1079,7 +1080,7 @@
  
            {/* Content Table or Empty State */}
            {contents.length === 0 ? (
-             <EmptyContentsState onAddContent={handleAddContent} />
+             <EmptyContentsState onAddContent={handleAddContent} aiAllowed={aiGate.allowed} />
            ) : (
              <div className="border border-border rounded-lg overflow-hidden">
                <Table>
