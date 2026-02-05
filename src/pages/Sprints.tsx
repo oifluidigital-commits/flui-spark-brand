@@ -968,30 +968,54 @@ export default function Sprints() {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Período da Sprint</Label>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="wizard-startDate" className="text-xs text-muted-foreground">
-              Data Início
-            </Label>
-            <Input
-              id="wizard-startDate"
-              type="date"
-              value={wizardData.startDate}
-              onChange={(e) => setWizardData({ ...wizardData, startDate: e.target.value })}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !wizardData.startDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {wizardData.startDate && wizardData.endDate ? (
+                <>
+                  {format(new Date(wizardData.startDate), "dd MMM yyyy", { locale: ptBR })} -{" "}
+                  {format(new Date(wizardData.endDate), "dd MMM yyyy", { locale: ptBR })}
+                </>
+              ) : wizardData.startDate ? (
+                format(new Date(wizardData.startDate), "dd MMM yyyy", { locale: ptBR })
+              ) : (
+                "Selecione o período"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+            <Calendar
+              mode="range"
+              selected={{
+                from: wizardData.startDate ? new Date(wizardData.startDate) : undefined,
+                to: wizardData.endDate ? new Date(wizardData.endDate) : undefined,
+              }}
+              onSelect={(range: DateRange | undefined) => {
+                setWizardData(prev => ({
+                  ...prev,
+                  startDate: range?.from?.toISOString().split('T')[0] || '',
+                  endDate: range?.to?.toISOString().split('T')[0] || '',
+                }));
+              }}
+              numberOfMonths={2}
+              locale={ptBR}
+              disabled={(date) => isBefore(date, startOfDay(new Date()))}
+              className="pointer-events-auto"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="wizard-endDate" className="text-xs text-muted-foreground">
-              Data Fim
-            </Label>
-            <Input
-              id="wizard-endDate"
-              type="date"
-              value={wizardData.endDate}
-              onChange={(e) => setWizardData({ ...wizardData, endDate: e.target.value })}
-            />
-          </div>
-        </div>
+          </PopoverContent>
+        </Popover>
+        {wizardData.startDate && wizardData.endDate && (
+          <p className="text-xs text-muted-foreground">
+            Duração: {Math.ceil((new Date(wizardData.endDate).getTime() - new Date(wizardData.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} dias
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
