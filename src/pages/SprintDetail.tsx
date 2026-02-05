@@ -1,6 +1,9 @@
  import { useState, useMemo, useEffect } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
  import { useApp } from '@/contexts/AppContext';
+ import { useGate } from '@/hooks/useGate';
+ import { PlanBadge } from '@/components/gates/PlanBadge';
+ import { UpgradePrompt } from '@/components/gates/UpgradePrompt';
  import { MainLayout } from '@/components/layout/MainLayout';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
@@ -765,8 +768,8 @@
  };
  
  // Empty State Component
- const EmptyContentsState = ({ onAddContent }: { onAddContent: () => void }) => (
-   <div className="text-center py-16 border border-dashed border-zinc-700 rounded-lg">
+ const EmptyContentsState = ({ onAddContent, aiAllowed }: { onAddContent: () => void; aiAllowed: boolean }) => (
+   <div className="text-center py-16 border border-dashed border-border rounded-lg">
      <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
      <h3 className="text-lg font-medium text-foreground mb-2">Nenhum conteúdo nesta Sprint</h3>
      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -777,9 +780,10 @@
          <Plus className="h-4 w-4 mr-2" />
          Adicionar Conteúdo
        </Button>
-       <Button variant="outline">
+       <Button variant="outline" disabled={!aiAllowed}>
          <Sparkles className="h-4 w-4 mr-2" />
          Gerar Sugestões IA
+         {!aiAllowed && <PlanBadge requiredPlan="pro" />}
        </Button>
      </div>
    </div>
