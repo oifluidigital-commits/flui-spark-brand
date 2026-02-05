@@ -1,15 +1,39 @@
  import { useState, useEffect } from 'react';
  import { useNavigate, useLocation } from 'react-router-dom';
- import { Activity, Target, Calendar, FileText, BarChart2, Menu, X, ChevronDown, User, Settings, HelpCircle, LogOut } from 'lucide-react';
+ import { 
+   LayoutDashboard, 
+   Target, 
+   Calendar, 
+   FileText, 
+   BarChart2, 
+   Menu, 
+   X, 
+   ChevronDown, 
+   User, 
+   Settings, 
+   HelpCircle, 
+   LogOut,
+   Palette,
+   Zap,
+   Lightbulb,
+   BookOpen,
+   Radar,
+   CreditCard,
+   Shield,
+   Sparkles,
+ } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
  import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+ import { Progress } from '@/components/ui/progress';
  import {
    DropdownMenu,
    DropdownMenuContent,
    DropdownMenuItem,
    DropdownMenuSeparator,
    DropdownMenuTrigger,
+   DropdownMenuLabel,
+   DropdownMenuGroup,
  } from '@/components/ui/dropdown-menu';
  import {
    Sheet,
@@ -20,6 +44,7 @@
  } from '@/components/ui/sheet';
  import { cn } from '@/lib/utils';
  import { useApp } from '@/contexts/AppContext';
+ import { getRemainingCredits, getCreditPercentage } from '@/data/mockData';
  
  // Menu item type definition
  interface MenuItem {
@@ -27,25 +52,56 @@
    label: string;
    icon: React.ElementType;
    route: string;
+   children?: MenuItem[];
  }
  
- // Menu items configuration with routes
+ // Primary navigation items (center of top bar)
  const menuItems: MenuItem[] = [
-   { id: 'diagnostico', label: 'Diagnóstico', icon: Activity, route: '/dashboard' },
+   { id: 'diagnostico', label: 'Diagnóstico', icon: LayoutDashboard, route: '/dashboard' },
    { id: 'estrategia', label: 'Estratégia', icon: Target, route: '/strategy' },
-   { id: 'planejamento', label: 'Planejamento', icon: Calendar, route: '/content-lab/sprints' },
-   { id: 'conteudos', label: 'Conteúdos', icon: FileText, route: '/content-lab/ideas' },
-   { id: 'insights', label: 'Insights', icon: BarChart2, route: '/content-lab/radar' },
+   { 
+     id: 'planejamento', 
+     label: 'Planejamento', 
+     icon: Calendar, 
+     route: '/content-lab/sprints',
+     children: [
+       { id: 'sprints', label: 'Sprints', icon: Zap, route: '/content-lab/sprints' },
+     ]
+   },
+   { 
+     id: 'conteudos', 
+     label: 'Conteúdos', 
+     icon: FileText, 
+     route: '/content-lab/ideas',
+     children: [
+       { id: 'ideas', label: 'Ideias', icon: Lightbulb, route: '/content-lab/ideas' },
+       { id: 'frameworks', label: 'Frameworks', icon: BookOpen, route: '/content-lab/frameworks' },
+     ]
+   },
+   { id: 'insights', label: 'Insights', icon: Radar, route: '/content-lab/radar' },
+ ];
+ 
+ // Secondary navigation items (mobile drawer only)
+ const secondaryItems: MenuItem[] = [
+   { id: 'brand', label: 'Marca', icon: Palette, route: '/brand' },
+   { id: 'profile', label: 'Perfil', icon: User, route: '/profile' },
+   { id: 'pricing', label: 'Preços', icon: CreditCard, route: '/pricing' },
+   { id: 'privacy', label: 'Privacidade', icon: Shield, route: '/privacy-policy' },
  ];
  
  // Route to menu item mapping
  const routeToMenuItem: Record<string, string> = {
    '/dashboard': 'diagnostico',
    '/strategy': 'estrategia',
+   '/estrategia': 'estrategia',
    '/content-lab/sprints': 'planejamento',
    '/content-lab/ideas': 'conteudos',
    '/content-lab/frameworks': 'conteudos',
    '/content-lab/radar': 'insights',
+   '/brand': 'brand',
+   '/profile': 'profile',
+   '/pricing': 'pricing',
+   '/privacy-policy': 'privacy',
  };
  
  export function TopNavigation() {
@@ -69,6 +125,10 @@
    // Derive diagnostic status from user context
    const diagnosticStatus = user.onboardingStatus === 'completed' ? 'concluido' : 'em_andamento';
    
+   // AI Credits
+   const remainingCredits = getRemainingCredits(user);
+   const creditPercentage = getCreditPercentage(user);
+ 
    // Mobile drawer state
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
    
@@ -105,7 +165,12 @@
            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
              <span className="text-primary-foreground font-bold text-sm">F</span>
            </div>
-           <span className="font-semibold text-foreground text-lg hidden sm:inline">Flui</span>
+             <button 
+               onClick={() => navigate('/dashboard')}
+               className="font-semibold text-foreground text-lg hidden sm:inline hover:text-primary transition-colors"
+             >
+               Flui
+             </button>
          </div>
          
          {/* CENTER: Desktop Horizontal Menu */}
@@ -138,6 +203,20 @@
          
          {/* RIGHT: Status Badge + User Avatar */}
          <div className="flex items-center gap-3">
+             {/* AI Credits Counter */}
+             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg">
+               <Sparkles className="h-4 w-4 text-primary" />
+               <div className="flex flex-col">
+                 <div className="flex items-center gap-1">
+                   <span className="text-sm font-medium text-foreground">
+                     {remainingCredits.toLocaleString('pt-BR')}
+                   </span>
+                   <span className="text-xs text-muted-foreground">créditos</span>
+                 </div>
+                 <Progress value={100 - creditPercentage} className="h-1 w-20" />
+               </div>
+             </div>
+ 
            {/* Diagnostic Status Badge */}
            <Badge
              variant="outline"
@@ -211,6 +290,20 @@
                  </SheetTitle>
                </SheetHeader>
                
+                 {/* AI Credits - Mobile */}
+                 <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg mb-4">
+                   <Sparkles className="h-4 w-4 text-primary" />
+                   <div className="flex-1">
+                     <div className="flex items-center gap-1">
+                       <span className="text-sm font-medium text-foreground">
+                         {remainingCredits.toLocaleString('pt-BR')}
+                       </span>
+                       <span className="text-xs text-muted-foreground">créditos IA</span>
+                     </div>
+                     <Progress value={100 - creditPercentage} className="h-1 mt-1" />
+                   </div>
+                 </div>
+ 
                {/* Mobile Menu Items */}
                <nav className="flex flex-col gap-1">
                  {menuItems.map((item) => {
@@ -218,23 +311,78 @@
                    const isActive = activeMenuItem === item.id;
                    
                    return (
-                     <button
-                       key={item.id}
-                       onClick={() => handleMenuItemClick(item.id)}
-                       className={cn(
-                         'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors w-full text-left',
-                         isActive
-                           ? 'bg-primary/10 text-foreground border-l-2 border-primary'
-                           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                       )}
-                     >
-                       <Icon className="h-5 w-5" />
-                       <span>{item.label}</span>
-                     </button>
+                       <div key={item.id}>
+                         <button
+                           onClick={() => handleMenuItemClick(item.id)}
+                           className={cn(
+                             'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors w-full text-left',
+                             isActive
+                               ? 'bg-primary/10 text-foreground border-l-2 border-primary'
+                               : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                           )}
+                         >
+                           <Icon className="h-5 w-5" />
+                           <span>{item.label}</span>
+                         </button>
+                         {/* Sub-items */}
+                         {item.children && (
+                           <div className="ml-6 pl-3 border-l border-border space-y-1 mt-1">
+                             {item.children.map((child) => {
+                               const ChildIcon = child.icon;
+                               const isChildActive = location.pathname === child.route;
+                               return (
+                                 <button
+                                   key={child.id}
+                                   onClick={() => {
+                                     navigate(child.route);
+                                     setMobileMenuOpen(false);
+                                   }}
+                                   className={cn(
+                                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left',
+                                     isChildActive
+                                       ? 'text-primary'
+                                       : 'text-muted-foreground hover:text-foreground'
+                                   )}
+                                 >
+                                   <ChildIcon className="h-4 w-4" />
+                                   <span>{child.label}</span>
+                                 </button>
+                               );
+                             })}
+                           </div>
+                         )}
+                       </div>
                    );
                  })}
                </nav>
                
+                 {/* Secondary Links - Mobile */}
+                 <div className="mt-4 pt-4 border-t border-border space-y-1">
+                   <p className="text-xs text-muted-foreground px-3 mb-2">Mais</p>
+                   {secondaryItems.map((item) => {
+                     const Icon = item.icon;
+                     const isActive = location.pathname === item.route;
+                     return (
+                       <button
+                         key={item.id}
+                         onClick={() => {
+                           navigate(item.route);
+                           setMobileMenuOpen(false);
+                         }}
+                         className={cn(
+                           'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left',
+                           isActive
+                             ? 'bg-primary/10 text-foreground'
+                             : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                         )}
+                       >
+                         <Icon className="h-5 w-5" />
+                         <span>{item.label}</span>
+                       </button>
+                     );
+                   })}
+                 </div>
+ 
                {/* Mobile Diagnostic Status */}
                <div className="mt-6 pt-6 border-t border-border">
                  <Badge
