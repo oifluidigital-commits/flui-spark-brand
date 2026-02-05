@@ -470,6 +470,7 @@ const mockCtas: Record<string, string[]> = {
 
 export default function Sprints() {
   const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
+   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
