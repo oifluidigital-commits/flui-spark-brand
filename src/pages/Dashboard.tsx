@@ -18,7 +18,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { getStatusLabel, formatDatePTBR } from '@/data/mockData';
-import { cn } from '@/lib/utils';
+ import { cn } from '@/lib/utils';
+ import { OnboardingProgressCard } from '@/components/dashboard/OnboardingProgressCard';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -37,8 +38,16 @@ export default function Dashboard() {
   
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Quick Actions */}
+       <div className="space-y-6">
+         {/* Onboarding Progress Card */}
+         {user.onboardingStatus !== 'completed' && (
+           <OnboardingProgressCard
+             currentStep={user.onboardingStep}
+             onboardingStatus={user.onboardingStatus}
+           />
+         )}
+         
+         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Button
             variant="outline"

@@ -128,7 +128,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const completeOnboardingStep = () => {
     setUser((prev) => ({
       ...prev,
-      onboardingStep: Math.min(prev.onboardingStep + 1, 4),
+       onboardingStep: Math.min(prev.onboardingStep + 1, 7),
+       onboardingStatus: 'in_progress',
     }));
   };
   
