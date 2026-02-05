@@ -40,7 +40,7 @@ import {
   Copy,
   Archive,
   Trash2,
-  Calendar,
+  Calendar as CalendarIcon,
   Sparkles,
   AlertTriangle,
   Check,
@@ -52,10 +52,20 @@ import {
   User,
   GripVertical,
   X,
+  Crown,
+  GraduationCap,
+  Heart,
+  Target,
+  Circle,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
 import { formatDatePTBR, mockPillars } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, isBefore, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 import {
   Tooltip,
   TooltipContent,
