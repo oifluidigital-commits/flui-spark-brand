@@ -478,6 +478,7 @@ export default function Sprints() {
     isOpen: boolean;
     contentId: string | null;
   }>({ isOpen: false, contentId: null });
+  const [showFrameworkOptions, setShowFrameworkOptions] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
