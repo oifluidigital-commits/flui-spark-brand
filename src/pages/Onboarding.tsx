@@ -144,6 +144,17 @@ export default function Onboarding() {
     }
   };
 
+  const handleSkipOnboarding = () => {
+    setUser((prev) => ({
+      ...prev,
+      name: formData.name,
+      onboardingStatus: 'in_progress',
+      onboardingStep: currentStep,
+    }));
+    
+    navigate('/dashboard');
+  };
+
   const handleDiagnosticComplete = () => {
     setPhase('results');
   };
@@ -259,9 +270,20 @@ export default function Onboarding() {
       </Card>
 
       {/* Skip for demo */}
-      <p className="text-xs text-muted-foreground mt-4">
-        Passo {currentStep} de {stepConfig.length}
-      </p>
+      <div className="flex flex-col items-center gap-2 mt-4">
+        <p className="text-xs text-muted-foreground">
+          Passo {currentStep} de {stepConfig.length}
+        </p>
+        
+        {formData.name.trim().length >= 2 && (
+          <button
+            onClick={handleSkipOnboarding}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+          >
+            Pular e ir para o dashboard
+          </button>
+        )}
+      </div>
     </div>
   );
 }
