@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import Pricing from "./pages/Pricing";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
+ import Strategy from "./pages/Strategy";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
+       <Route path="/estrategia" element={<ProtectedRoute><Strategy /></ProtectedRoute>} />
       
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<NotFound />} />
