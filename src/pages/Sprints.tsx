@@ -441,25 +441,6 @@ const mockCtas: Record<string, string[]> = {
   ],
 };
 
-// Priority indicator component
-const PriorityDot = ({ priority }: { priority: 'high' | 'medium' | 'low' }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        className={cn(
-          'w-2 h-2 rounded-full inline-block shrink-0',
-          priority === 'high' && 'bg-red-500',
-          priority === 'medium' && 'bg-amber-500',
-          priority === 'low' && 'bg-emerald-500'
-        )}
-      />
-    </TooltipTrigger>
-    <TooltipContent side="top" className="text-xs">
-      Prioridade {priority === 'high' ? 'Alta' : priority === 'medium' ? 'Média' : 'Baixa'}
-    </TooltipContent>
-  </Tooltip>
-);
-
 export default function Sprints() {
   const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
