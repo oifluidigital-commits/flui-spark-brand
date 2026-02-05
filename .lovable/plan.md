@@ -1,640 +1,359 @@
 
-# Plano de Implementacao — Sistema de Gates Frontend
 
-## Visao Geral
+# Analise de Navegacao e Continuidade — Flui
 
-Implementar um sistema de controle de acesso frontend baseado em contexto de usuario (plano, onboarding, sprints ativos, creditos). O sistema controlara limites de uso, bloqueios de funcionalidades e alertas visuais em toda a aplicacao.
+## Resumo Executivo
 
----
-
-## 1. Arquivos a Criar/Modificar
-
-| Arquivo | Acao |
-|---------|------|
-| `src/contexts/UserGateContext.tsx` | CRIAR - Contexto global de gates |
-| `src/components/gates/FeatureGate.tsx` | CRIAR - Componente de bloqueio de feature |
-| `src/components/gates/PlanBadge.tsx` | CRIAR - Badge de plano exigido |
-| `src/components/gates/UpgradePrompt.tsx` | CRIAR - Prompt de upgrade |
-| `src/components/gates/CreditWarning.tsx` | CRIAR - Alerta de creditos baixos |
-| `src/components/gates/SprintLimitCard.tsx` | CRIAR - Card de limite de sprints |
-| `src/hooks/useGate.ts` | CRIAR - Hook de verificacao de gates |
-| `src/contexts/AppContext.tsx` | MODIFICAR - Integrar userContext |
-| `src/components/layout/TopBar.tsx` | MODIFICAR - Adicionar alerta de creditos |
-| `src/pages/Sprints.tsx` | MODIFICAR - Aplicar gate de limite |
-| `src/pages/SprintDetail.tsx` | MODIFICAR - Aplicar gate de creditos IA |
-| `src/data/mockData.ts` | MODIFICAR - Adicionar mockUserContext |
+Apos analise detalhada de todas as paginas e fluxos do sistema Flui, identifiquei **12 gaps de navegacao e continuidade** que fragmentam a experiencia do usuario. Este plano descreve cada gap, seu impacto, e a correcao minima necessaria para criar uma jornada coesa.
 
 ---
 
-## 2. Estrutura do UserContext (Mock Global)
+## Mapa de Paginas e Conexoes Atuais
+
+```text
++---------------+       +-------------+       +------------+
+|    Login      | ----> |  Onboarding | ----> | Dashboard  |
++---------------+       +-------------+       +------------+
+                              |                     |
+                              |                     v
+                              |              +-------------+
+                              +------------> |  Strategy   | (blocked if not completed)
+                                             +-------------+
+                                                   |
+                                                   v (broken link: /planejamento)
+                                             +-------------+
+                                             |   Sprints   |
+                                             +-------------+
+                                                   |
+                                                   v
+                                             +--------------+
+                                             | SprintDetail |
+                                             +--------------+
+```
+
+---
+
+## Gap 1: Strategy CTA aponta para rota inexistente
+
+**Pagina**: `/strategy`  
+**Problema**: O botao "Ir para Planejamento de Conteudo" navega para `/planejamento`, que nao existe. O usuario e levado para 404.
+**Linha**: `src/pages/Strategy.tsx:325`
 
 ```typescript
-// src/contexts/UserGateContext.tsx
+// ATUAL (ERRADO)
+<Button onClick={() => navigate('/planejamento')} className="gap-2">
 
-type PlanType = 'free' | 'pro' | 'studio';
-
-interface UserGateContext {
-  plan: PlanType;
-  onboardingCompleted: boolean;
-  activeSprints: number;
-  contentCredits: number;
-}
-
-// Plan limits configuration
-const planLimits = {
-  free: {
-    maxActiveSprints: 1,
-    maxIdeasPerMonth: 10,
-    aiCredits: 500,
-    hasRadar: false,
-    hasCompetitorAnalysis: false,
-    hasAllFrameworks: false,
-  },
-  pro: {
-    maxActiveSprints: Infinity,
-    maxIdeasPerMonth: Infinity,
-    aiCredits: 5000,
-    hasRadar: true,
-    hasCompetitorAnalysis: true,
-    hasAllFrameworks: true,
-  },
-  studio: {
-    maxActiveSprints: Infinity,
-    maxIdeasPerMonth: Infinity,
-    aiCredits: 20000,
-    hasRadar: true,
-    hasCompetitorAnalysis: true,
-    hasAllFrameworks: true,
-    hasMultipleBrands: true,
-    hasTeamCollaboration: true,
-    hasApiAccess: true,
-  },
-};
+// CORRECAO
+<Button onClick={() => navigate('/content-lab/sprints')} className="gap-2">
 ```
+
+**Correcao**: Alterar rota para `/content-lab/sprints`
 
 ---
 
-## 3. Hook useGate
+## Gap 2: DiagnosticResults nao direciona para Strategy
 
-```typescript
-// src/hooks/useGate.ts
+**Pagina**: `/onboarding` (fase results)  
+**Problema**: Apos finalizar o diagnostico, o usuario e direcionado ao Dashboard, mas nao ha indicacao clara de que a estrategia foi gerada e pode ser visualizada.
 
-type GateType = 
-  | 'create-sprint'
-  | 'use-ai'
-  | 'access-radar'
-  | 'access-competitor-analysis'
-  | 'use-advanced-frameworks'
-  | 'access-strategy';
+**Impacto**: Usuario nao descobre que `/strategy` agora esta disponivel.
 
-interface GateResult {
-  allowed: boolean;
-  reason?: string;
-  requiredPlan?: PlanType;
-  action?: 'upgrade' | 'complete-onboarding' | 'wait-credits';
-}
-
-const useGate = (gateType: GateType): GateResult => {
-  const { userGate, planLimits } = useUserGate();
-  
-  switch (gateType) {
-    case 'create-sprint':
-      if (userGate.activeSprints >= planLimits[userGate.plan].maxActiveSprints) {
-        return {
-          allowed: false,
-          reason: 'Você atingiu o limite de sprints ativos do seu plano.',
-          requiredPlan: 'pro',
-          action: 'upgrade',
-        };
-      }
-      return { allowed: true };
-      
-    case 'use-ai':
-      if (userGate.contentCredits <= 0) {
-        return {
-          allowed: false,
-          reason: 'Seus créditos de IA acabaram.',
-          requiredPlan: 'pro',
-          action: 'upgrade',
-        };
-      }
-      return { allowed: true };
-      
-    case 'access-radar':
-      if (!planLimits[userGate.plan].hasRadar) {
-        return {
-          allowed: false,
-          reason: 'O Radar de Tendências é exclusivo para planos Pro e Studio.',
-          requiredPlan: 'pro',
-          action: 'upgrade',
-        };
-      }
-      return { allowed: true };
-      
-    case 'access-strategy':
-      if (!userGate.onboardingCompleted) {
-        return {
-          allowed: false,
-          reason: 'Complete o diagnóstico para acessar sua estratégia.',
-          action: 'complete-onboarding',
-        };
-      }
-      return { allowed: true };
-      
-    default:
-      return { allowed: true };
-  }
-};
-```
-
----
-
-## 4. Componente FeatureGate
+**Correcao em `src/components/onboarding/DiagnosticResults.tsx`**:
+- Adicionar um segundo CTA ou alterar texto do botao principal
+- Navegar para `/strategy` em vez de `/dashboard`, ou oferecer escolha
 
 ```tsx
-// src/components/gates/FeatureGate.tsx
-
-interface FeatureGateProps {
-  gate: GateType;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-  showUpgradePrompt?: boolean;
-}
-
-const FeatureGate = ({ gate, children, fallback, showUpgradePrompt = true }: FeatureGateProps) => {
-  const gateResult = useGate(gate);
-  
-  if (gateResult.allowed) {
-    return <>{children}</>;
-  }
-  
-  if (fallback) {
-    return <>{fallback}</>;
-  }
-  
-  if (showUpgradePrompt && gateResult.action === 'upgrade') {
-    return (
-      <UpgradePrompt 
-        reason={gateResult.reason}
-        requiredPlan={gateResult.requiredPlan}
-      />
-    );
-  }
-  
-  if (gateResult.action === 'complete-onboarding') {
-    return <OnboardingRequiredState reason={gateResult.reason} />;
-  }
-  
-  return null;
-};
-```
-
----
-
-## 5. Componente PlanBadge
-
-```tsx
-// src/components/gates/PlanBadge.tsx
-
-interface PlanBadgeProps {
-  requiredPlan: 'pro' | 'studio';
-  size?: 'sm' | 'md';
-}
-
-const PlanBadge = ({ requiredPlan, size = 'sm' }: PlanBadgeProps) => {
-  const config = {
-    pro: { label: 'Pro', className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
-    studio: { label: 'Studio', className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  };
-  
-  return (
-    <Badge 
-      variant="outline" 
-      className={cn(
-        config[requiredPlan].className,
-        size === 'sm' ? 'text-xs px-1.5 py-0' : 'text-sm px-2 py-0.5'
-      )}
-    >
-      <Crown className={size === 'sm' ? 'h-3 w-3 mr-1' : 'h-4 w-4 mr-1'} />
-      {config[requiredPlan].label}
-    </Badge>
-  );
-};
-```
-
----
-
-## 6. Componente UpgradePrompt
-
-```tsx
-// src/components/gates/UpgradePrompt.tsx
-
-interface UpgradePromptProps {
-  reason: string;
-  requiredPlan: PlanType;
-  variant?: 'card' | 'inline' | 'banner';
-}
-
-const UpgradePrompt = ({ reason, requiredPlan, variant = 'card' }: UpgradePromptProps) => {
-  const navigate = useNavigate();
-  
-  if (variant === 'banner') {
-    return (
-      <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-indigo-400" />
-          <span className="text-sm text-zinc-50">{reason}</span>
-        </div>
-        <Button size="sm" onClick={() => navigate('/pricing')}>
-          Ver Planos
-        </Button>
-      </div>
-    );
-  }
-  
-  if (variant === 'inline') {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Lock className="h-4 w-4" />
-        <span>{reason}</span>
-        <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate('/pricing')}>
-          Fazer upgrade
-        </Button>
-      </div>
-    );
-  }
-  
-  // Card variant (default)
-  return (
-    <Card className="border-indigo-500/30 bg-indigo-500/5">
-      <CardContent className="p-6 text-center space-y-4">
-        <div className="mx-auto w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center">
-          <Lock className="h-7 w-7 text-indigo-400" />
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-zinc-50">
-            Recurso exclusivo
-          </h3>
-          <p className="text-muted-foreground text-sm">{reason}</p>
-        </div>
-        <div className="flex items-center justify-center gap-2">
-          <PlanBadge requiredPlan={requiredPlan} size="md" />
-        </div>
-        <Button onClick={() => navigate('/pricing')} className="w-full">
-          <Sparkles className="h-4 w-4 mr-2" />
-          Fazer Upgrade
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
-```
-
----
-
-## 7. Componente CreditWarning
-
-```tsx
-// src/components/gates/CreditWarning.tsx
-
-interface CreditWarningProps {
-  currentCredits: number;
-  totalCredits: number;
-}
-
-const CreditWarning = ({ currentCredits, totalCredits }: CreditWarningProps) => {
-  const navigate = useNavigate();
-  const percentage = Math.round((currentCredits / totalCredits) * 100);
-  
-  // Only show warning if credits below 20%
-  if (percentage > 20) return null;
-  
-  const isExhausted = currentCredits <= 0;
-  
-  return (
-    <div 
-      className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors",
-        isExhausted 
-          ? "bg-red-500/10 border border-red-500/20 hover:bg-red-500/20"
-          : "bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20"
-      )}
-      onClick={() => navigate('/pricing')}
-    >
-      <AlertTriangle className={cn(
-        "h-4 w-4",
-        isExhausted ? "text-red-500" : "text-amber-500"
-      )} />
-      <span className={cn(
-        "text-xs font-medium",
-        isExhausted ? "text-red-500" : "text-amber-500"
-      )}>
-        {isExhausted ? 'Créditos esgotados' : `${percentage}% restante`}
-      </span>
-    </div>
-  );
-};
-```
-
----
-
-## 8. Componente SprintLimitCard
-
-```tsx
-// src/components/gates/SprintLimitCard.tsx
-
-interface SprintLimitCardProps {
-  currentSprints: number;
-  maxSprints: number;
-}
-
-const SprintLimitCard = ({ currentSprints, maxSprints }: SprintLimitCardProps) => {
-  const navigate = useNavigate();
-  const isAtLimit = currentSprints >= maxSprints;
-  
-  if (!isAtLimit) return null;
-  
-  return (
-    <div className={cn(
-      'flex flex-col items-center justify-center gap-3',
-      'min-h-[240px] rounded-lg',
-      'border border-amber-500/30',
-      'bg-amber-500/5'
-    )}>
-      <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-        <Lock className="h-6 w-6 text-amber-500" />
-      </div>
-      <div className="text-center space-y-1 px-4">
-        <span className="text-zinc-50 text-sm font-medium">
-          Limite de sprints atingido
-        </span>
-        <p className="text-xs text-muted-foreground">
-          Você está usando {currentSprints}/{maxSprints} sprint(s) do plano gratuito.
-        </p>
-      </div>
-      <Button size="sm" onClick={() => navigate('/pricing')}>
-        <Sparkles className="h-4 w-4 mr-2" />
-        Fazer Upgrade
-      </Button>
-    </div>
-  );
-};
-```
-
----
-
-## 9. Integracao com AppContext
-
-```typescript
-// Adicionar ao AppContext.tsx
-
-interface UserGateState {
-  plan: 'free' | 'pro' | 'studio';
-  onboardingCompleted: boolean;
-  activeSprints: number;
-  contentCredits: number;
-}
-
-// Mock inicial
-const initialUserGate: UserGateState = {
-  plan: 'free',
-  onboardingCompleted: false,
-  activeSprints: 1,
-  contentCredits: 350,
-};
-
-// Adicionar ao contexto
-const [userGate, setUserGate] = useState<UserGateState>(initialUserGate);
-
-// Adicionar ao provider value
-userGate,
-setUserGate,
-```
-
----
-
-## 10. Modificacao TopBar (Alerta de Creditos)
-
-```tsx
-// src/components/layout/TopBar.tsx
-
-// Adicionar import
-import { CreditWarning } from '@/components/gates/CreditWarning';
-
-// Modificar secao de creditos
-<div className="flex items-center gap-3">
-  {/* Credit Warning (shown when < 20%) */}
-  <CreditWarning 
-    currentCredits={remainingCredits} 
-    totalCredits={user.aiCredits.total} 
-  />
-  
-  {/* Existing credits counter */}
-  <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
-    <Sparkles className="h-4 w-4 text-primary" />
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">
-          {remainingCredits.toLocaleString('pt-BR')}
-        </span>
-        <span className="text-xs text-muted-foreground">créditos IA</span>
-      </div>
-      <Progress value={100 - creditPercentage} className="h-1 w-24" />
-    </div>
-  </div>
+// Alterar o onComplete callback ou adicionar opcoes
+<div className="flex flex-col gap-3 pt-6">
+  <Button onClick={() => navigate('/strategy')} className="w-full" size="lg">
+    <Sparkles className="h-4 w-4 mr-2" />
+    Ver minha Estrategia Editorial
+  </Button>
+  <Button variant="outline" onClick={onComplete} className="w-full">
+    Ir para o Dashboard
+  </Button>
 </div>
 ```
 
 ---
 
-## 11. Modificacao Sprints.tsx (Gate de Limite)
+## Gap 3: Dashboard nao conecta claramente a Strategy
+
+**Pagina**: `/dashboard`  
+**Problema**: O Dashboard exibe o `OnboardingProgressCard` quando onboarding nao esta completo, mas quando esta completo, nao ha CTA para ver a estrategia gerada.
+
+**Correcao em `src/pages/Dashboard.tsx`**:
+- Adicionar card de "Estrategia Pronta" quando onboarding esta completo
 
 ```tsx
-// src/pages/Sprints.tsx
-
-// Adicionar import
-import { useGate } from '@/hooks/useGate';
-import { SprintLimitCard } from '@/components/gates/SprintLimitCard';
-import { PlanBadge } from '@/components/gates/PlanBadge';
-
-// No componente
-const { userGate } = useApp();
-const createSprintGate = useGate('create-sprint');
-
-// Modificar NewSprintCard condicional
-{createSprintGate.allowed ? (
-  <NewSprintCard onClick={handleOpenWizard} />
-) : (
-  <SprintLimitCard 
-    currentSprints={userGate.activeSprints}
-    maxSprints={1}
-  />
+{user.onboardingStatus === 'completed' && (
+  <Card className="border-primary/30 bg-primary/5 cursor-pointer hover:border-primary/50 transition-colors"
+        onClick={() => navigate('/strategy')}>
+    <CardContent className="flex items-center justify-between p-4">
+      <div className="flex items-center gap-3">
+        <Target className="h-5 w-5 text-primary" />
+        <div>
+          <p className="font-medium">Sua Estrategia Editorial</p>
+          <p className="text-sm text-muted-foreground">Baseada no seu diagnostico</p>
+        </div>
+      </div>
+      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+    </CardContent>
+  </Card>
 )}
 ```
 
 ---
 
-## 12. Modificacao SprintDetail.tsx (Gate de Creditos IA)
+## Gap 4: SprintDetail nao tem CTA de proximos passos
+
+**Pagina**: `/sprints/:sprintId`  
+**Problema**: Quando todos os conteudos estao concluidos, a pagina nao indica que a sprint pode ser finalizada ou que o usuario pode ir para proxima sprint.
+
+**Correcao**: Adicionar banner contextual quando progresso = 100%
 
 ```tsx
-// Ao usar acoes de IA
-const aiGate = useGate('use-ai');
+{progressPercentage === 100 && (
+  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+      <span className="text-sm font-medium">Todos os conteudos concluidos!</span>
+    </div>
+    <Button size="sm" variant="outline" onClick={() => navigate('/content-lab/sprints')}>
+      Ver todas as Sprints
+    </Button>
+  </div>
+)}
+```
 
-// Botao de gerar com IA
-<Button
-  variant="outline"
-  className="gap-2"
-  disabled={!aiGate.allowed}
-  onClick={handleGenerateAI}
->
-  <Sparkles className="h-4 w-4" />
-  Gerar Sugestões IA
-  {!aiGate.allowed && <PlanBadge requiredPlan="pro" />}
+---
+
+## Gap 5: Ideas nao conecta com Sprints
+
+**Pagina**: `/content-lab/ideas`  
+**Problema**: O modal de criacao/edicao de ideia permite selecionar uma Sprint, mas nao ha CTA contextual para criar uma Sprint se nao existirem. Alem disso, ao associar uma ideia a uma sprint, nao ha opcao de ir para aquela sprint.
+
+**Correcao**:
+1. Adicionar link para criar sprint quando lista de sprints esta vazia no select
+2. Adicionar botao "Ver na Sprint" quando ideia tem sprintId
+
+```tsx
+// No card da ideia quando tem sprintId
+{idea.sprintId && (
+  <Button
+    variant="ghost"
+    size="sm"
+    className="text-xs"
+    onClick={(e) => {
+      e.stopPropagation();
+      navigate(`/sprints/${idea.sprintId}`);
+    }}
+  >
+    Ver na Sprint
+  </Button>
+)}
+```
+
+---
+
+## Gap 6: Frameworks "Usar Framework" nao faz nada
+
+**Pagina**: `/content-lab/frameworks`  
+**Problema**: O botao "Usar Framework" no dialog de detalhes nao tem acao. Usuario clica e nada acontece.
+
+**Correcao**: Navegar para criacao de ideia com framework pre-selecionado ou mostrar toast informativo
+
+```tsx
+<Button onClick={() => {
+  setSelectedFramework(null);
+  // Opcao 1: Navegar para Ideas com contexto
+  navigate('/content-lab/ideas?framework=' + selectedFramework.id);
+  // Opcao 2: Toast informativo (mais simples)
+  toast({ description: 'Framework copiado! Use-o ao criar seu proximo conteudo.' });
+}}>
+  Usar Framework
 </Button>
+```
 
-// Se bloqueado
-{!aiGate.allowed && (
-  <UpgradePrompt 
-    reason={aiGate.reason}
-    requiredPlan={aiGate.requiredPlan}
-    variant="banner"
-  />
+---
+
+## Gap 7: Radar tendencias nao conectam com Ideas
+
+**Pagina**: `/content-lab/radar`  
+**Problema**: Cada tendencia tem "Acoes Sugeridas", mas nao ha botao para transformar a tendencia em uma ideia de conteudo.
+
+**Correcao**: Adicionar botao "Criar Ideia" em cada card de tendencia
+
+```tsx
+<Button
+  size="sm"
+  variant="outline"
+  className="mt-4"
+  onClick={() => navigate(`/content-lab/ideas?trend=${trend.id}`)}
+>
+  <Lightbulb className="h-4 w-4 mr-2" />
+  Criar Ideia
+</Button>
+```
+
+---
+
+## Gap 8: Brand (Hub da Marca) e uma pagina isolada
+
+**Pagina**: `/brand`  
+**Problema**: A pagina nao e acessivel pela navegacao principal (apenas mobile drawer). Nao ha contexto de como o usuario chegaria la nem para onde ir depois.
+
+**Correcao**:
+1. Adicionar link para Brand na pagina Strategy (secao "Tom de Voz")
+2. Adicionar breadcrumb ou CTA de retorno ao Strategy
+
+```tsx
+// Em Strategy.tsx, na secao de Tom de Voz
+<Button variant="link" onClick={() => navigate('/brand')}>
+  Gerenciar no Hub da Marca
+  <ArrowRight className="h-4 w-4 ml-1" />
+</Button>
+```
+
+---
+
+## Gap 9: Pricing nao tem navegacao de volta
+
+**Pagina**: `/pricing`  
+**Problema**: Quando usuario vem do CreditWarning ou UpgradePrompt, nao ha botao claro de voltar. Depende do browser back.
+
+**Correcao**: Adicionar botao de voltar no header
+
+```tsx
+<div className="flex items-center gap-4 mb-6">
+  <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+    <ArrowLeft className="h-4 w-4 mr-2" />
+    Voltar
+  </Button>
+</div>
+```
+
+---
+
+## Gap 10: Profile nao conecta com Pricing para upgrade
+
+**Pagina**: `/profile`  
+**Problema**: A secao "Estatisticas de Uso" mostra creditos restantes mas nao oferece caminho para upgrade quando baixo.
+
+**Correcao**: Adicionar CTA de upgrade quando creditos estao baixos
+
+```tsx
+{(user.aiCredits.total - user.aiCredits.used) / user.aiCredits.total < 0.2 && (
+  <Button
+    variant="outline"
+    size="sm"
+    className="mt-4"
+    onClick={() => navigate('/pricing')}
+  >
+    <Sparkles className="h-4 w-4 mr-2" />
+    Obter mais creditos
+  </Button>
 )}
 ```
 
 ---
 
-## 13. Gates por Pagina
+## Gap 11: StrategyBlockedState texto do botao confuso
 
-| Pagina | Gate | Condicao | Acao |
-|--------|------|----------|------|
-| `/strategy` | Onboarding | `!onboardingCompleted` | Mostrar StrategyBlockedState |
-| `/content-lab/sprints` | Sprint Limit | `activeSprints >= maxSprints` | Bloquear criacao |
-| `/content-lab/radar` | Plan | `plan === 'free'` | Mostrar UpgradePrompt |
-| `SprintDetail` | AI Credits | `contentCredits <= 0` | Desabilitar acoes IA |
-| Wizard Step 5 | AI Credits | `contentCredits <= 0` | Mostrar aviso |
-| `Ideas` (criar) | Ideas Limit | `ideasThisMonth >= maxIdeas` | Bloquear criacao |
-| `Brand` (concorrentes) | Plan | `plan === 'free'` | Badge Pro required |
+**Pagina**: `/strategy` (quando onboarding incompleto)  
+**Problema**: O botao diz "Voltar ao Diagnostico", mas o usuario pode nunca ter ido la. O icone ArrowLeft sugere "voltar" quando deveria ser "ir para".
+
+**Correcao**:
+
+```tsx
+<Button onClick={() => navigate('/onboarding')} className="w-full gap-2">
+  Completar Diagnostico
+  <ArrowRight className="h-4 w-4" />
+</Button>
+```
 
 ---
 
-## 14. Mock Data Inicial
+## Gap 12: User Avatar dropdown items nao navegam
+
+**Pagina**: TopNavigation (global)  
+**Problema**: Os itens "Perfil", "Configuracoes" e "Ajuda" no dropdown do avatar nao tem onClick handlers que navegam.
+
+**Correcao em `src/components/layout/TopNavigation.tsx`**:
+
+```tsx
+<DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+  <User className="h-4 w-4 mr-2" />
+  Perfil
+</DropdownMenuItem>
+// Configuracoes e Ajuda podem mostrar toast "Em breve" por enquanto
+```
+
+---
+
+## Resumo das Alteracoes por Arquivo
+
+| Arquivo | Alteracoes |
+|---------|-----------|
+| `src/pages/Strategy.tsx` | Fix rota do CTA, adicionar link para Brand |
+| `src/pages/Dashboard.tsx` | Adicionar card de Strategy quando onboarding completo |
+| `src/pages/SprintDetail.tsx` | Adicionar banner de conclusao |
+| `src/pages/Ideas.tsx` | Adicionar link "Ver na Sprint" |
+| `src/pages/Frameworks.tsx` | Implementar acao do botao "Usar Framework" |
+| `src/pages/Radar.tsx` | Adicionar botao "Criar Ideia" |
+| `src/pages/Pricing.tsx` | Adicionar botao de voltar |
+| `src/pages/Profile.tsx` | Adicionar CTA de upgrade quando creditos baixos |
+| `src/components/onboarding/DiagnosticResults.tsx` | Oferecer opcao de ir para Strategy |
+| `src/components/strategy/StrategyBlockedState.tsx` | Corrigir texto e icone do botao |
+| `src/components/layout/TopNavigation.tsx` | Implementar navegacao nos dropdown items |
+
+---
+
+## Criterios de Sucesso
+
+Apos as correcoes:
+
+1. Nenhuma pagina termina em beco sem saida
+2. Todo fluxo completado oferece proximo passo claro
+3. Usuario sempre sabe onde esta e como voltar
+4. Acoes como "Usar Framework" tem comportamento definido
+5. Navegacao do avatar funciona corretamente
+6. CTAs apontam para rotas existentes
+
+---
+
+## Secao Tecnica
+
+### Padroes de Navegacao a Seguir
+
+- **CTAs primarios**: `Button` com `onClick={() => navigate(...)}`
+- **Links contextuais**: `Button variant="link"` ou `Button variant="ghost"`
+- **Voltar**: `navigate(-1)` para historico ou rota especifica quando contexto e conhecido
+- **Toast informativos**: Para acoes que nao navegam mas precisam de feedback
+
+### Rotas Validas
 
 ```typescript
-// src/data/mockData.ts
-
-// Adicionar ao final do arquivo
-export const mockUserGateContext = {
-  // Cenario: Usuario free com limite proximo
-  free_near_limit: {
-    plan: 'free' as const,
-    onboardingCompleted: false,
-    activeSprints: 1,
-    contentCredits: 150,
-  },
-  
-  // Cenario: Usuario free sem creditos
-  free_no_credits: {
-    plan: 'free' as const,
-    onboardingCompleted: true,
-    activeSprints: 1,
-    contentCredits: 0,
-  },
-  
-  // Cenario: Usuario Pro
-  pro_normal: {
-    plan: 'pro' as const,
-    onboardingCompleted: true,
-    activeSprints: 3,
-    contentCredits: 4200,
-  },
-  
-  // Cenario: Usuario Studio
-  studio_full: {
-    plan: 'studio' as const,
-    onboardingCompleted: true,
-    activeSprints: 5,
-    contentCredits: 18500,
-  },
-};
-
-// Cenario ativo para demo
-export const activeUserGateScenario = 'free_near_limit';
+const validRoutes = [
+  '/login',
+  '/onboarding',
+  '/dashboard',
+  '/strategy',
+  '/brand',
+  '/content-lab/sprints',
+  '/sprints/:sprintId',
+  '/content-lab/ideas',
+  '/content-lab/frameworks',
+  '/content-lab/radar',
+  '/profile',
+  '/pricing',
+  '/privacy-policy',
+];
 ```
 
----
+### Componentes Reutilizaveis
 
-## 15. Hierarquia Visual dos Gates
-
-```text
-+----------------------------------------------------------+
-|                    GATE HIERARCHY                        |
-+----------------------------------------------------------+
-|                                                          |
-|  1. AUTHENTICATION (ja existe em ProtectedRoute)         |
-|     └─ Redireciona para /login                           |
-|                                                          |
-|  2. ONBOARDING (soft gate - informativo)                 |
-|     └─ Exibe card de progresso no Dashboard              |
-|     └─ Bloqueia apenas /strategy se nao concluido        |
-|                                                          |
-|  3. PLAN LIMITS (hard gate - upgrade required)           |
-|     └─ Sprints: max 1 para free                          |
-|     └─ Ideas: max 10/mes para free                       |
-|     └─ Features: Radar, Concorrentes bloqueados          |
-|                                                          |
-|  4. CREDITS (soft gate - warning + disable)              |
-|     └─ < 20%: Alerta visual no TopBar                    |
-|     └─ = 0: Desabilita acoes de IA                       |
-|                                                          |
-+----------------------------------------------------------+
-```
-
----
-
-## 16. Componentes UI Utilizados
-
-- `Card`, `CardContent` - Containers de bloqueio
-- `Badge` - PlanBadge (Pro/Studio)
-- `Button` - CTAs de upgrade
-- `Progress` - Barra de creditos
-- `Tooltip` - Explicacoes de limites
-- Icons: `Lock`, `Crown`, `Sparkles`, `AlertTriangle`, `ArrowRight`
-
----
-
-## 17. Checklist de Entrega
-
-### Contexto e Hook
- - [x] Criar `src/contexts/UserGateContext.tsx`
- - [x] Definir `UserGateState` interface
- - [x] Criar `planLimits` configuration
- - [x] Criar `src/hooks/useGate.ts`
- - [x] Integrar com `App.tsx` (UserGateProvider)
-
-### Componentes de Gate
- - [x] Criar `FeatureGate.tsx`
- - [x] Criar `PlanBadge.tsx`
- - [x] Criar `UpgradePrompt.tsx` (3 variants)
- - [x] Criar `CreditWarning.tsx`
- - [x] Criar `SprintLimitCard.tsx`
-
-### Aplicacao nas Paginas
- - [x] Modificar `TopBar.tsx` com CreditWarning
- - [x] Modificar `Sprints.tsx` com SprintLimitCard
- - [x] Modificar `SprintDetail.tsx` com AI gate
- - [x] Strategy.tsx (ja tem gate de onboarding)
- - [x] Adicionar gate em `Radar.tsx`
-
-### Mock Data
- - [x] Adicionar `mockUserGateScenarios` em mockData
- - [x] Criar cenarios de teste
- - [x] Configurar cenario ativo para demo
-
-### Testes de Cenarios
- - [x] Free user: limite de sprints
- - [x] Free user: creditos baixos (< 20%)
- - [x] Free user: creditos esgotados
- - [x] Free user: onboarding incompleto
- - [ ] Pro user: acesso total (alterar cenário em UserGateContext para testar)
+- `Button` com variantes apropriadas
+- `ArrowRight` / `ArrowLeft` para indicar direcao
+- Nenhum componente novo necessario
 
