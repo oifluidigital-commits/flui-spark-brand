@@ -9,11 +9,6 @@ import { AppProvider, useApp } from "@/contexts/AppContext";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
-import Diagnostico from "./pages/Diagnostico";
-import Estrategia from "./pages/Estrategia";
-import Planejamento from "./pages/Planejamento";
-import Conteudos from "./pages/Conteudos";
-import Insights from "./pages/Insights";
 import Brand from "./pages/Brand";
 import ContentLab from "./pages/ContentLab";
 import Sprints from "./pages/Sprints";
@@ -49,15 +44,7 @@ function AppRoutes() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/onboarding" element={<Onboarding />} />
       
-      {/* New main navigation routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/diagnostico" element={<ProtectedRoute><Diagnostico /></ProtectedRoute>} />
-      <Route path="/estrategia" element={<ProtectedRoute><Estrategia /></ProtectedRoute>} />
-      <Route path="/planejamento" element={<ProtectedRoute><Planejamento /></ProtectedRoute>} />
-      <Route path="/conteudos" element={<ProtectedRoute><Conteudos /></ProtectedRoute>} />
-      <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
-      
-      {/* Legacy routes */}
       <Route path="/brand" element={<ProtectedRoute><Brand /></ProtectedRoute>} />
       <Route path="/content-lab" element={<ProtectedRoute><ContentLab /></ProtectedRoute>} />
       <Route path="/content-lab/sprints" element={<ProtectedRoute><Sprints /></ProtectedRoute>} />

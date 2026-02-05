@@ -23,9 +23,6 @@ interface AppContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   
-  // Auth actions
-  logout: () => void;
-  
   // Brand state
   brand: Brand;
   setBrand: React.Dispatch<React.SetStateAction<Brand>>;
@@ -143,12 +140,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
   
-  // Logout
-  const logout = () => {
-    setIsAuthenticated(false);
-    setUser(mockUser);
-  };
-  
   return (
     <AppContext.Provider
       value={{
@@ -156,7 +147,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser,
         isAuthenticated,
         setIsAuthenticated,
-        logout,
         brand,
         setBrand,
         sprints,
