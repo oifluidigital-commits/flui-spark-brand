@@ -1,9 +1,9 @@
 
-# Plano de Implementacao — Pagina de Detalhes da Sprint
+# Plano de Implementacao — Sistema de Gates Frontend
 
 ## Visao Geral
 
-Criar uma nova pagina dedicada em `/sprints/:sprintId` para gestao operacional dos conteudos de uma Sprint. Esta pagina funciona como um workspace de execucao, inspirado em ferramentas como Linear, Notion e Airtable, com foco em velocidade, leitura rapida e acoes diretas.
+Implementar um sistema de controle de acesso frontend baseado em contexto de usuario (plano, onboarding, sprints ativos, creditos). O sistema controlara limites de uso, bloqueios de funcionalidades e alertas visuais em toda a aplicacao.
 
 ---
 
@@ -11,675 +11,630 @@ Criar uma nova pagina dedicada em `/sprints/:sprintId` para gestao operacional d
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/SprintDetail.tsx` | CRIAR - Nova pagina de detalhes |
-| `src/App.tsx` | MODIFICAR - Adicionar rota `/sprints/:sprintId` |
-| `src/pages/Sprints.tsx` | MODIFICAR - Adicionar navegacao para detalhes |
+| `src/contexts/UserGateContext.tsx` | CRIAR - Contexto global de gates |
+| `src/components/gates/FeatureGate.tsx` | CRIAR - Componente de bloqueio de feature |
+| `src/components/gates/PlanBadge.tsx` | CRIAR - Badge de plano exigido |
+| `src/components/gates/UpgradePrompt.tsx` | CRIAR - Prompt de upgrade |
+| `src/components/gates/CreditWarning.tsx` | CRIAR - Alerta de creditos baixos |
+| `src/components/gates/SprintLimitCard.tsx` | CRIAR - Card de limite de sprints |
+| `src/hooks/useGate.ts` | CRIAR - Hook de verificacao de gates |
+| `src/contexts/AppContext.tsx` | MODIFICAR - Integrar userContext |
+| `src/components/layout/TopBar.tsx` | MODIFICAR - Adicionar alerta de creditos |
+| `src/pages/Sprints.tsx` | MODIFICAR - Aplicar gate de limite |
+| `src/pages/SprintDetail.tsx` | MODIFICAR - Aplicar gate de creditos IA |
+| `src/data/mockData.ts` | MODIFICAR - Adicionar mockUserContext |
 
 ---
 
-## 2. Estrutura da Pagina SprintDetail
-
-### 2.1 Header de Navegacao (Fixo)
-
-```text
-+-----------------------------------------------------------------------+
-| [← Voltar para Sprints]    Sprint #s1    [Badge: Active/Planning]    |
-+-----------------------------------------------------------------------+
-```
-
-**Componentes**:
-- Botao "Voltar para Sprints" com icone `ArrowLeft`
-- Titulo da Sprint
-- Badge de status (Planning/Active/Completed)
-
-### 2.2 Summary Strip (Contexto Compacto)
-
-```text
-+-----------------------------------------------------------------------+
-| Autoridade em Produto  |  01 Fev - 28 Fev  |  "Objetivo da sprint..." |
-|                                                                        |
-| [Progress Bar: 4/10 conteudos prontos - 40%]                          |
-+-----------------------------------------------------------------------+
-```
-
-**Campos**:
-- Nome da Sprint
-- Periodo (data inicial - data final)
-- Objetivo principal (texto truncado)
-- Barra de progresso com porcentagem
-
-### 2.3 Acoes Globais
-
-```text
-+-----------------------------------------------------------------------+
-| [+ Adicionar Conteudo]  [Sparkles: Gerar Sugestoes IA]  [Reordenar]  |
-+-----------------------------------------------------------------------+
-```
-
-### 2.4 Tabela de Conteudos (Central)
-
-```text
-+---+-------------------+----------+------------+-------------+---------+
-| □ | Topic / Hook      | Format   | Status     | Target Date | Actions |
-+---+-------------------+----------+------------+-------------+---------+
-| □ | Por que 90%...    | Carousel | [Review]   | 15 Fev      | ✎ 🗑    |
-|   | [ToFu]            |          |            |             |         |
-+---+-------------------+----------+------------+-------------+---------+
-| □ | Como defino...    | Video    | [In Prog]  | 12 Fev ⚠    | ✎ 🗑    |
-|   | [MoFu]            |          |            | (atrasado)  |         |
-+---+-------------------+----------+------------+-------------+---------+
-```
-
-**Colunas**:
-1. **Checkbox** - Selecao multipla
-2. **Topic/Hook** - Titulo + Tag de funil (ToFu/MoFu/BoFu)
-3. **Format** - Icone + label (dropdown inline)
-4. **Status** - Badge editavel (Idea/Review/Scheduled/Backlog/Completed)
-5. **Target Date** - Date picker inline
-6. **Actions** - Icones de editar e remover
-
----
-
-## 3. Tipos e Interfaces
-
-### 3.1 SprintContent (Novo Tipo)
+## 2. Estrutura do UserContext (Mock Global)
 
 ```typescript
-type ContentStatus = 'idea' | 'review' | 'scheduled' | 'backlog' | 'completed';
-type FunnelStage = 'tofu' | 'mofu' | 'bofu';
+// src/contexts/UserGateContext.tsx
 
-interface SprintContent {
-  id: string;
-  sprintId: string;
-  title: string;
-  hook: string;
-  description: string;
-  format: string;
-  status: ContentStatus;
-  funnelStage: FunnelStage;
-  targetDate?: string;
-  framework: string;
-  frameworkReason?: string;
-  intention: 'educate' | 'engage' | 'convert';
-  suggestedCta: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+type PlanType = 'free' | 'pro' | 'studio';
 
----
-
-## 4. Mock Data para Conteudos
-
-```typescript
-const mockSprintContents: SprintContent[] = [
-  {
-    id: 'content-1',
-    sprintId: 'sprint-1',
-    title: 'Por que 90% dos roadmaps falham',
-    hook: '90% das pessoas erram nisso...',
-    description: 'Carousel explicando os erros mais comuns',
-    format: 'post-linkedin-carousel',
-    status: 'review',
-    funnelStage: 'tofu',
-    targetDate: '2024-02-15',
-    framework: 'educational',
-    intention: 'educate',
-    suggestedCta: 'Salve para consultar depois',
-    createdAt: '2024-02-01T10:00:00Z',
-    updatedAt: '2024-02-08T14:00:00Z',
-  },
-  {
-    id: 'content-2',
-    sprintId: 'sprint-1',
-    title: 'Como defino prioridades no meu time',
-    hook: 'O metodo que mudou minha carreira:',
-    description: 'Video mostrando meu processo real',
-    format: 'video-short',
-    status: 'scheduled',
-    funnelStage: 'mofu',
-    targetDate: '2024-02-12',
-    framework: 'storytelling',
-    intention: 'engage',
-    suggestedCta: 'Conta sua experiencia',
-    createdAt: '2024-02-02T09:00:00Z',
-    updatedAt: '2024-02-10T11:00:00Z',
-  },
-  // ... mais conteudos
-];
-```
-
----
-
-## 5. Componentes da Pagina
-
-### 5.1 SprintDetailHeader
-
-```tsx
-interface SprintDetailHeaderProps {
-  sprint: Sprint;
-  onBack: () => void;
+interface UserGateContext {
+  plan: PlanType;
+  onboardingCompleted: boolean;
+  activeSprints: number;
+  contentCredits: number;
 }
 
-const SprintDetailHeader = ({ sprint, onBack }: SprintDetailHeaderProps) => (
-  <div className="sticky top-16 z-10 bg-zinc-950 border-b border-zinc-800">
-    <div className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar para Sprints
-        </Button>
-        <div className="h-4 w-px bg-zinc-700" />
-        <h1 className="text-lg font-semibold text-zinc-50">
-          {sprint.title}
-        </h1>
-      </div>
-      <Badge variant="outline" className={getStatusClassName(sprint.status)}>
-        {getStatusLabel(sprint.status)}
-      </Badge>
-    </div>
-  </div>
-);
-```
-
-### 5.2 SprintSummaryStrip
-
-```tsx
-const SprintSummaryStrip = ({ sprint }: { sprint: Sprint }) => {
-  const progressPercentage = sprint.contentsPlanned > 0
-    ? Math.round((sprint.contentsPublished / sprint.contentsPlanned) * 100)
-    : 0;
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6">
-      <div className="flex flex-wrap items-center gap-6 mb-3">
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-4 w-4 text-zinc-400" />
-          <span className="text-zinc-400">
-            {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
-          </span>
-        </div>
-        <div className="text-sm text-zinc-400 flex-1 truncate">
-          "{sprint.description}"
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-zinc-400">
-          {sprint.contentsPublished}/{sprint.contentsPlanned} conteudos prontos
-        </span>
-        <Progress value={progressPercentage} className="flex-1 h-2" />
-        <span className="text-sm font-medium text-zinc-50">{progressPercentage}%</span>
-      </div>
-    </div>
-  );
+// Plan limits configuration
+const planLimits = {
+  free: {
+    maxActiveSprints: 1,
+    maxIdeasPerMonth: 10,
+    aiCredits: 500,
+    hasRadar: false,
+    hasCompetitorAnalysis: false,
+    hasAllFrameworks: false,
+  },
+  pro: {
+    maxActiveSprints: Infinity,
+    maxIdeasPerMonth: Infinity,
+    aiCredits: 5000,
+    hasRadar: true,
+    hasCompetitorAnalysis: true,
+    hasAllFrameworks: true,
+  },
+  studio: {
+    maxActiveSprints: Infinity,
+    maxIdeasPerMonth: Infinity,
+    aiCredits: 20000,
+    hasRadar: true,
+    hasCompetitorAnalysis: true,
+    hasAllFrameworks: true,
+    hasMultipleBrands: true,
+    hasTeamCollaboration: true,
+    hasApiAccess: true,
+  },
 };
 ```
 
-### 5.3 ContentTable
+---
 
-```tsx
-const ContentTable = ({ 
-  contents, 
-  selectedIds, 
-  onSelect, 
-  onSelectAll,
-  onEdit,
-  onDelete,
-  onStatusChange,
-  onDateChange,
-  onFormatChange
-}: ContentTableProps) => {
-  return (
-    <div className="border border-zinc-800 rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-zinc-900/50 hover:bg-zinc-900/50">
-            <TableHead className="w-12">
-              <Checkbox 
-                checked={selectedIds.length === contents.length}
-                onCheckedChange={onSelectAll}
-              />
-            </TableHead>
-            <TableHead>Topic / Hook</TableHead>
-            <TableHead className="w-32">Formato</TableHead>
-            <TableHead className="w-32">Status</TableHead>
-            <TableHead className="w-36">Data Alvo</TableHead>
-            <TableHead className="w-20">Acoes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contents.map((content) => (
-            <ContentRow 
-              key={content.id}
-              content={content}
-              isSelected={selectedIds.includes(content.id)}
-              onSelect={onSelect}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onStatusChange={onStatusChange}
-              onDateChange={onDateChange}
-              onFormatChange={onFormatChange}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+## 3. Hook useGate
+
+```typescript
+// src/hooks/useGate.ts
+
+type GateType = 
+  | 'create-sprint'
+  | 'use-ai'
+  | 'access-radar'
+  | 'access-competitor-analysis'
+  | 'use-advanced-frameworks'
+  | 'access-strategy';
+
+interface GateResult {
+  allowed: boolean;
+  reason?: string;
+  requiredPlan?: PlanType;
+  action?: 'upgrade' | 'complete-onboarding' | 'wait-credits';
+}
+
+const useGate = (gateType: GateType): GateResult => {
+  const { userGate, planLimits } = useUserGate();
+  
+  switch (gateType) {
+    case 'create-sprint':
+      if (userGate.activeSprints >= planLimits[userGate.plan].maxActiveSprints) {
+        return {
+          allowed: false,
+          reason: 'Você atingiu o limite de sprints ativos do seu plano.',
+          requiredPlan: 'pro',
+          action: 'upgrade',
+        };
+      }
+      return { allowed: true };
+      
+    case 'use-ai':
+      if (userGate.contentCredits <= 0) {
+        return {
+          allowed: false,
+          reason: 'Seus créditos de IA acabaram.',
+          requiredPlan: 'pro',
+          action: 'upgrade',
+        };
+      }
+      return { allowed: true };
+      
+    case 'access-radar':
+      if (!planLimits[userGate.plan].hasRadar) {
+        return {
+          allowed: false,
+          reason: 'O Radar de Tendências é exclusivo para planos Pro e Studio.',
+          requiredPlan: 'pro',
+          action: 'upgrade',
+        };
+      }
+      return { allowed: true };
+      
+    case 'access-strategy':
+      if (!userGate.onboardingCompleted) {
+        return {
+          allowed: false,
+          reason: 'Complete o diagnóstico para acessar sua estratégia.',
+          action: 'complete-onboarding',
+        };
+      }
+      return { allowed: true };
+      
+    default:
+      return { allowed: true };
+  }
 };
 ```
 
-### 5.4 ContentRow
+---
+
+## 4. Componente FeatureGate
 
 ```tsx
-const ContentRow = ({ content, isSelected, ...handlers }: ContentRowProps) => {
-  const isOverdue = content.targetDate && 
-    isBefore(new Date(content.targetDate), new Date()) && 
-    content.status !== 'completed';
+// src/components/gates/FeatureGate.tsx
 
+interface FeatureGateProps {
+  gate: GateType;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  showUpgradePrompt?: boolean;
+}
+
+const FeatureGate = ({ gate, children, fallback, showUpgradePrompt = true }: FeatureGateProps) => {
+  const gateResult = useGate(gate);
+  
+  if (gateResult.allowed) {
+    return <>{children}</>;
+  }
+  
+  if (fallback) {
+    return <>{fallback}</>;
+  }
+  
+  if (showUpgradePrompt && gateResult.action === 'upgrade') {
+    return (
+      <UpgradePrompt 
+        reason={gateResult.reason}
+        requiredPlan={gateResult.requiredPlan}
+      />
+    );
+  }
+  
+  if (gateResult.action === 'complete-onboarding') {
+    return <OnboardingRequiredState reason={gateResult.reason} />;
+  }
+  
+  return null;
+};
+```
+
+---
+
+## 5. Componente PlanBadge
+
+```tsx
+// src/components/gates/PlanBadge.tsx
+
+interface PlanBadgeProps {
+  requiredPlan: 'pro' | 'studio';
+  size?: 'sm' | 'md';
+}
+
+const PlanBadge = ({ requiredPlan, size = 'sm' }: PlanBadgeProps) => {
+  const config = {
+    pro: { label: 'Pro', className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+    studio: { label: 'Studio', className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  };
+  
   return (
-    <TableRow 
+    <Badge 
+      variant="outline" 
       className={cn(
-        "hover:bg-zinc-900/50 transition-colors",
-        isOverdue && "bg-red-500/5",
-        content.status === 'completed' && "opacity-60",
-        content.status === 'backlog' && "opacity-80"
+        config[requiredPlan].className,
+        size === 'sm' ? 'text-xs px-1.5 py-0' : 'text-sm px-2 py-0.5'
       )}
     >
-      <TableCell>
-        <Checkbox 
-          checked={isSelected}
-          onCheckedChange={() => handlers.onSelect(content.id)}
-        />
-      </TableCell>
-      <TableCell>
-        <div className="space-y-1">
-          <button 
-            onClick={() => handlers.onEdit(content)}
-            className="text-left hover:text-indigo-400 transition-colors"
-          >
-            <span className="font-medium text-zinc-50 line-clamp-1">
-              {content.title}
-            </span>
-          </button>
-          <Badge variant="outline" className="text-xs">
-            {getFunnelLabel(content.funnelStage)}
-          </Badge>
-        </div>
-      </TableCell>
-      <TableCell>
-        <FormatDropdown 
-          value={content.format}
-          onChange={(format) => handlers.onFormatChange(content.id, format)}
-        />
-      </TableCell>
-      <TableCell>
-        <StatusDropdown 
-          value={content.status}
-          onChange={(status) => handlers.onStatusChange(content.id, status)}
-        />
-      </TableCell>
-      <TableCell>
-        <DatePicker 
-          value={content.targetDate}
-          onChange={(date) => handlers.onDateChange(content.id, date)}
-          isOverdue={isOverdue}
-        />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => handlers.onEdit(content)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-red-500 hover:text-red-400"
-            onClick={() => handlers.onDelete(content.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
+      <Crown className={size === 'sm' ? 'h-3 w-3 mr-1' : 'h-4 w-4 mr-1'} />
+      {config[requiredPlan].label}
+    </Badge>
   );
 };
 ```
 
-### 5.5 ContentDetailSheet (Side Panel)
+---
+
+## 6. Componente UpgradePrompt
 
 ```tsx
-const ContentDetailSheet = ({ 
-  isOpen, 
-  onClose, 
-  content, 
-  onSave 
-}: ContentDetailSheetProps) => (
-  <Sheet open={isOpen} onOpenChange={onClose}>
-    <SheetContent side="right" className="w-[540px] sm:max-w-[540px] overflow-y-auto">
-      <SheetHeader>
-        <SheetTitle>Detalhes do Conteudo</SheetTitle>
-        <SheetDescription>
-          Edite as informacoes do conteudo
-        </SheetDescription>
-      </SheetHeader>
-      
-      <div className="py-6 space-y-6">
-        {/* Briefing */}
-        <div className="space-y-2">
-          <Label>Titulo / Tema</Label>
-          <Input value={content.title} onChange={...} />
+// src/components/gates/UpgradePrompt.tsx
+
+interface UpgradePromptProps {
+  reason: string;
+  requiredPlan: PlanType;
+  variant?: 'card' | 'inline' | 'banner';
+}
+
+const UpgradePrompt = ({ reason, requiredPlan, variant = 'card' }: UpgradePromptProps) => {
+  const navigate = useNavigate();
+  
+  if (variant === 'banner') {
+    return (
+      <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-indigo-400" />
+          <span className="text-sm text-zinc-50">{reason}</span>
         </div>
-        
-        <div className="space-y-2">
-          <Label>Hook</Label>
-          <Textarea value={content.hook} rows={2} onChange={...} />
-        </div>
-        
-        <div className="space-y-2">
-          <Label>Descricao</Label>
-          <Textarea value={content.description} rows={3} onChange={...} />
-        </div>
-        
-        {/* Framework */}
-        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="font-medium text-sm">Framework Selecionado</span>
-          </div>
-          <p className="text-zinc-50">{getFrameworkName(content.framework)}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {content.frameworkReason}
-          </p>
-        </div>
-        
-        {/* Formato e Status */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Formato</Label>
-            <Select value={content.format}>...</Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={content.status}>...</Select>
-          </div>
-        </div>
-        
-        {/* Datas */}
-        <div className="space-y-2">
-          <Label>Data Alvo</Label>
-          <DatePicker value={content.targetDate} onChange={...} />
-        </div>
-        
-        {/* CTA */}
-        <div className="space-y-2">
-          <Label>CTA Sugerido</Label>
-          <Input value={content.suggestedCta} onChange={...} />
-        </div>
-        
-        {/* Acoes IA */}
-        <div className="pt-4 border-t border-zinc-800">
-          <Button variant="outline" className="w-full">
-            <Sparkles className="h-4 w-4 mr-2" />
-            Gerar Texto com IA
-          </Button>
-        </div>
+        <Button size="sm" onClick={() => navigate('/pricing')}>
+          Ver Planos
+        </Button>
       </div>
-      
-      <SheetFooter>
-        <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button onClick={onSave}>Salvar Alteracoes</Button>
-      </SheetFooter>
-    </SheetContent>
-  </Sheet>
-);
-```
-
----
-
-## 6. Configuracoes de Status
-
-```typescript
-const contentStatusConfig: Record<ContentStatus, { label: string; className: string }> = {
-  idea: { 
-    label: 'Ideia', 
-    className: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' 
-  },
-  backlog: { 
-    label: 'Backlog', 
-    className: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' 
-  },
-  review: { 
-    label: 'Revisao', 
-    className: 'bg-amber-500/20 text-amber-500 border-amber-500/30' 
-  },
-  scheduled: { 
-    label: 'Agendado', 
-    className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
-  },
-  completed: { 
-    label: 'Concluido', 
-    className: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' 
-  },
-};
-
-const funnelStageConfig: Record<FunnelStage, { label: string; className: string }> = {
-  tofu: { label: 'ToFu', className: 'bg-blue-500/20 text-blue-400' },
-  mofu: { label: 'MoFu', className: 'bg-purple-500/20 text-purple-400' },
-  bofu: { label: 'BoFu', className: 'bg-orange-500/20 text-orange-400' },
-};
-```
-
----
-
-## 7. Icones de Formato
-
-```typescript
-const formatIcons: Record<string, LucideIcon> = {
-  'post-linkedin-text': FileText,
-  'post-linkedin-carousel': LayoutGrid,
-  'article': FileText,
-  'newsletter': Mail,
-  'video-short': Video,
-  'video-long': Film,
-  'thread': MessageSquare,
-  'case-study': Briefcase,
-  'landing-page': Globe,
-  'email-marketing': Mail,
-  'story': Camera,
-  'reels': Video,
-};
-```
-
----
-
-## 8. Roteamento
-
-### 8.1 Modificacao em App.tsx
-
-```tsx
-import SprintDetail from './pages/SprintDetail';
-
-// Dentro de AppRoutes:
-<Route 
-  path="/sprints/:sprintId" 
-  element={<ProtectedRoute><SprintDetail /></ProtectedRoute>} 
-/>
-```
-
-### 8.2 Navegacao em Sprints.tsx
-
-Modificar o `SprintCard` para navegar ao clicar:
-
-```tsx
-import { useNavigate } from 'react-router-dom';
-
-// No SprintCard:
-const navigate = useNavigate();
-
-<Button
-  variant="ghost"
-  size="icon"
-  className="h-8 w-8"
-  onClick={() => navigate(`/sprints/${sprint.id}`)}
->
-  <ChevronRight className="h-4 w-4" />
-</Button>
-```
-
----
-
-## 9. Ordenacao da Tabela
-
-```typescript
-type SortField = 'status' | 'targetDate' | 'format';
-type SortDirection = 'asc' | 'desc';
-
-const [sortField, setSortField] = useState<SortField>('targetDate');
-const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-
-const sortedContents = useMemo(() => {
-  return [...contents].sort((a, b) => {
-    let comparison = 0;
-    switch (sortField) {
-      case 'status':
-        comparison = statusOrder[a.status] - statusOrder[b.status];
-        break;
-      case 'targetDate':
-        comparison = (a.targetDate || '').localeCompare(b.targetDate || '');
-        break;
-      case 'format':
-        comparison = a.format.localeCompare(b.format);
-        break;
-    }
-    return sortDirection === 'asc' ? comparison : -comparison;
-  });
-}, [contents, sortField, sortDirection]);
-```
-
----
-
-## 10. Estados da Pagina
-
-### 10.1 Loading State
-
-```tsx
-const SprintDetailSkeleton = () => (
-  <div className="space-y-6">
-    {/* Header Skeleton */}
-    <div className="flex items-center gap-4">
-      <Skeleton className="h-9 w-40" />
-      <Skeleton className="h-6 w-32" />
-    </div>
-    
-    {/* Summary Skeleton */}
-    <Skeleton className="h-24 w-full rounded-lg" />
-    
-    {/* Table Skeleton */}
-    <div className="border border-zinc-800 rounded-lg">
-      <div className="p-4">
-        <Skeleton className="h-10 w-full" />
+    );
+  }
+  
+  if (variant === 'inline') {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Lock className="h-4 w-4" />
+        <span>{reason}</span>
+        <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate('/pricing')}>
+          Fazer upgrade
+        </Button>
       </div>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="p-4 border-t border-zinc-800">
-          <Skeleton className="h-12 w-full" />
+    );
+  }
+  
+  // Card variant (default)
+  return (
+    <Card className="border-indigo-500/30 bg-indigo-500/5">
+      <CardContent className="p-6 text-center space-y-4">
+        <div className="mx-auto w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center">
+          <Lock className="h-7 w-7 text-indigo-400" />
         </div>
-      ))}
-    </div>
-  </div>
-);
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-zinc-50">
+            Recurso exclusivo
+          </h3>
+          <p className="text-muted-foreground text-sm">{reason}</p>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <PlanBadge requiredPlan={requiredPlan} size="md" />
+        </div>
+        <Button onClick={() => navigate('/pricing')} className="w-full">
+          <Sparkles className="h-4 w-4 mr-2" />
+          Fazer Upgrade
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
 ```
 
-### 10.2 Empty State
+---
+
+## 7. Componente CreditWarning
 
 ```tsx
-const EmptyContentsState = ({ onAddContent }: { onAddContent: () => void }) => (
-  <div className="text-center py-16 border border-dashed border-zinc-700 rounded-lg">
-    <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-    <h3 className="text-lg font-medium text-zinc-50 mb-2">
-      Nenhum conteudo nesta Sprint
-    </h3>
-    <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-      Comece adicionando conteudos manualmente ou deixe a IA sugerir 
-      baseado no objetivo da Sprint.
-    </p>
-    <div className="flex items-center justify-center gap-3">
-      <Button onClick={onAddContent}>
-        <Plus className="h-4 w-4 mr-2" />
-        Adicionar Conteudo
-      </Button>
-      <Button variant="outline">
+// src/components/gates/CreditWarning.tsx
+
+interface CreditWarningProps {
+  currentCredits: number;
+  totalCredits: number;
+}
+
+const CreditWarning = ({ currentCredits, totalCredits }: CreditWarningProps) => {
+  const navigate = useNavigate();
+  const percentage = Math.round((currentCredits / totalCredits) * 100);
+  
+  // Only show warning if credits below 20%
+  if (percentage > 20) return null;
+  
+  const isExhausted = currentCredits <= 0;
+  
+  return (
+    <div 
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors",
+        isExhausted 
+          ? "bg-red-500/10 border border-red-500/20 hover:bg-red-500/20"
+          : "bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20"
+      )}
+      onClick={() => navigate('/pricing')}
+    >
+      <AlertTriangle className={cn(
+        "h-4 w-4",
+        isExhausted ? "text-red-500" : "text-amber-500"
+      )} />
+      <span className={cn(
+        "text-xs font-medium",
+        isExhausted ? "text-red-500" : "text-amber-500"
+      )}>
+        {isExhausted ? 'Créditos esgotados' : `${percentage}% restante`}
+      </span>
+    </div>
+  );
+};
+```
+
+---
+
+## 8. Componente SprintLimitCard
+
+```tsx
+// src/components/gates/SprintLimitCard.tsx
+
+interface SprintLimitCardProps {
+  currentSprints: number;
+  maxSprints: number;
+}
+
+const SprintLimitCard = ({ currentSprints, maxSprints }: SprintLimitCardProps) => {
+  const navigate = useNavigate();
+  const isAtLimit = currentSprints >= maxSprints;
+  
+  if (!isAtLimit) return null;
+  
+  return (
+    <div className={cn(
+      'flex flex-col items-center justify-center gap-3',
+      'min-h-[240px] rounded-lg',
+      'border border-amber-500/30',
+      'bg-amber-500/5'
+    )}>
+      <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+        <Lock className="h-6 w-6 text-amber-500" />
+      </div>
+      <div className="text-center space-y-1 px-4">
+        <span className="text-zinc-50 text-sm font-medium">
+          Limite de sprints atingido
+        </span>
+        <p className="text-xs text-muted-foreground">
+          Você está usando {currentSprints}/{maxSprints} sprint(s) do plano gratuito.
+        </p>
+      </div>
+      <Button size="sm" onClick={() => navigate('/pricing')}>
         <Sparkles className="h-4 w-4 mr-2" />
-        Gerar Sugestoes IA
+        Fazer Upgrade
       </Button>
     </div>
-  </div>
-);
+  );
+};
 ```
 
 ---
 
-## 11. Visual Dictionary Aplicado
+## 9. Integracao com AppContext
 
-| Elemento | Classe Tailwind |
-|----------|-----------------|
-| Background da pagina | `bg-zinc-950` |
-| Header sticky | `bg-zinc-950 border-b border-zinc-800` |
-| Summary strip | `bg-zinc-900 border border-zinc-800` |
-| Tabela container | `border border-zinc-800 rounded-lg` |
-| Table header | `bg-zinc-900/50` |
-| Row hover | `hover:bg-zinc-900/50` |
-| Row atrasada | `bg-red-500/5` |
-| Texto primario | `text-zinc-50` |
-| Texto secundario | `text-zinc-400` |
-| Acoes primarias | `bg-indigo-600 hover:bg-indigo-700` |
+```typescript
+// Adicionar ao AppContext.tsx
+
+interface UserGateState {
+  plan: 'free' | 'pro' | 'studio';
+  onboardingCompleted: boolean;
+  activeSprints: number;
+  contentCredits: number;
+}
+
+// Mock inicial
+const initialUserGate: UserGateState = {
+  plan: 'free',
+  onboardingCompleted: false,
+  activeSprints: 1,
+  contentCredits: 350,
+};
+
+// Adicionar ao contexto
+const [userGate, setUserGate] = useState<UserGateState>(initialUserGate);
+
+// Adicionar ao provider value
+userGate,
+setUserGate,
+```
 
 ---
 
-## 12. Checklist de Entrega
+## 10. Modificacao TopBar (Alerta de Creditos)
 
-### Roteamento
-- [ ] Criar rota `/sprints/:sprintId` em App.tsx
-- [ ] Importar e configurar SprintDetail page
-- [ ] Adicionar navegacao no SprintCard
+```tsx
+// src/components/layout/TopBar.tsx
 
-### Pagina SprintDetail
-- [ ] Criar arquivo `src/pages/SprintDetail.tsx`
-- [ ] Implementar SprintDetailHeader (fixo)
-- [ ] Implementar SprintSummaryStrip
-- [ ] Implementar barra de acoes globais
-- [ ] Implementar ContentTable
-- [ ] Implementar ContentRow com inline editing
-- [ ] Implementar ContentDetailSheet (Side Panel)
+// Adicionar import
+import { CreditWarning } from '@/components/gates/CreditWarning';
 
-### Tabela de Conteudos
-- [ ] Checkbox para selecao multipla
-- [ ] Coluna Topic/Hook com tag de funil
-- [ ] Coluna Format com dropdown inline
-- [ ] Coluna Status com badge editavel
-- [ ] Coluna Target Date com date picker inline
-- [ ] Coluna Actions com icones sutis
-- [ ] Hover states por linha
-- [ ] Visual para conteudo atrasado
-- [ ] Visual para conteudo concluido
+// Modificar secao de creditos
+<div className="flex items-center gap-3">
+  {/* Credit Warning (shown when < 20%) */}
+  <CreditWarning 
+    currentCredits={remainingCredits} 
+    totalCredits={user.aiCredits.total} 
+  />
+  
+  {/* Existing credits counter */}
+  <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
+    <Sparkles className="h-4 w-4 text-primary" />
+    <div className="flex flex-col">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-foreground">
+          {remainingCredits.toLocaleString('pt-BR')}
+        </span>
+        <span className="text-xs text-muted-foreground">créditos IA</span>
+      </div>
+      <Progress value={100 - creditPercentage} className="h-1 w-24" />
+    </div>
+  </div>
+</div>
+```
 
-### Estados
-- [ ] Loading skeleton
-- [ ] Empty state educativo
-- [ ] Sprint nao encontrada (404)
+---
 
-### Side Panel
-- [ ] Sheet para detalhamento de conteudo
-- [ ] Campos: briefing, framework, formato, status, datas
-- [ ] Botao de acao IA
-- [ ] Nao usar modais
+## 11. Modificacao Sprints.tsx (Gate de Limite)
 
-### UX
-- [ ] Navegacao clara de ida e volta
-- [ ] Edicao inline sempre que possivel
-- [ ] Acoes reversiveis
-- [ ] Ordenacao por status/data/formato
+```tsx
+// src/pages/Sprints.tsx
+
+// Adicionar import
+import { useGate } from '@/hooks/useGate';
+import { SprintLimitCard } from '@/components/gates/SprintLimitCard';
+import { PlanBadge } from '@/components/gates/PlanBadge';
+
+// No componente
+const { userGate } = useApp();
+const createSprintGate = useGate('create-sprint');
+
+// Modificar NewSprintCard condicional
+{createSprintGate.allowed ? (
+  <NewSprintCard onClick={handleOpenWizard} />
+) : (
+  <SprintLimitCard 
+    currentSprints={userGate.activeSprints}
+    maxSprints={1}
+  />
+)}
+```
+
+---
+
+## 12. Modificacao SprintDetail.tsx (Gate de Creditos IA)
+
+```tsx
+// Ao usar acoes de IA
+const aiGate = useGate('use-ai');
+
+// Botao de gerar com IA
+<Button
+  variant="outline"
+  className="gap-2"
+  disabled={!aiGate.allowed}
+  onClick={handleGenerateAI}
+>
+  <Sparkles className="h-4 w-4" />
+  Gerar Sugestões IA
+  {!aiGate.allowed && <PlanBadge requiredPlan="pro" />}
+</Button>
+
+// Se bloqueado
+{!aiGate.allowed && (
+  <UpgradePrompt 
+    reason={aiGate.reason}
+    requiredPlan={aiGate.requiredPlan}
+    variant="banner"
+  />
+)}
+```
+
+---
+
+## 13. Gates por Pagina
+
+| Pagina | Gate | Condicao | Acao |
+|--------|------|----------|------|
+| `/strategy` | Onboarding | `!onboardingCompleted` | Mostrar StrategyBlockedState |
+| `/content-lab/sprints` | Sprint Limit | `activeSprints >= maxSprints` | Bloquear criacao |
+| `/content-lab/radar` | Plan | `plan === 'free'` | Mostrar UpgradePrompt |
+| `SprintDetail` | AI Credits | `contentCredits <= 0` | Desabilitar acoes IA |
+| Wizard Step 5 | AI Credits | `contentCredits <= 0` | Mostrar aviso |
+| `Ideas` (criar) | Ideas Limit | `ideasThisMonth >= maxIdeas` | Bloquear criacao |
+| `Brand` (concorrentes) | Plan | `plan === 'free'` | Badge Pro required |
+
+---
+
+## 14. Mock Data Inicial
+
+```typescript
+// src/data/mockData.ts
+
+// Adicionar ao final do arquivo
+export const mockUserGateContext = {
+  // Cenario: Usuario free com limite proximo
+  free_near_limit: {
+    plan: 'free' as const,
+    onboardingCompleted: false,
+    activeSprints: 1,
+    contentCredits: 150,
+  },
+  
+  // Cenario: Usuario free sem creditos
+  free_no_credits: {
+    plan: 'free' as const,
+    onboardingCompleted: true,
+    activeSprints: 1,
+    contentCredits: 0,
+  },
+  
+  // Cenario: Usuario Pro
+  pro_normal: {
+    plan: 'pro' as const,
+    onboardingCompleted: true,
+    activeSprints: 3,
+    contentCredits: 4200,
+  },
+  
+  // Cenario: Usuario Studio
+  studio_full: {
+    plan: 'studio' as const,
+    onboardingCompleted: true,
+    activeSprints: 5,
+    contentCredits: 18500,
+  },
+};
+
+// Cenario ativo para demo
+export const activeUserGateScenario = 'free_near_limit';
+```
+
+---
+
+## 15. Hierarquia Visual dos Gates
+
+```text
++----------------------------------------------------------+
+|                    GATE HIERARCHY                        |
++----------------------------------------------------------+
+|                                                          |
+|  1. AUTHENTICATION (ja existe em ProtectedRoute)         |
+|     └─ Redireciona para /login                           |
+|                                                          |
+|  2. ONBOARDING (soft gate - informativo)                 |
+|     └─ Exibe card de progresso no Dashboard              |
+|     └─ Bloqueia apenas /strategy se nao concluido        |
+|                                                          |
+|  3. PLAN LIMITS (hard gate - upgrade required)           |
+|     └─ Sprints: max 1 para free                          |
+|     └─ Ideas: max 10/mes para free                       |
+|     └─ Features: Radar, Concorrentes bloqueados          |
+|                                                          |
+|  4. CREDITS (soft gate - warning + disable)              |
+|     └─ < 20%: Alerta visual no TopBar                    |
+|     └─ = 0: Desabilita acoes de IA                       |
+|                                                          |
++----------------------------------------------------------+
+```
+
+---
+
+## 16. Componentes UI Utilizados
+
+- `Card`, `CardContent` - Containers de bloqueio
+- `Badge` - PlanBadge (Pro/Studio)
+- `Button` - CTAs de upgrade
+- `Progress` - Barra de creditos
+- `Tooltip` - Explicacoes de limites
+- Icons: `Lock`, `Crown`, `Sparkles`, `AlertTriangle`, `ArrowRight`
+
+---
+
+## 17. Checklist de Entrega
+
+### Contexto e Hook
+- [ ] Criar `src/contexts/UserGateContext.tsx`
+- [ ] Definir `UserGateState` interface
+- [ ] Criar `planLimits` configuration
+- [ ] Criar `src/hooks/useGate.ts`
+- [ ] Integrar com `AppContext.tsx`
+
+### Componentes de Gate
+- [ ] Criar `FeatureGate.tsx`
+- [ ] Criar `PlanBadge.tsx`
+- [ ] Criar `UpgradePrompt.tsx` (3 variants)
+- [ ] Criar `CreditWarning.tsx`
+- [ ] Criar `SprintLimitCard.tsx`
+
+### Aplicacao nas Paginas
+- [ ] Modificar `TopBar.tsx` com CreditWarning
+- [ ] Modificar `Sprints.tsx` com SprintLimitCard
+- [ ] Modificar `SprintDetail.tsx` com AI gate
+- [ ] Verificar `Strategy.tsx` (ja tem gate de onboarding)
+- [ ] Adicionar gate em `Radar.tsx`
+
+### Mock Data
+- [ ] Adicionar `mockUserGateContext` em mockData
+- [ ] Criar cenarios de teste
+- [ ] Configurar cenario ativo para demo
+
+### Testes de Cenarios
+- [ ] Free user: limite de sprints
+- [ ] Free user: creditos baixos (< 20%)
+- [ ] Free user: creditos esgotados
+- [ ] Free user: onboarding incompleto
+- [ ] Pro user: acesso total
+
