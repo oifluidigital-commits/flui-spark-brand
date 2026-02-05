@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sparkles, Settings, User, LogOut, ChevronDown } from 'lucide-react';
-import { getRemainingCredits, getCreditPercentage } from '@/data/mockData';
+ import { CreditWarning } from '@/components/gates/CreditWarning';
+ import { useUserGate } from '@/contexts/UserGateContext';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -29,11 +30,12 @@ const pageTitles: Record<string, string> = {
 
 export function TopBar() {
   const { user, setIsAuthenticated } = useApp();
+   const { userGate } = useUserGate();
   const location = useLocation();
   
   const pageTitle = pageTitles[location.pathname] || 'Flui';
-  const remainingCredits = getRemainingCredits(user);
-  const creditPercentage = getCreditPercentage(user);
+   const remainingCredits = userGate.contentCredits;
+   const creditPercentage = Math.round((userGate.contentCredits / userGate.totalCredits) * 100);
   
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -54,6 +56,9 @@ export function TopBar() {
       <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
       
       <div className="flex items-center gap-6">
+         {/* Credit Warning (shown when < 20%) */}
+         <CreditWarning />
+         
         {/* AI Credits Counter */}
         <div className="flex items-center gap-3 px-4 py-2 bg-secondary rounded-lg">
           <Sparkles className="h-4 w-4 text-primary" />
@@ -64,7 +69,7 @@ export function TopBar() {
               </span>
               <span className="text-xs text-muted-foreground">créditos IA</span>
             </div>
-            <Progress value={100 - creditPercentage} className="h-1 w-24" />
+             <Progress value={creditPercentage} className="h-1 w-24" />
           </div>
         </div>
         

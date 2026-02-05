@@ -1,6 +1,9 @@
  import { useState, useMemo, useEffect } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
  import { useApp } from '@/contexts/AppContext';
+ import { useGate } from '@/hooks/useGate';
+ import { PlanBadge } from '@/components/gates/PlanBadge';
+ import { UpgradePrompt } from '@/components/gates/UpgradePrompt';
  import { MainLayout } from '@/components/layout/MainLayout';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
@@ -448,11 +451,13 @@
    onClose,
    content,
    onSave,
+   aiAllowed,
  }: {
    isOpen: boolean;
    onClose: () => void;
    content: SprintContent | null;
    onSave: (content: SprintContent) => void;
+   aiAllowed: boolean;
  }) => {
    const [editedContent, setEditedContent] = useState<SprintContent | null>(content);
    const [isEditingFramework, setIsEditingFramework] = useState(false);
@@ -743,9 +748,10 @@
            {/* AI Actions */}
            {!isEditingFramework && (
              <div className="pt-4 border-t border-border">
-             <Button variant="outline" className="w-full">
+             <Button variant="outline" className="w-full" disabled={!aiAllowed}>
                <Sparkles className="h-4 w-4 mr-2" />
                Gerar Texto com IA
+               {!aiAllowed && <span className="ml-2"><PlanBadge requiredPlan="pro" /></span>}
              </Button>
            </div>
            )}
@@ -765,8 +771,8 @@
  };
  
  // Empty State Component
- const EmptyContentsState = ({ onAddContent }: { onAddContent: () => void }) => (
-   <div className="text-center py-16 border border-dashed border-zinc-700 rounded-lg">
+ const EmptyContentsState = ({ onAddContent, aiAllowed }: { onAddContent: () => void; aiAllowed: boolean }) => (
+   <div className="text-center py-16 border border-dashed border-border rounded-lg">
      <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
      <h3 className="text-lg font-medium text-foreground mb-2">Nenhum conteúdo nesta Sprint</h3>
      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -777,9 +783,10 @@
          <Plus className="h-4 w-4 mr-2" />
          Adicionar Conteúdo
        </Button>
-       <Button variant="outline">
+       <Button variant="outline" disabled={!aiAllowed}>
          <Sparkles className="h-4 w-4 mr-2" />
          Gerar Sugestões IA
+         {!aiAllowed && <PlanBadge requiredPlan="pro" />}
        </Button>
      </div>
    </div>
@@ -822,6 +829,7 @@
    const { sprintId } = useParams<{ sprintId: string }>();
    const navigate = useNavigate();
    const { sprints } = useApp();
+   const aiGate = useGate('use-ai');
  
    // Find sprint from context or mock data
    const sprint = useMemo(() => {
@@ -1036,9 +1044,10 @@
                  <Plus className="h-4 w-4 mr-2" />
                  Adicionar Conteúdo
                </Button>
-               <Button variant="outline">
+               <Button variant="outline" disabled={!aiGate.allowed}>
                  <Sparkles className="h-4 w-4 mr-2" />
                  Gerar Sugestões IA
+                 {!aiGate.allowed && <PlanBadge requiredPlan="pro" />}
                </Button>
              </div>
              <div className="flex items-center gap-2">
@@ -1075,7 +1084,7 @@
  
            {/* Content Table or Empty State */}
            {contents.length === 0 ? (
-             <EmptyContentsState onAddContent={handleAddContent} />
+             <EmptyContentsState onAddContent={handleAddContent} aiAllowed={aiGate.allowed} />
            ) : (
              <div className="border border-border rounded-lg overflow-hidden">
                <Table>
@@ -1210,6 +1219,7 @@
            }}
            content={editingContent}
            onSave={handleSaveContent}
+           aiAllowed={aiGate.allowed}
          />
        </TooltipProvider>
      </MainLayout>
