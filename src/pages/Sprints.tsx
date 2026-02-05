@@ -931,30 +931,34 @@ export default function Sprints() {
       <div className="space-y-3">
         <Label>Em qual pilar este conteúdo se encaixa?</Label>
         <div className="grid grid-cols-2 gap-3">
-          {mockPillars.map((pillar) => (
-            <button
-              key={pillar.id}
-              type="button"
-              onClick={() => setWizardData({ ...wizardData, pillarId: pillar.id })}
-              className={cn(
-                'p-3 rounded-lg border text-left transition-all',
-                wizardData.pillarId === pillar.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: pillar.color }}
-                />
-                <span className="font-medium text-sm">{pillar.name}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                {pillar.description}
-              </p>
-            </button>
-          ))}
+          {mockPillars.map((pillar) => {
+            const iconConfig = pillarIconConfig[pillar.id];
+            const IconComponent = iconConfig?.icon || Circle;
+            return (
+              <button
+                key={pillar.id}
+                type="button"
+                onClick={() => setWizardData({ ...wizardData, pillarId: pillar.id })}
+                className={cn(
+                  'p-3 rounded-lg border text-left transition-all',
+                  wizardData.pillarId === pillar.id
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <IconComponent
+                    className="h-5 w-5"
+                    style={{ color: iconConfig?.color || pillar.color }}
+                  />
+                  <span className="font-medium text-sm">{pillar.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                  {pillar.description}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
