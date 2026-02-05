@@ -95,7 +95,7 @@
                  onClick={() => handleMenuItemClick(item.id)}
                  className={cn(
                    'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
-                   'hover:text-zinc-200',
+                   'hover:text-foreground/80',
                    isActive ? 'text-foreground' : 'text-muted-foreground'
                  )}
                >
