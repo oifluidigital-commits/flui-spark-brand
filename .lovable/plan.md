@@ -1,181 +1,320 @@
 
+# Plano de Implementação — Página /estrategia
 
-# 🚀 Plano de Implementação — Flui
+## Visão Geral
 
-Uma aplicação SaaS de estratégia de conteúdo com IA, totalmente navegável e pronta para demonstração.
-
----
-
-## 1. Fundação & Sistema de Design
-
-### Configuração do Tema
-- Modo escuro como padrão usando as cores especificadas (zinc-950, zinc-900, etc.)
-- Tokens de cores customizadas no Tailwind para ações primárias (indigo-600), sucesso (emerald-500), avisos (amber-500) e erros (red-500)
-- Estilos hover consistentes com `hover:border-zinc-700` e transições suaves
-
-### Estrutura de Mock Data
-- Contexto global com dados do usuário, sprints, ideias e configurações
-- Simulação de estados (carregando, vazio, sucesso)
-- Contador de créditos IA (5000 total, 1200 usados)
+Construir uma página de **Estratégia** que funciona como continuação direta do Diagnóstico. Esta é uma página **somente leitura** que exibe a estratégia editorial derivada do diagnóstico do usuário, sem capacidades de edição.
 
 ---
 
-## 2. Layout Principal
+## 1. Estrutura da Página
 
-### Barra Superior
-- Título da página atual (dinâmico por rota)
-- Contador de créditos IA com indicador visual
-- Menu do usuário (perfil, configurações, sair)
+A página seguirá esta hierarquia de seções:
 
-### Sidebar Navegável (Colapsável)
-- Logo Flui
-- Navegação principal: Dashboard, Marca, Content Lab (com sub-itens)
-- Indicador de progresso do onboarding (global)
-- Links secundários: Preços, Política de Privacidade
-
-### Grid Responsivo
-- 3 colunas desktop / 2 tablet / 1 mobile
-- `gap-6` entre cards
-
----
-
-## 3. Páginas da Aplicação
-
-### `/login`
-- Formulário de login com email e senha
-- Opção de login com Google (mockado)
-- Link para criar conta
-- Design limpo e focado
-
-### `/onboarding` (Wizard Completo)
-**Etapa 1 — Perfil**
-- Nome, empresa, cargo
-- Upload de foto (mockado)
-
-**Etapa 2 — Configuração da Marca**
-- Tom de voz, público-alvo, pilares de conteúdo
-- Seleção de nicho/indústria
-
-**Etapa 3 — Objetivos de Conteúdo**
-- Frequência de publicação desejada
-- Plataformas principais
-- Métricas de sucesso
-
-**Etapa 4 — Criar Primeiro Sprint**
-- Nome do sprint, duração
-- Tema principal
-- Confirmação e conclusão
-
-### `/dashboard` (Orientado a Ações)
-- **Ações Rápidas**: Criar ideia, iniciar sprint, acessar frameworks
-- **Tarefas Pendentes**: Lista de conteúdos para revisar/publicar
-- **Sugestões de Conteúdo**: Cards com ideias geradas pela IA
-- **Progresso do Sprint Ativo**: Barra de progresso, score de alinhamento
-- **Estatísticas Rápidas**: Créditos restantes, conteúdos publicados, taxa de consistência
-
-### `/brand` (Hub Completo da Marca)
-**Abas:**
-- **Identidade Visual**: Logo, cores da marca, tipografia (mockado)
-- **Voz & Tom**: Atributos de personalidade, exemplos de tom
-- **Posicionamento**: Proposta de valor, diferenciais, público-alvo
-- **Pilares de Conteúdo**: Temas principais, porcentagem de foco
-- **Análise de Concorrentes**: Cards comparativos (mockado)
-- **Diretrizes da Marca**: Documento de guidelines (mockado)
-
-### `/content-lab` (Hub Principal)
-- Visão geral das seções
-- Estatísticas agregadas
-- Acesso rápido às sub-páginas
-
-### `/content-lab/sprints` (Interface CRUD Completa)
-- Tabela/lista de sprints com filtros (status, data, tema)
-- Ordenação por múltiplos campos
-- Cards expandíveis com detalhes
-- Dialog para criar/editar sprint
-- Score de alinhamento visual (Progress bar)
-- Ações: Editar, Duplicar, Arquivar, Excluir
-
-### `/content-lab/ideas` (Interface CRUD Completa)
-- Lista de ideias de conteúdo com filtros (status, pilar, formato)
-- Dialog para criar/editar ideia
-- Campos: Título, descrição, pilar, formato, status, sprint vinculado
-- Tags e categorização
-- Ações em lote (mockadas)
-
-### `/content-lab/frameworks` (Interface CRUD Completa)
-- Biblioteca de frameworks de conteúdo
-- Cards com preview do framework
-- Dialog detalhado para visualização
-- Criar framework customizado
-- Filtros por categoria (storytelling, educacional, vendas, etc.)
-
-### `/content-lab/radar` (Tendências & Insights)
-- Lista de tendências do mercado (mockado)
-- Alertas de oportunidades
-- Filtros por relevância e data
-- Integração visual com sprints
-
-### `/profile`
-- Informações pessoais editáveis
-- Estatísticas de uso
-- Histórico de atividade
-- Configurações de notificação
-
-### `/pricing`
-- Tabela comparativa de planos
-- Destaque para plano recomendado
-- CTAs para upgrade/downgrade
-- FAQ sobre cobrança
-
-### `/privacy-policy`
-- Texto legal completo
-- Navegação por seções
-- Última atualização
+```text
++------------------------------------------+
+|  Breadcrumb: Diagnóstico → Estratégia    |
+|  Texto de apoio contextual               |
++------------------------------------------+
+|  RESUMO DO DIAGNÓSTICO (4 cards)         |
+|  ┌────────┐ ┌────────┐ ┌────────┐ ┌────┐ |
+|  │Público │ │Objetivo│ │Arquéti-│ │Tom │ |
+|  │-alvo   │ │Primário│ │po Marca│ │Voz │ |
+|  └────────┘ └────────┘ └────────┘ └────┘ |
++------------------------------------------+
+|  OBJETIVO ESTRATÉGICO                    |
+|  Card com declaração clara               |
++------------------------------------------+
+|  PILARES DE CONTEÚDO (4 cards)           |
+|  ┌─────────────────┐ ┌─────────────────┐ |
+|  │ Pilar + % foco  │ │ Pilar + % foco  │ |
+|  │ Descrição       │ │ Descrição       │ |
+|  │ Tópicos exemplo │ │ Tópicos exemplo │ |
+|  └─────────────────┘ └─────────────────┘ |
++------------------------------------------+
+|  TIPOS DE CONTEÚDO                       |
+|  Lista visual com ícones                 |
++------------------------------------------+
+|  DIRETRIZES ESTRATÉGICAS                 |
+|  Cards estilo checklist                  |
++------------------------------------------+
+|  CTA FIXO                                |
+|  "Ir para Planejamento de Conteúdo"      |
++------------------------------------------+
+```
 
 ---
 
-## 4. Regras de UX Implementadas
+## 2. Estados da Página
 
-- **Bloqueio de Acesso**: Rotas protegidas redirecionam para `/onboarding` se incompleto
-- **Progresso Global**: Indicador de onboarding visível em todas as páginas
-- **Estados Visuais**: Loading (Skeleton), Empty States, Success/Error feedback
-- **Responsividade**: Todas as páginas adaptadas para desktop, tablet e mobile
-- **Feedback Visual**: Todos os botões respondem ao hover/click
-- **Navegação Funcional**: Todas as rotas navegáveis via react-router-dom
+| Estado | Comportamento |
+|--------|---------------|
+| **Diagnóstico não concluído** | Mensagem de bloqueio + CTA "Voltar ao Diagnóstico" |
+| **Carregando** | Skeletons com mensagens estratégicas rotativas |
+| **Com dados** | Exibição completa da estratégia |
 
 ---
 
-## 5. Componentes Shadcn Utilizados
+## 3. Arquivos a Criar/Modificar
+
+### 3.1 Criar: `src/data/strategyData.ts`
+Definição de tipos e mock data para estratégia:
+
+```typescript
+// Interface principal
+interface Strategy {
+  id: string;
+  diagnosticId: string; // Referência explícita ao diagnóstico
+  createdAt: string;
+  
+  // Resumo do diagnóstico (referência)
+  diagnosticSummary: {
+    targetAudience: string;
+    primaryGoal: string;
+    brandArchetype: string;
+    dominantTone: string;
+  };
+  
+  // Objetivo estratégico
+  strategicGoal: {
+    statement: string;
+    description: string;
+  };
+  
+  // Pilares de conteúdo expandidos
+  contentPillars: Array<{
+    id: string;
+    name: string;
+    description: string;
+    focusPercentage: number;
+    exampleTopics: string[];
+    color: string;
+  }>;
+  
+  // Tipos de conteúdo
+  contentTypes: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    relatedPillars: string[];
+  }>;
+  
+  // Diretrizes estratégicas
+  guidelines: {
+    frequency: string;
+    depthLevel: string;
+    ctaPosture: string;
+    brandStance: string;
+  };
+}
+```
+
+**Mock data realista:**
+- Estratégia derivada do `mockDiagnosticResult` existente
+- Pilares com tópicos de exemplo
+- Tipos de conteúdo vinculados aos pilares
+- Diretrizes claras e acionáveis
+
+### 3.2 Criar: `src/pages/Strategy.tsx`
+Página principal com todas as seções:
+
+**Componentes internos:**
+- `ContinuityHeader` — Breadcrumb + texto contextual
+- `DiagnosticSummaryCards` — 4 cards compactos
+- `StrategicGoalCard` — Card único com objetivo
+- `ContentPillarsSection` — Grid de pilares
+- `ContentTypesSection` — Lista visual com ícones
+- `StrategicGuidelinesSection` — Cards estilo checklist
+- `ProgressionCTA` — Seção fixa no final
+
+### 3.3 Criar: `src/components/strategy/StrategyLoadingState.tsx`
+Loading state com:
+- Skeleton cards
+- Mensagens rotativas:
+  - "Processando seu diagnóstico..."
+  - "Estruturando pilares de conteúdo..."
+  - "Definindo diretrizes estratégicas..."
+  - "Finalizando sua estratégia editorial..."
+
+### 3.4 Criar: `src/components/strategy/StrategyBlockedState.tsx`
+Estado de bloqueio quando diagnóstico não foi concluído:
+- Ícone de alerta
+- Mensagem clara
+- CTA para retornar ao Diagnóstico
+
+### 3.5 Modificar: `src/App.tsx`
+Adicionar rota `/estrategia` como rota protegida:
+```tsx
+<Route path="/estrategia" element={<ProtectedRoute><Strategy /></ProtectedRoute>} />
+```
+
+### 3.6 Modificar: `src/contexts/AppContext.tsx`
+Adicionar estado de diagnóstico concluído e dados de estratégia:
+- `diagnosticCompleted: boolean`
+- `strategy: Strategy | null`
+
+---
+
+## 4. Componentes Shadcn Utilizados
 
 | Componente | Uso |
 |------------|-----|
-| Card | Containers principais, dashboards |
-| Button | Todas as ações (variantes: primary, secondary, destructive) |
-| Badge | Status de sprints, ideias, usuário |
-| Progress | Onboarding, métricas, créditos |
-| Tabs | Seções do Content Lab, Brand |
-| Skeleton | Estados de carregamento |
-| Dialog | Criação/edição, previews de frameworks |
-| DropdownMenu | Menu do usuário, ações de contexto |
-| Table | Listas de sprints, ideias |
-| Input/Textarea | Formulários |
-| Select | Filtros, seleção de opções |
-| Switch | Configurações on/off |
+| Card | Containers de seções |
+| Badge | Status e percentuais |
+| Button | CTA de progressão |
+| Skeleton | Estado de carregamento |
+| Progress | Indicador de foco dos pilares |
 
 ---
 
-## 6. Entregável Final
+## 5. Estilização
 
-Uma aplicação **demo-ready** com:
-- ✅ Design system consistente (dark mode)
-- ✅ Todas as rotas funcionais
-- ✅ Interfaces CRUD completas
-- ✅ Onboarding wizard de 4 etapas
-- ✅ Dashboard orientado a ações
-- ✅ Hub completo da marca
-- ✅ Content Lab com 4 seções detalhadas
-- ✅ Mock data realista
-- ✅ Simulação de estados e interações
-- ✅ Layout responsivo
-- ✅ Pronta para integração futura com Supabase
+Seguindo o Visual Dictionary:
+- `bg-zinc-950` → Background da página
+- `bg-zinc-900` → Cards e superfícies
+- `border-zinc-800` → Divisórias
+- `text-zinc-50` → Texto primário
+- `text-zinc-400` → Texto secundário
+- `indigo-600` → Ações primárias e destaques
+- `emerald-500` → Indicadores de sucesso/objetivo
+- Cores customizadas para cada pilar (hex codes do diagnostic)
 
+---
+
+## 6. Detalhes Técnicos
+
+### Seção: Continuity Header
+```tsx
+<div className="space-y-2 mb-8">
+  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <span>Diagnóstico</span>
+    <ChevronRight className="h-4 w-4" />
+    <span className="text-foreground font-medium">Estratégia</span>
+  </div>
+  <p className="text-muted-foreground">
+    Com base no seu diagnóstico, estruturamos a seguinte estratégia editorial.
+  </p>
+</div>
+```
+
+### Seção: Diagnostic Summary
+Grid de 4 cards compactos (2x2 em mobile, 4x1 em desktop):
+- Ícone + Label + Valor
+- Estilo read-only (sem hover de edição)
+
+### Seção: Strategic Goal
+Card único com:
+- Declaração em destaque (text-lg font-semibold)
+- Descrição expandida abaixo
+
+### Seção: Content Pillars
+Grid 2 colunas com cards expandidos:
+- Nome + Badge de percentual
+- Barra de progresso visual
+- Descrição
+- Chips com tópicos de exemplo
+
+### Seção: Content Types
+Lista vertical com:
+- Ícone colorido (baseado no pilar)
+- Nome do tipo
+- Badge(s) indicando pilares relacionados
+
+### Seção: Strategic Guidelines
+Grid 2x2 de cards estilo checklist:
+- Frequência de publicação
+- Nível de profundidade
+- Postura de CTA
+- Posicionamento da marca
+
+### Seção: Progression CTA
+Container fixo no final:
+- Background com borda superior
+- Texto motivacional
+- Botão primário com seta
+
+---
+
+## 7. Fluxo de Navegação
+
+```text
+/onboarding (Diagnóstico completo)
+    ↓
+/estrategia (Página atual)
+    ↓
+/planejamento (Próxima etapa - CTA)
+```
+
+---
+
+## 8. Responsividade
+
+| Breakpoint | Layout |
+|------------|--------|
+| Mobile | 1 coluna, cards empilhados |
+| Tablet | 2 colunas para pilares |
+| Desktop | Grid completo, CTA fixa visível |
+
+---
+
+## 9. Mock Data Completo
+
+A estratégia mock incluirá:
+
+```typescript
+const mockStrategy: Strategy = {
+  id: 'strategy-1',
+  diagnosticId: 'diagnostic-1',
+  createdAt: '2024-02-10T15:00:00Z',
+  
+  diagnosticSummary: {
+    targetAudience: 'Profissionais em Ascensão (28-40 anos)',
+    primaryGoal: 'Construir autoridade no mercado',
+    brandArchetype: 'O Sábio',
+    dominantTone: 'Profissional mas acessível'
+  },
+  
+  strategicGoal: {
+    statement: 'Posicionar-se como referência em Product Management através de conteúdo educacional de alta densidade.',
+    description: 'Sua estratégia foca em construir autoridade consistente, educando profissionais intermediários sobre práticas avançadas de gestão de produto.'
+  },
+  
+  contentPillars: [
+    {
+      id: 'pillar-1',
+      name: 'Autoridade Técnica',
+      description: 'Demonstrar expertise profunda em sua área',
+      focusPercentage: 40,
+      exampleTopics: ['Frameworks de priorização', 'Métricas de produto', 'Roadmap estratégico'],
+      color: '#6366f1'
+    },
+    // ... outros pilares
+  ],
+  
+  contentTypes: [
+    { id: 'type-1', name: 'Carrossel Educativo', icon: 'LayoutGrid', relatedPillars: ['Autoridade', 'Educação'] },
+    { id: 'type-2', name: 'Thread de Análise', icon: 'MessageSquare', relatedPillars: ['Autoridade'] },
+    // ... outros tipos
+  ],
+  
+  guidelines: {
+    frequency: '3-4 publicações por semana',
+    depthLevel: 'Conteúdo intermediário a avançado',
+    ctaPosture: 'Soft CTAs em 20% do conteúdo',
+    brandStance: 'Opinativo com embasamento'
+  }
+};
+```
+
+---
+
+## 10. Checklist de Entrega
+
+- [ ] Criar tipos e mock data de estratégia
+- [ ] Criar componente de loading state
+- [ ] Criar componente de blocked state
+- [ ] Criar página Strategy.tsx com todas as seções
+- [ ] Adicionar rota no App.tsx
+- [ ] Atualizar contexto com estado de diagnóstico
+- [ ] Testar responsividade
+- [ ] Validar navegação entre páginas
