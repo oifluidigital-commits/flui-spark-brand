@@ -1,91 +1,77 @@
 
-# Plano de Implementacao — Card de Progresso do Onboarding no Dashboard
+# Plano de Implementacao — Dropdowns com Subitens no Menu Desktop
 
 ## Visao Geral
 
-Criar um componente de card de progresso do onboarding que aparece no Dashboard para usuarios que ainda nao concluiram o diagnostico. O card sera informativo, nao intrusivo, e permitira que o usuario continue de onde parou.
+Modificar o menu horizontal desktop no `TopNavigation` para exibir dropdowns com subitens nos itens "Planejamento" e "Conteudos", preservando toda a navegacao existente.
 
 ---
 
-## 1. Estrutura do Card
+## 1. Situacao Atual
+
+O componente `TopNavigation.tsx` ja possui:
+
+- Estrutura de dados `menuItems` com `children` definidos para "Planejamento" e "Conteudos"
+- Imports do `DropdownMenu` do Shadcn UI
+- Renderizacao de botoes simples no desktop (linhas 177-202) que NAO utilizam os children
+
+**Problema**: Os subitens so aparecem no mobile drawer, nao no menu desktop.
+
+---
+
+## 2. Estrutura dos Subitens Existentes
 
 ```text
-+--------------------------------------------------+
-|  [Icon]  Complete seu diagnostico para aproveitar |
-|          todo o potencial da Flui                 |
-+--------------------------------------------------+
-|  [============================----] 70% concluido |
-+--------------------------------------------------+
-|  Etapas do Diagnostico:                           |
-|  [✓] Conta e Identidade              Concluida    |
-|  [✓] Cargo e Experiencia             Concluida    |
-|  [✓] Area de Atuacao                 Concluida    |
-|  [○] Objetivos                       Pendente     |
-|  [○] Topicos de Conteudo             Pendente     |
-|  [○] Audiencia e Desafios            Pendente     |
-|  [○] Estilo de Comunicacao           Pendente     |
-+--------------------------------------------------+
-|                    [Continuar Diagnostico]        |
-+--------------------------------------------------+
+Planejamento (dropdown)
+  └── Sprints
+
+Conteudos (dropdown)
+  ├── Ideias
+  └── Frameworks
 ```
 
 ---
 
-## 2. Regras de Exibicao
+## 3. Modificacoes no TopNavigation.tsx
 
-| Status do Onboarding | Comportamento |
-|----------------------|---------------|
-| `not_started`        | Card visivel com 0% de progresso |
-| `in_progress`        | Card visivel com progresso parcial |
-| `completed`          | Card NAO aparece |
+### 3.1 Atualizar a Renderizacao do Menu Desktop
 
----
+Substituir a logica de renderizacao (linhas 177-202) para:
+- Itens SEM children: botao simples (comportamento atual)
+- Itens COM children: DropdownMenu com subitens
 
-## 3. Arquivos a Criar/Modificar
-
-### 3.1 Criar: `src/components/dashboard/OnboardingProgressCard.tsx`
-
-Novo componente que:
-
-- Recebe `onboardingStatus` e `onboardingStep` do contexto
-- Calcula progresso baseado no step atual (7 steps totais)
-- Lista todas as etapas com status visual (concluida/pendente)
-- Botao CTA que navega para `/onboarding` preservando o step atual
-
-**Props e comportamento:**
-```typescript
-interface OnboardingProgressCardProps {
-  currentStep: number; // 1-7
-  totalSteps: number; // 7
-  onboardingStatus: 'not_started' | 'in_progress' | 'completed';
-}
+**Estrutura do dropdown:**
+```tsx
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <button className="flex items-center gap-2 ...">
+      <Icon className="h-4 w-4" />
+      <span>{item.label}</span>
+      <ChevronDown className="h-3 w-3" />
+      {/* Active indicator */}
+    </button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="center">
+    {item.children.map((child) => (
+      <DropdownMenuItem onClick={() => navigate(child.route)}>
+        <ChildIcon className="h-4 w-4 mr-2" />
+        {child.label}
+      </DropdownMenuItem>
+    ))}
+  </DropdownMenuContent>
+</DropdownMenu>
 ```
 
-**Mapeamento de etapas (consumindo dados existentes):**
-1. Conta e Identidade
-2. Cargo e Experiencia
-3. Area de Atuacao
-4. Objetivos
-5. Topicos de Conteudo
-6. Audiencia e Desafios
-7. Estilo de Comunicacao
+### 3.2 Ajustar Estado Ativo
 
-### 3.2 Modificar: `src/pages/Dashboard.tsx`
+O indicador de ativo deve aparecer no item pai quando qualquer rota filha estiver ativa:
+- `/content-lab/sprints` → "Planejamento" ativo
+- `/content-lab/ideas` → "Conteudos" ativo
+- `/content-lab/frameworks` → "Conteudos" ativo
 
-- Importar o novo componente `OnboardingProgressCard`
-- Importar dados do usuario via `useApp()` (ja existente)
-- Renderizar o card condicionalmente quando `user.onboardingStatus !== 'completed'`
-- Posicionar o card no topo do grid principal, antes das Quick Actions
+### 3.3 Adicionar Indicador de Ativo nos Subitens
 
-### 3.3 Modificar: `src/pages/Onboarding.tsx`
-
-- Aceitar parametro de query `?step=X` para iniciar em um step especifico
-- Preservar navegacao para "continuar de onde parou"
-
-### 3.4 Modificar: `src/contexts/AppContext.tsx`
-
-- Adicionar funcao `setOnboardingStep(step: number)` para atualizar o step atual
-- Garantir que `onboardingStep` reflete o progresso real do usuario
+Dentro do dropdown, o subitem ativo deve ter destaque visual (texto primary ou background sutil).
 
 ---
 
@@ -93,176 +79,141 @@ interface OnboardingProgressCardProps {
 
 | Componente | Uso |
 |------------|-----|
-| Card | Container principal do card |
-| Progress | Barra de progresso visual |
-| Button | CTA "Continuar Diagnostico" |
-| Badge | Status das etapas (opcional) |
+| DropdownMenu | Container do dropdown |
+| DropdownMenuTrigger | Botao que abre o dropdown |
+| DropdownMenuContent | Container dos itens |
+| DropdownMenuItem | Cada subitem clicavel |
+
+Todos ja estao importados no arquivo.
 
 ---
 
 ## 5. Estilizacao
 
-Seguindo o Visual Dictionary:
+Seguindo o Visual Dictionary existente:
 
-- `bg-zinc-900` → Background do card
-- `border-zinc-800` → Borda do card
-- `border-amber-500/50` → Borda de destaque (indicador de acao pendente)
-- `text-zinc-50` → Texto primario
-- `text-zinc-400` → Texto secundario
-- `emerald-500` → Icone/indicador de etapa concluida
-- `amber-500` → Icone/indicador de etapa pendente
-- `indigo-600` → Botao CTA
+- `bg-popover` → Background do dropdown (ja definido no componente)
+- `border-border` → Borda do dropdown
+- `text-foreground` → Texto dos itens
+- `text-primary` → Subitem ativo
+- `hover:bg-accent` → Hover nos itens
+- `z-50` → Z-index alto para garantir visibilidade
 
 ---
 
 ## 6. Detalhes Tecnicos
 
-### Componente: OnboardingProgressCard
+### Renderizacao Condicional no Desktop
 
 ```tsx
-// Estrutura principal
-<Card className="border-amber-500/30 bg-zinc-900">
-  <CardHeader>
-    <div className="flex items-start gap-4">
-      <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
-        <ClipboardList className="h-6 w-6 text-amber-500" />
-      </div>
-      <div className="flex-1">
-        <CardTitle className="text-lg">
-          Complete seu diagnostico para aproveitar todo o potencial da Flui
-        </CardTitle>
-        <CardDescription>
-          {completedSteps} de {totalSteps} etapas concluidas
-        </CardDescription>
-      </div>
-    </div>
-  </CardHeader>
-  <CardContent>
-    {/* Barra de progresso */}
-    <Progress value={progressPercentage} className="h-2 mb-6" />
+<nav className="hidden lg:flex items-center gap-1">
+  {menuItems.map((item) => {
+    const Icon = item.icon;
+    const isActive = activeMenuItem === item.id;
     
-    {/* Lista de etapas */}
-    <div className="space-y-3">
-      {steps.map((step, index) => (
-        <div key={step.id} className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {isCompleted ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            ) : (
-              <Circle className="h-5 w-5 text-zinc-600" />
-            )}
-            <span className={cn(
-              isCompleted ? 'text-zinc-400' : 'text-zinc-50'
-            )}>
-              {step.label}
-            </span>
-          </div>
-          <Badge variant={isCompleted ? 'secondary' : 'outline'}>
-            {isCompleted ? 'Concluida' : 'Pendente'}
-          </Badge>
-        </div>
-      ))}
-    </div>
+    // Se o item tem children, renderiza dropdown
+    if (item.children && item.children.length > 0) {
+      return (
+        <DropdownMenu key={item.id}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
+                'hover:text-foreground/80',
+                isActive ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{item.label}</span>
+              <ChevronDown className="h-3 w-3 ml-1" />
+              {isActive && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="min-w-[140px]">
+            {item.children.map((child) => {
+              const ChildIcon = child.icon;
+              const isChildActive = location.pathname === child.route;
+              return (
+                <DropdownMenuItem
+                  key={child.id}
+                  onClick={() => navigate(child.route)}
+                  className={cn(
+                    'cursor-pointer',
+                    isChildActive && 'text-primary'
+                  )}
+                >
+                  <ChildIcon className="h-4 w-4 mr-2" />
+                  {child.label}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
     
-    {/* CTA */}
-    <Button 
-      className="w-full mt-6" 
-      onClick={() => navigate(`/onboarding?step=${nextPendingStep}`)}
-    >
-      Continuar Diagnostico
-      <ArrowRight className="h-4 w-4 ml-2" />
-    </Button>
-  </CardContent>
-</Card>
-```
-
-### Integracao no Dashboard
-
-```tsx
-// Em Dashboard.tsx, antes das Quick Actions
-{user.onboardingStatus !== 'completed' && (
-  <OnboardingProgressCard
-    currentStep={user.onboardingStep}
-    totalSteps={7}
-    onboardingStatus={user.onboardingStatus}
-  />
-)}
-```
-
-### Navegacao para Step Especifico
-
-```tsx
-// Em Onboarding.tsx
-const [searchParams] = useSearchParams();
-const initialStep = parseInt(searchParams.get('step') || '1', 10);
-
-const [currentStep, setCurrentStep] = useState(
-  Math.min(Math.max(initialStep, 1), stepConfig.length)
-);
+    // Se nao tem children, renderiza botao simples
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleMenuItemClick(item.id)}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
+          'hover:text-foreground/80',
+          isActive ? 'text-foreground' : 'text-muted-foreground'
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{item.label}</span>
+        {isActive && (
+          <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+        )}
+      </button>
+    );
+  })}
+</nav>
 ```
 
 ---
 
-## 7. Fluxo de Usuario
+## 7. Comportamento
 
-```text
-Usuario acessa /dashboard
-    |
-    v
-Sistema verifica user.onboardingStatus
-    |
-    +-- Se 'completed' --> Dashboard normal
-    |
-    +-- Se 'not_started' ou 'in_progress' --> Exibe card de progresso
-            |
-            v
-        Usuario clica "Continuar Diagnostico"
-            |
-            v
-        Navega para /onboarding?step=X (proxima etapa pendente)
-            |
-            v
-        Onboarding inicia no step correto
-```
+| Acao | Resultado |
+|------|-----------|
+| Hover em "Planejamento" | Cursor pointer, texto claro |
+| Click em "Planejamento" | Abre dropdown com "Sprints" |
+| Click em "Sprints" | Navega para `/content-lab/sprints`, fecha dropdown |
+| Hover em "Conteudos" | Cursor pointer, texto claro |
+| Click em "Conteudos" | Abre dropdown com "Ideias" e "Frameworks" |
+| Click em "Ideias" | Navega para `/content-lab/ideas`, fecha dropdown |
+| Click em "Frameworks" | Navega para `/content-lab/frameworks`, fecha dropdown |
 
 ---
 
 ## 8. Responsividade
 
-| Breakpoint | Layout |
-|------------|--------|
-| Mobile | Card ocupa largura total, lista vertical |
-| Tablet | Card ocupa largura total |
-| Desktop | Card ocupa largura total do grid |
+| Breakpoint | Comportamento |
+|------------|---------------|
+| Desktop (lg+) | Dropdowns horizontais na top bar |
+| Mobile/Tablet | Drawer lateral com subitens aninhados (ja implementado) |
 
 ---
 
-## 9. Atualizacao de Estado
+## 9. Arquivo a Modificar
 
-O `onboardingStep` no contexto sera atualizado:
-- Quando o usuario avanca para o proximo step no wizard
-- Quando o usuario completa o onboarding
-
-Para isso, modificaremos o `completeOnboardingStep` no AppContext para aceitar o step especifico:
-
-```typescript
-const updateOnboardingProgress = (step: number) => {
-  setUser((prev) => ({
-    ...prev,
-    onboardingStep: step,
-    onboardingStatus: step === 0 ? 'not_started' : 'in_progress',
-  }));
-};
-```
+| Arquivo | Modificacao |
+|---------|-------------|
+| `src/components/layout/TopNavigation.tsx` | Atualizar renderizacao do menu desktop para usar dropdowns em itens com children |
 
 ---
 
 ## 10. Checklist de Entrega
 
-- [ ] Criar componente OnboardingProgressCard
-- [ ] Integrar card no Dashboard.tsx
-- [ ] Adicionar suporte a query param `step` no Onboarding.tsx
-- [ ] Atualizar AppContext com funcao de update de step
-- [ ] Testar exibicao condicional do card
-- [ ] Testar navegacao para step especifico
-- [ ] Validar responsividade
+- [ ] Modificar renderizacao do menu desktop para dropdowns condicionais
+- [ ] Adicionar ChevronDown nos itens com children
+- [ ] Estilizar subitens ativos dentro do dropdown
+- [ ] Manter indicador de ativo no item pai
+- [ ] Testar navegacao para todas as rotas
+- [ ] Verificar z-index e posicionamento do dropdown
