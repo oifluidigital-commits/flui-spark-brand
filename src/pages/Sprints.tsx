@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
@@ -31,14 +33,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Plus,
   Search,
   MoreHorizontal,
@@ -47,23 +41,20 @@ import {
   Archive,
   Trash2,
   Calendar,
-  Target,
-  Filter,
-  Eye,
   Sparkles,
   AlertTriangle,
   Check,
   ChevronRight,
   ChevronLeft,
-   Link2,
-   FileText,
-   Upload,
-   User,
-   GripVertical,
-   X,
+  Link2,
+  FileText,
+  Upload,
+  User,
+  GripVertical,
+  X,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
-import { getStatusLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
+import { formatDatePTBR, mockPillars } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -71,46 +62,204 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
 import { Slider } from '@/components/ui/slider';
 
-const statusColors: Record<SprintStatus, string> = {
-  draft: 'bg-secondary text-secondary-foreground',
-  active: 'bg-success text-success-foreground',
-  completed: 'bg-primary text-primary-foreground',
-  archived: 'bg-muted text-muted-foreground',
+// Status configuration for card badges
+const getStatusConfig = (status: SprintStatus) => {
+  switch (status) {
+    case 'active':
+      return {
+        label: 'Em andamento',
+        className: 'bg-violet-500/20 text-violet-500 border-violet-500/30',
+      };
+    case 'draft':
+      return {
+        label: 'Planejamento',
+        className: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
+      };
+    case 'completed':
+      return {
+        label: 'Concluída',
+        className: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
+      };
+    default:
+      return {
+        label: 'Arquivado',
+        className: 'bg-zinc-500/20 text-zinc-500 border-zinc-500/30',
+      };
+  }
 };
 
-// Mock priorities for demo
-const sprintPriorities: Record<string, 'high' | 'medium' | 'low'> = {
-  'sprint-1': 'high',
-  'sprint-2': 'medium',
-  'sprint-3': 'low',
+// NewSprintCard component
+interface NewSprintCardProps {
+  onClick: () => void;
+}
+
+const NewSprintCard = ({ onClick }: NewSprintCardProps) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      'flex flex-col items-center justify-center gap-3',
+      'min-h-[240px] rounded-lg',
+      'border-2 border-dashed border-zinc-700',
+      'bg-zinc-900/50 hover:border-indigo-600',
+      'transition-colors cursor-pointer',
+      'group'
+    )}
+  >
+    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-600/20 transition-colors">
+      <Plus className="h-6 w-6 text-zinc-400 group-hover:text-indigo-500" />
+    </div>
+    <span className="text-zinc-400 group-hover:text-zinc-50 text-sm font-medium transition-colors">
+      Criar nova Sprint
+    </span>
+  </button>
+);
+
+// SprintCard component
+interface SprintCardProps {
+  sprint: Sprint;
+  onEdit: (sprint: Sprint) => void;
+  onDuplicate: (sprint: Sprint) => void;
+  onArchive: (sprint: Sprint) => void;
+  onDelete: (sprintId: string) => void;
+}
+
+const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: SprintCardProps) => {
+  const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
+  const progressPercentage =
+    sprint.contentsPlanned > 0
+      ? Math.round((sprint.contentsPublished / sprint.contentsPlanned) * 100)
+      : 0;
+
+  const statusConfig = getStatusConfig(sprint.status);
+
+  return (
+    <Card
+      className={cn(
+        'bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors',
+        sprint.status === 'active' && 'ring-1 ring-violet-500/30'
+      )}
+    >
+      {/* Header */}
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Badge variant="outline" className={cn('text-xs', statusConfig.className)}>
+          {statusConfig.label}
+        </Badge>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuItem onClick={() => onEdit(sprint)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(sprint)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onArchive(sprint)}>
+              <Archive className="h-4 w-4 mr-2" />
+              Arquivar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(sprint.id)}
+              className="text-red-500 focus:text-red-500"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </CardHeader>
+
+      {/* Body */}
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-zinc-50 line-clamp-1">{sprint.title}</h3>
+          {pillar && (
+            <Badge
+              variant="outline"
+              className="text-xs"
+              style={{ borderColor: pillar.color, color: pillar.color }}
+            >
+              {pillar.name}
+            </Badge>
+          )}
+        </div>
+
+        {/* Progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-zinc-400">
+              {sprint.contentsPublished}/{sprint.contentsPlanned} conteúdos prontos
+            </span>
+            <span
+              className={cn(
+                'font-medium',
+                sprint.status === 'completed' ? 'text-emerald-500' : 'text-zinc-50'
+              )}
+            >
+              {progressPercentage}%
+            </span>
+          </div>
+          <Progress
+            value={progressPercentage}
+            className={cn('h-2', sprint.status === 'completed' && '[&>div]:bg-emerald-500')}
+          />
+        </div>
+      </CardContent>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <Calendar className="h-4 w-4" />
+          <span>
+            {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => onEdit(sprint)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </Card>
+  );
 };
 
-// Mock progress details
-const getProgressDetails = (sprintId: string) => {
-  const details: Record<string, { draft: number; review: number; published: number; planned: number }> = {
-    'sprint-1': { draft: 2, review: 2, published: 4, planned: 2 },
-    'sprint-2': { draft: 0, review: 0, published: 0, planned: 8 },
-    'sprint-3': { draft: 0, review: 0, published: 15, planned: 0 },
-  };
-  return details[sprintId] || { draft: 0, review: 0, published: 0, planned: 0 };
-};
-
-// Mock score composition
-const getScoreDetails = (sprintId: string) => {
-  const details: Record<string, { strategyAlignment: number; publishConsistency: number; audienceAlignment: number; formatDiversity: number }> = {
-    'sprint-1': { strategyAlignment: 85, publishConsistency: 70, audienceAlignment: 90, formatDiversity: 75 },
-    'sprint-2': { strategyAlignment: 0, publishConsistency: 0, audienceAlignment: 0, formatDiversity: 0 },
-    'sprint-3': { strategyAlignment: 95, publishConsistency: 88, audienceAlignment: 92, formatDiversity: 85 },
-  };
-  return details[sprintId] || { strategyAlignment: 0, publishConsistency: 0, audienceAlignment: 0, formatDiversity: 0 };
-};
+// SprintCardSkeleton component
+const SprintCardSkeleton = () => (
+  <Card className="bg-zinc-900 border-zinc-800">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <Skeleton className="h-5 w-24 bg-zinc-800" />
+      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-3/4 bg-zinc-800" />
+        <Skeleton className="h-5 w-20 bg-zinc-800" />
+      </div>
+      <div className="space-y-2">
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-32 bg-zinc-800" />
+          <Skeleton className="h-4 w-12 bg-zinc-800" />
+        </div>
+        <Skeleton className="h-2 w-full bg-zinc-800" />
+      </div>
+    </CardContent>
+    <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
+      <Skeleton className="h-4 w-40 bg-zinc-800" />
+      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+    </div>
+  </Card>
+);
 
 // Content formats for wizard
 const contentFormats = [
@@ -291,25 +440,6 @@ const mockCtas: Record<string, string[]> = {
     'Agende uma conversa gratuita',
   ],
 };
-
-// Priority indicator component
-const PriorityDot = ({ priority }: { priority: 'high' | 'medium' | 'low' }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        className={cn(
-          'w-2 h-2 rounded-full inline-block shrink-0',
-          priority === 'high' && 'bg-red-500',
-          priority === 'medium' && 'bg-amber-500',
-          priority === 'low' && 'bg-emerald-500'
-        )}
-      />
-    </TooltipTrigger>
-    <TooltipContent side="top" className="text-xs">
-      Prioridade {priority === 'high' ? 'Alta' : priority === 'medium' ? 'Média' : 'Baixa'}
-    </TooltipContent>
-  </Tooltip>
-);
 
 export default function Sprints() {
   const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
@@ -1564,24 +1694,78 @@ export default function Sprints() {
     </div>
   );
 
+  // Archive handler
+  const handleArchive = (sprint: Sprint) => {
+    updateSprint(sprint.id, { status: 'archived' });
+  };
+
   return (
     <MainLayout>
       <TooltipProvider>
-        <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">Sprints</h2>
-            <p className="text-muted-foreground">
-              Organize seu conteúdo em ciclos de produção
-            </p>
-          </div>
-          <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <SheetTrigger asChild>
-              <Button onClick={() => handleOpenDialog()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Sprint
-              </Button>
-            </SheetTrigger>
+        <div className="space-y-6 bg-zinc-950 min-h-screen">
+          {/* Page Header */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-50">Sprints de Conteúdo</h2>
+              <p className="text-zinc-400">
+                Organize suas campanhas estratégicas e ciclos de produção
+              </p>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+              {/* Search */}
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                <Input
+                  placeholder="Buscar sprints..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-zinc-900 border-zinc-800"
+                />
+              </div>
+
+              {/* Tabs + Button */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                  <TabsList className="bg-zinc-900 border border-zinc-800">
+                    <TabsTrigger
+                      value="all"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Todas
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="active"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Ativas
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="draft"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Planejamento
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="completed"
+                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
+                    >
+                      Concluídas
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      onClick={() => handleOpenDialog()}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Sprint
+                    </Button>
+                  </SheetTrigger>
             <SheetContent side="right" className="w-[540px] sm:max-w-[540px] overflow-y-auto">
               <SheetHeader>
                 <SheetTitle>
@@ -1661,270 +1845,36 @@ export default function Sprints() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar sprints..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+              </div>
+            </div>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="draft">Rascunho</SelectItem>
-              <SelectItem value="active">Ativo</SelectItem>
-              <SelectItem value="completed">Concluído</SelectItem>
-              <SelectItem value="archived">Arquivado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        {/* Sprints Table */}
-        <Card className="border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sprint</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Progresso</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredSprints.map((sprint) => {
-                  const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
-                  const priority = sprintPriorities[sprint.id] || 'medium';
-                  const progressDetails = getProgressDetails(sprint.id);
-                  const scoreDetails = getScoreDetails(sprint.id);
-                  const progressPercentage =
-                    sprint.contentsPlanned > 0
-                      ? (sprint.contentsPublished / sprint.contentsPlanned) * 100
-                      : 0;
+          {/* Grid de Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* New Sprint Card */}
+            <NewSprintCard onClick={() => handleOpenDialog()} />
 
-                  return (
-                    <TableRow
-                      key={sprint.id}
-                      className={cn(
-                        'hover:bg-secondary/50 transition-colors',
-                        sprint.status === 'active' && 'bg-primary/5 border-l-2 border-l-primary'
-                      )}
-                    >
-                  <TableCell>
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <PriorityDot priority={priority} />
-                            <span className="font-medium">{sprint.title}</span>
-                          </div>
-                          {pillar && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1.5 py-0"
-                              style={{ borderColor: pillar.color, color: pillar.color }}
-                            >
-                              {pillar.name}
-                            </Badge>
-                          )}
-                          <div className="text-xs text-muted-foreground line-clamp-1">
-                            {sprint.description.length > 60
-                              ? `${sprint.description.slice(0, 60)}...`
-                              : sprint.description}
-                          </div>
-                        </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[sprint.status]}>
-                      {getStatusLabel(sprint.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
-                        </div>
-                  </TableCell>
-                  <TableCell>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-32 cursor-help">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span>
-                                  {sprint.contentsPublished}/{sprint.contentsPlanned}
-                                </span>
-                              </div>
-                              <Progress value={progressPercentage} className="h-2" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="w-48">
-                            <div className="space-y-1.5 text-xs">
-                              <p className="font-medium">Detalhes do Progresso</p>
-                              <div className="flex justify-between">
-                                <span>Total:</span>
-                                <span>{sprint.contentsPlanned} conteúdos</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Rascunho:</span>
-                                <span>{progressDetails.draft}</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Em revisão:</span>
-                                <span>{progressDetails.review}</span>
-                              </div>
-                              <div className="flex justify-between text-emerald-500">
-                                <span>Publicados:</span>
-                                <span>{sprint.contentsPublished}</span>
-                              </div>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <div className="flex items-center gap-2 cursor-help">
-                              <Target className="h-4 w-4 text-muted-foreground" />
-                              <span
-                                className={cn(
-                                  'font-medium',
-                                  sprint.alignmentScore >= 80 && 'text-emerald-500',
-                                  sprint.alignmentScore >= 50 &&
-                                    sprint.alignmentScore < 80 &&
-                                    'text-amber-500',
-                                  sprint.alignmentScore < 50 && 'text-red-500'
-                                )}
-                              >
-                                {sprint.alignmentScore}%
-                              </span>
-                            </div>
-                          </HoverCardTrigger>
-                          <HoverCardContent side="left" className="w-64">
-                            <div className="space-y-2">
-                              <p className="font-medium text-sm">Composição do Score</p>
-                              <div className="space-y-1 text-xs">
-                                <div className="flex justify-between">
-                                  <span>Aderência à estratégia</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.strategyAlignment >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.strategyAlignment >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.strategyAlignment}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Consistência de publicação</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.publishConsistency >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.publishConsistency >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.publishConsistency}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Alinhamento com público</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.audienceAlignment >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.audienceAlignment >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.audienceAlignment}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Diversidade de formatos</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.formatDiversity >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.formatDiversity >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.formatDiversity}%
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                                Score gerado por IA com base na sua estratégia
-                              </p>
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewDetails(sprint)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Visualizar detalhes
-                            </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenDialog(sprint)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(sprint)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicar
-                        </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => updateSprint(sprint.id, { status: 'archived' })}
-                            >
-                          <Archive className="h-4 w-4 mr-2" />
-                          Arquivar
-                        </DropdownMenuItem>
-                            <DropdownMenuItem
-                          onClick={() => deleteSprint(sprint.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
+            {/* Sprint Cards */}
+            {filteredSprints.map((sprint) => (
+              <SprintCard
+                key={sprint.id}
+                sprint={sprint}
+                onEdit={handleViewDetails}
+                onDuplicate={handleDuplicate}
+                onArchive={handleArchive}
+                onDelete={deleteSprint}
+              />
+            ))}
+          </div>
 
           {filteredSprints.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Nenhum sprint encontrado</p>
+              <p className="text-zinc-400">
+                Nenhuma sprint encontrada para os filtros selecionados.
+              </p>
             </div>
           )}
-        </Card>
-      </div>
+        </div>
       </TooltipProvider>
     </MainLayout>
   );
