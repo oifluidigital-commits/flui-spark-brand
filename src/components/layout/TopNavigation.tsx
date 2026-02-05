@@ -179,6 +179,52 @@
              const Icon = item.icon;
              const isActive = activeMenuItem === item.id;
              
+             // If item has children, render dropdown
+             if (item.children && item.children.length > 0) {
+               return (
+                 <DropdownMenu key={item.id}>
+                   <DropdownMenuTrigger asChild>
+                     <button
+                       className={cn(
+                         'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors relative',
+                         'hover:text-foreground/80',
+                         isActive ? 'text-foreground' : 'text-muted-foreground'
+                       )}
+                     >
+                       <Icon className="h-4 w-4" />
+                       <span>{item.label}</span>
+                       <ChevronDown className="h-3 w-3 ml-1" />
+                       
+                       {/* Active indicator - bottom border */}
+                       {isActive && (
+                         <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+                       )}
+                     </button>
+                   </DropdownMenuTrigger>
+                   <DropdownMenuContent align="center" className="min-w-[140px]">
+                     {item.children.map((child) => {
+                       const ChildIcon = child.icon;
+                       const isChildActive = location.pathname === child.route;
+                       return (
+                         <DropdownMenuItem
+                           key={child.id}
+                           onClick={() => navigate(child.route)}
+                           className={cn(
+                             'cursor-pointer',
+                             isChildActive && 'text-primary'
+                           )}
+                         >
+                           <ChildIcon className="h-4 w-4 mr-2" />
+                           {child.label}
+                         </DropdownMenuItem>
+                       );
+                     })}
+                   </DropdownMenuContent>
+                 </DropdownMenu>
+               );
+             }
+             
+             // If no children, render simple button
              return (
                <button
                  key={item.id}
