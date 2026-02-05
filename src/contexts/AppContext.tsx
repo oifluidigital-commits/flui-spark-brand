@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
   User,
   Brand,
@@ -15,8 +15,9 @@ import {
   mockFrameworks,
   mockTrends,
 } from '@/data/mockData';
- import { DiagnosticResult } from '@/data/onboardingData';
- import { Strategy } from '@/data/strategyData';
+import { DiagnosticResult } from '@/data/onboardingData';
+import { Strategy } from '@/data/strategyData';
+import { useAuth, Profile } from '@/hooks/useAuth';
 
 interface AppContextType {
   // User state
@@ -25,18 +26,24 @@ interface AppContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   
+  // Auth profile from Supabase
+  profile: Profile | null;
+  isAuthLoading: boolean;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  
   // Brand state
   brand: Brand;
   setBrand: React.Dispatch<React.SetStateAction<Brand>>;
   
-   // Diagnostic state
-   diagnosticResult: DiagnosticResult | null;
-   setDiagnosticResult: React.Dispatch<React.SetStateAction<DiagnosticResult | null>>;
-   
-   // Strategy state
-   strategy: Strategy | null;
-   setStrategy: React.Dispatch<React.SetStateAction<Strategy | null>>;
- 
+  // Diagnostic state
+  diagnosticResult: DiagnosticResult | null;
+  setDiagnosticResult: React.Dispatch<React.SetStateAction<DiagnosticResult | null>>;
+  
+  // Strategy state
+  strategy: Strategy | null;
+  setStrategy: React.Dispatch<React.SetStateAction<Strategy | null>>;
+
   // Sprints state
   sprints: Sprint[];
   setSprints: React.Dispatch<React.SetStateAction<Sprint[]>>;
@@ -71,21 +78,24 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Auth state
+  // Real auth from Supabase
+  const auth = useAuth();
+  
+  // Legacy auth state (will sync with real auth)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // User state
+  // User state (will sync with profile)
   const [user, setUser] = useState<User>(mockUser);
   
   // Brand state
   const [brand, setBrand] = useState<Brand>(mockBrand);
   
-   // Diagnostic state
-   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
-   
-   // Strategy state
-   const [strategy, setStrategy] = useState<Strategy | null>(null);
- 
+  // Diagnostic state
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+  
+  // Strategy state
+  const [strategy, setStrategy] = useState<Strategy | null>(null);
+
   // Sprints state
   const [sprints, setSprints] = useState<Sprint[]>(mockSprints);
   
@@ -100,6 +110,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   // Sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sync auth state with real Supabase auth
+  useEffect(() => {
+    setIsAuthenticated(auth.isAuthenticated);
+    
+    // Sync user data with profile
+    if (auth.profile) {
+      setUser((prev) => ({
+        ...prev,
+        id: auth.profile!.user_id,
+        name: auth.profile!.name || prev.name,
+        email: auth.profile!.email || prev.email,
+        avatar: auth.profile!.avatar_url || prev.avatar,
+        onboardingStatus: auth.profile!.onboarding_status,
+        onboardingStep: auth.profile!.onboarding_step,
+        plan: auth.profile!.plan,
+        aiCredits: {
+          total: auth.profile!.ai_credits_total,
+          used: auth.profile!.ai_credits_used,
+        },
+      }));
+    }
+  }, [auth.isAuthenticated, auth.profile]);
   
   // Sprint CRUD
   const addSprint = (sprint: Sprint) => {
@@ -144,8 +177,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const completeOnboardingStep = () => {
     setUser((prev) => ({
       ...prev,
-       onboardingStep: Math.min(prev.onboardingStep + 1, 7),
-       onboardingStatus: 'in_progress',
+      onboardingStep: Math.min(prev.onboardingStep + 1, 7),
+      onboardingStatus: 'in_progress',
     }));
   };
   
@@ -164,12 +197,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser,
         isAuthenticated,
         setIsAuthenticated,
+        profile: auth.profile,
+        isAuthLoading: auth.isLoading,
+        signOut: auth.signOut,
+        refreshProfile: auth.refreshProfile,
         brand,
         setBrand,
-       diagnosticResult,
-       setDiagnosticResult,
-       strategy,
-       setStrategy,
+        diagnosticResult,
+        setDiagnosticResult,
+        strategy,
+        setStrategy,
         sprints,
         setSprints,
         addSprint,
