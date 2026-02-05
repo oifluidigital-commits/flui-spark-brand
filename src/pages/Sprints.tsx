@@ -1701,12 +1701,16 @@ export default function Sprints() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pilar:</span>
               <span className="flex items-center gap-2">
-                {selectedPillar && (
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: selectedPillar.color }}
-                  />
-                )}
+                {selectedPillar && (() => {
+                  const iconConfig = pillarIconConfig[selectedPillar.id];
+                  const IconComponent = iconConfig?.icon || Circle;
+                  return (
+                    <IconComponent
+                      className="h-4 w-4"
+                      style={{ color: iconConfig?.color || selectedPillar.color }}
+                    />
+                  );
+                })()}
                 {selectedPillar?.name || '-'}
               </span>
             </div>
