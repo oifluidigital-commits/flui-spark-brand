@@ -226,7 +226,7 @@ const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: Sprint
       {/* Footer */}
       <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <Calendar className="h-4 w-4" />
+          <CalendarIcon className="h-4 w-4" />
           <span>
             {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
           </span>
