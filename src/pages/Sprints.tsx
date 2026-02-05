@@ -64,6 +64,203 @@ import {
 } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 
+// Status configuration for card badges
+const getStatusConfig = (status: SprintStatus) => {
+  switch (status) {
+    case 'active':
+      return {
+        label: 'Em andamento',
+        className: 'bg-violet-500/20 text-violet-500 border-violet-500/30',
+      };
+    case 'draft':
+      return {
+        label: 'Planejamento',
+        className: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
+      };
+    case 'completed':
+      return {
+        label: 'Concluída',
+        className: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
+      };
+    default:
+      return {
+        label: 'Arquivado',
+        className: 'bg-zinc-500/20 text-zinc-500 border-zinc-500/30',
+      };
+  }
+};
+
+// NewSprintCard component
+interface NewSprintCardProps {
+  onClick: () => void;
+}
+
+const NewSprintCard = ({ onClick }: NewSprintCardProps) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      'flex flex-col items-center justify-center gap-3',
+      'min-h-[240px] rounded-lg',
+      'border-2 border-dashed border-zinc-700',
+      'bg-zinc-900/50 hover:border-indigo-600',
+      'transition-colors cursor-pointer',
+      'group'
+    )}
+  >
+    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-600/20 transition-colors">
+      <Plus className="h-6 w-6 text-zinc-400 group-hover:text-indigo-500" />
+    </div>
+    <span className="text-zinc-400 group-hover:text-zinc-50 text-sm font-medium transition-colors">
+      Criar nova Sprint
+    </span>
+  </button>
+);
+
+// SprintCard component
+interface SprintCardProps {
+  sprint: Sprint;
+  onEdit: (sprint: Sprint) => void;
+  onDuplicate: (sprint: Sprint) => void;
+  onArchive: (sprint: Sprint) => void;
+  onDelete: (sprintId: string) => void;
+}
+
+const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: SprintCardProps) => {
+  const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
+  const progressPercentage =
+    sprint.contentsPlanned > 0
+      ? Math.round((sprint.contentsPublished / sprint.contentsPlanned) * 100)
+      : 0;
+
+  const statusConfig = getStatusConfig(sprint.status);
+
+  return (
+    <Card
+      className={cn(
+        'bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors',
+        sprint.status === 'active' && 'ring-1 ring-violet-500/30'
+      )}
+    >
+      {/* Header */}
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Badge variant="outline" className={cn('text-xs', statusConfig.className)}>
+          {statusConfig.label}
+        </Badge>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuItem onClick={() => onEdit(sprint)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(sprint)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onArchive(sprint)}>
+              <Archive className="h-4 w-4 mr-2" />
+              Arquivar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(sprint.id)}
+              className="text-red-500 focus:text-red-500"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </CardHeader>
+
+      {/* Body */}
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-zinc-50 line-clamp-1">{sprint.title}</h3>
+          {pillar && (
+            <Badge
+              variant="outline"
+              className="text-xs"
+              style={{ borderColor: pillar.color, color: pillar.color }}
+            >
+              {pillar.name}
+            </Badge>
+          )}
+        </div>
+
+        {/* Progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-zinc-400">
+              {sprint.contentsPublished}/{sprint.contentsPlanned} conteúdos prontos
+            </span>
+            <span
+              className={cn(
+                'font-medium',
+                sprint.status === 'completed' ? 'text-emerald-500' : 'text-zinc-50'
+              )}
+            >
+              {progressPercentage}%
+            </span>
+          </div>
+          <Progress
+            value={progressPercentage}
+            className={cn('h-2', sprint.status === 'completed' && '[&>div]:bg-emerald-500')}
+          />
+        </div>
+      </CardContent>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <Calendar className="h-4 w-4" />
+          <span>
+            {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => onEdit(sprint)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </Card>
+  );
+};
+
+// SprintCardSkeleton component
+const SprintCardSkeleton = () => (
+  <Card className="bg-zinc-900 border-zinc-800">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <Skeleton className="h-5 w-24 bg-zinc-800" />
+      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-3/4 bg-zinc-800" />
+        <Skeleton className="h-5 w-20 bg-zinc-800" />
+      </div>
+      <div className="space-y-2">
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-32 bg-zinc-800" />
+          <Skeleton className="h-4 w-12 bg-zinc-800" />
+        </div>
+        <Skeleton className="h-2 w-full bg-zinc-800" />
+      </div>
+    </CardContent>
+    <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
+      <Skeleton className="h-4 w-40 bg-zinc-800" />
+      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+    </div>
+  </Card>
+);
+
 // Content formats for wizard
 const contentFormats = [
   { id: 'post', label: 'Post' },
