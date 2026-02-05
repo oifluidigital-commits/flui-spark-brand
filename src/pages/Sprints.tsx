@@ -73,6 +73,7 @@ import {
   TooltipProvider,
 } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
+ import { useNavigate } from 'react-router-dom';
 
 // Status configuration for card badges
 const getStatusConfig = (status: SprintStatus) => {
@@ -133,9 +134,10 @@ interface SprintCardProps {
   onDuplicate: (sprint: Sprint) => void;
   onArchive: (sprint: Sprint) => void;
   onDelete: (sprintId: string) => void;
+   onViewDetails: (sprint: Sprint) => void;
 }
 
-const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: SprintCardProps) => {
+ const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete, onViewDetails }: SprintCardProps) => {
   const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
   const progressPercentage =
     sprint.contentsPlanned > 0
@@ -235,7 +237,7 @@ const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete }: Sprint
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => onEdit(sprint)}
+           onClick={() => onViewDetails(sprint)}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -468,6 +470,7 @@ const mockCtas: Record<string, string[]> = {
 
 export default function Sprints() {
   const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
+   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -635,7 +638,7 @@ export default function Sprints() {
   };
 
   const handleViewDetails = (sprint: Sprint) => {
-    handleOpenDialog(sprint);
+     navigate(`/sprints/${sprint.id}`);
   };
 
   // Generate mock AI suggestions based on wizard data
@@ -2063,6 +2066,7 @@ export default function Sprints() {
                 onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
                 onDelete={deleteSprint}
+                 onViewDetails={handleViewDetails}
               />
             ))}
           </div>

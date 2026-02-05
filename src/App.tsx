@@ -20,6 +20,7 @@ import Pricing from "./pages/Pricing";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
  import Strategy from "./pages/Strategy";
+ import SprintDetail from "./pages/SprintDetail";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ function AppRoutes() {
       <Route path="/brand" element={<ProtectedRoute><Brand /></ProtectedRoute>} />
       <Route path="/content-lab" element={<ProtectedRoute><ContentLab /></ProtectedRoute>} />
       <Route path="/content-lab/sprints" element={<ProtectedRoute><Sprints /></ProtectedRoute>} />
+       <Route path="/sprints/:sprintId" element={<ProtectedRoute><SprintDetail /></ProtectedRoute>} />
       <Route path="/content-lab/ideas" element={<ProtectedRoute><Ideas /></ProtectedRoute>} />
       <Route path="/content-lab/frameworks" element={<ProtectedRoute><Frameworks /></ProtectedRoute>} />
       <Route path="/content-lab/radar" element={<ProtectedRoute><Radar /></ProtectedRoute>} />
