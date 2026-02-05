@@ -451,11 +451,13 @@
    onClose,
    content,
    onSave,
+   aiAllowed,
  }: {
    isOpen: boolean;
    onClose: () => void;
    content: SprintContent | null;
    onSave: (content: SprintContent) => void;
+   aiAllowed: boolean;
  }) => {
    const [editedContent, setEditedContent] = useState<SprintContent | null>(content);
    const [isEditingFramework, setIsEditingFramework] = useState(false);
@@ -746,9 +748,10 @@
            {/* AI Actions */}
            {!isEditingFramework && (
              <div className="pt-4 border-t border-border">
-             <Button variant="outline" className="w-full">
+             <Button variant="outline" className="w-full" disabled={!aiAllowed}>
                <Sparkles className="h-4 w-4 mr-2" />
                Gerar Texto com IA
+               {!aiAllowed && <span className="ml-2"><PlanBadge requiredPlan="pro" /></span>}
              </Button>
            </div>
            )}
