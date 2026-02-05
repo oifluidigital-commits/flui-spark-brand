@@ -1845,270 +1845,36 @@ export default function Sprints() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar sprints..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+              </div>
+            </div>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="draft">Rascunho</SelectItem>
-              <SelectItem value="active">Ativo</SelectItem>
-              <SelectItem value="completed">Concluído</SelectItem>
-              <SelectItem value="archived">Arquivado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        {/* Sprints Table */}
-        <Card className="border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sprint</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Progresso</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredSprints.map((sprint) => {
-                  const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
-                  const priority = sprintPriorities[sprint.id] || 'medium';
-                  const progressDetails = getProgressDetails(sprint.id);
-                  const scoreDetails = getScoreDetails(sprint.id);
-                  const progressPercentage =
-                    sprint.contentsPlanned > 0
-                      ? (sprint.contentsPublished / sprint.contentsPlanned) * 100
-                      : 0;
+          {/* Grid de Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* New Sprint Card */}
+            <NewSprintCard onClick={() => handleOpenDialog()} />
 
-                  return (
-                    <TableRow
-                      key={sprint.id}
-                      className={cn(
-                        'hover:bg-secondary/50 transition-colors',
-                        sprint.status === 'active' && 'bg-primary/5 border-l-2 border-l-primary'
-                      )}
-                    >
-                  <TableCell>
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <PriorityDot priority={priority} />
-                            <span className="font-medium">{sprint.title}</span>
-                          </div>
-                          {pillar && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1.5 py-0"
-                              style={{ borderColor: pillar.color, color: pillar.color }}
-                            >
-                              {pillar.name}
-                            </Badge>
-                          )}
-                          <div className="text-xs text-muted-foreground line-clamp-1">
-                            {sprint.description.length > 60
-                              ? `${sprint.description.slice(0, 60)}...`
-                              : sprint.description}
-                          </div>
-                        </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[sprint.status]}>
-                      {getStatusLabel(sprint.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
-                        </div>
-                  </TableCell>
-                  <TableCell>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-32 cursor-help">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span>
-                                  {sprint.contentsPublished}/{sprint.contentsPlanned}
-                                </span>
-                              </div>
-                              <Progress value={progressPercentage} className="h-2" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="w-48">
-                            <div className="space-y-1.5 text-xs">
-                              <p className="font-medium">Detalhes do Progresso</p>
-                              <div className="flex justify-between">
-                                <span>Total:</span>
-                                <span>{sprint.contentsPlanned} conteúdos</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Rascunho:</span>
-                                <span>{progressDetails.draft}</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Em revisão:</span>
-                                <span>{progressDetails.review}</span>
-                              </div>
-                              <div className="flex justify-between text-emerald-500">
-                                <span>Publicados:</span>
-                                <span>{sprint.contentsPublished}</span>
-                              </div>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <div className="flex items-center gap-2 cursor-help">
-                              <Target className="h-4 w-4 text-muted-foreground" />
-                              <span
-                                className={cn(
-                                  'font-medium',
-                                  sprint.alignmentScore >= 80 && 'text-emerald-500',
-                                  sprint.alignmentScore >= 50 &&
-                                    sprint.alignmentScore < 80 &&
-                                    'text-amber-500',
-                                  sprint.alignmentScore < 50 && 'text-red-500'
-                                )}
-                              >
-                                {sprint.alignmentScore}%
-                              </span>
-                            </div>
-                          </HoverCardTrigger>
-                          <HoverCardContent side="left" className="w-64">
-                            <div className="space-y-2">
-                              <p className="font-medium text-sm">Composição do Score</p>
-                              <div className="space-y-1 text-xs">
-                                <div className="flex justify-between">
-                                  <span>Aderência à estratégia</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.strategyAlignment >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.strategyAlignment >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.strategyAlignment}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Consistência de publicação</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.publishConsistency >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.publishConsistency >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.publishConsistency}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Alinhamento com público</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.audienceAlignment >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.audienceAlignment >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.audienceAlignment}%
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Diversidade de formatos</span>
-                                  <span
-                                    className={cn(
-                                      scoreDetails.formatDiversity >= 80
-                                        ? 'text-emerald-500'
-                                        : scoreDetails.formatDiversity >= 50
-                                        ? 'text-amber-500'
-                                        : 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {scoreDetails.formatDiversity}%
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                                Score gerado por IA com base na sua estratégia
-                              </p>
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewDetails(sprint)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Visualizar detalhes
-                            </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenDialog(sprint)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(sprint)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicar
-                        </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => updateSprint(sprint.id, { status: 'archived' })}
-                            >
-                          <Archive className="h-4 w-4 mr-2" />
-                          Arquivar
-                        </DropdownMenuItem>
-                            <DropdownMenuItem
-                          onClick={() => deleteSprint(sprint.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
+            {/* Sprint Cards */}
+            {filteredSprints.map((sprint) => (
+              <SprintCard
+                key={sprint.id}
+                sprint={sprint}
+                onEdit={handleViewDetails}
+                onDuplicate={handleDuplicate}
+                onArchive={handleArchive}
+                onDelete={deleteSprint}
+              />
+            ))}
+          </div>
 
           {filteredSprints.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Nenhum sprint encontrado</p>
+              <p className="text-zinc-400">
+                Nenhuma sprint encontrada para os filtros selecionados.
+              </p>
             </div>
           )}
-        </Card>
-      </div>
+        </div>
       </TooltipProvider>
     </MainLayout>
   );
