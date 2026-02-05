@@ -1,1 +1,13 @@
 project_id = "nkmssajykvamxmzphvai"
+
+ [functions.generate-diagnostic]
+ verify_jwt = false
+
+ [functions.generate-strategy]
+ verify_jwt = false
+
+ [functions.suggest-sprint-contents]
+ verify_jwt = false
+
+ [functions.generate-content-text]
+ verify_jwt = false
