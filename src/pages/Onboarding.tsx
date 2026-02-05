@@ -71,7 +71,7 @@ const stepConfig = [
 export default function Onboarding() {
   const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { completeOnboarding, setUser, user } = useApp();
+    const { completeOnboarding, setUser, user, setDiagnosticResult } = useApp();
   
   const [phase, setPhase] = useState<OnboardingPhase>('wizard');
    const [currentStep, setCurrentStep] = useState(() => {
@@ -157,7 +157,9 @@ export default function Onboarding() {
   };
 
    const handleDiagnosticComplete = (result: DiagnosticResult) => {
-     setDiagnosticResult(result);
+     setDiagnosticResult(result); // Save to local state for results page
+     // Also save to global context for Strategy page
+     (window as any).__diagnosticResult = result;
     setPhase('results');
   };
 

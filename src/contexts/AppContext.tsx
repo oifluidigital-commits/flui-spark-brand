@@ -15,6 +15,8 @@ import {
   mockFrameworks,
   mockTrends,
 } from '@/data/mockData';
+ import { DiagnosticResult } from '@/data/onboardingData';
+ import { Strategy } from '@/data/strategyData';
 
 interface AppContextType {
   // User state
@@ -27,6 +29,14 @@ interface AppContextType {
   brand: Brand;
   setBrand: React.Dispatch<React.SetStateAction<Brand>>;
   
+   // Diagnostic state
+   diagnosticResult: DiagnosticResult | null;
+   setDiagnosticResult: React.Dispatch<React.SetStateAction<DiagnosticResult | null>>;
+   
+   // Strategy state
+   strategy: Strategy | null;
+   setStrategy: React.Dispatch<React.SetStateAction<Strategy | null>>;
+ 
   // Sprints state
   sprints: Sprint[];
   setSprints: React.Dispatch<React.SetStateAction<Sprint[]>>;
@@ -70,6 +80,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Brand state
   const [brand, setBrand] = useState<Brand>(mockBrand);
   
+   // Diagnostic state
+   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+   
+   // Strategy state
+   const [strategy, setStrategy] = useState<Strategy | null>(null);
+ 
   // Sprints state
   const [sprints, setSprints] = useState<Sprint[]>(mockSprints);
   
@@ -150,6 +166,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated,
         brand,
         setBrand,
+       diagnosticResult,
+       setDiagnosticResult,
+       strategy,
+       setStrategy,
         sprints,
         setSprints,
         addSprint,
