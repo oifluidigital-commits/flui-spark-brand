@@ -20,6 +20,7 @@ export const mockUser: User = {
   role: 'Head de Conteúdo',
   onboardingStatus: 'in_progress',
   onboardingStep: 1,
+  plan: 'free',
   aiCredits: {
     total: 5000,
     used: 1200,
