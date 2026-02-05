@@ -1074,23 +1074,35 @@ export default function Sprints() {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Formatos de conteúdo (selecione múltiplos)</Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {contentFormats.map((format) => (
             <button
               key={format.id}
               type="button"
               onClick={() => toggleFormat(format.id)}
               className={cn(
-                'px-4 py-2 rounded-full text-sm border transition-all',
+                'p-3 rounded-lg border text-left transition-all text-sm',
                 wizardData.formats.includes(format.id)
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border hover:border-primary/50'
+                  ? 'bg-primary/10 border-primary text-foreground'
+                  : 'border-border hover:border-primary/50 text-muted-foreground'
               )}
             >
-              {format.label}
+              <div className="flex items-center gap-2">
+                {wizardData.formats.includes(format.id) && (
+                  <Check className="h-4 w-4 text-primary shrink-0" />
+                )}
+                <span className={cn(
+                  !wizardData.formats.includes(format.id) && "ml-6"
+                )}>
+                  {format.label}
+                </span>
+              </div>
             </button>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground">
+          {wizardData.formats.length} formato(s) selecionado(s)
+        </p>
       </div>
 
       <div className="space-y-4">
