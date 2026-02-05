@@ -71,7 +71,7 @@ const stepConfig = [
 export default function Onboarding() {
   const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { completeOnboarding, setUser, user } = useApp();
+     const { completeOnboarding, setUser, user, setDiagnosticResult: setGlobalDiagnosticResult } = useApp();
   
   const [phase, setPhase] = useState<OnboardingPhase>('wizard');
    const [currentStep, setCurrentStep] = useState(() => {
@@ -86,7 +86,7 @@ export default function Onboarding() {
      return user.onboardingStep >= 1 ? Math.min(user.onboardingStep, stepConfig.length) : 1;
    });
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
-   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+    const [localDiagnosticResult, setLocalDiagnosticResult] = useState<DiagnosticResult | null>(null);
  
    // Update user's onboarding status when step changes
    useEffect(() => {
@@ -157,7 +157,8 @@ export default function Onboarding() {
   };
 
    const handleDiagnosticComplete = (result: DiagnosticResult) => {
-     setDiagnosticResult(result);
+      setLocalDiagnosticResult(result); // Save to local state for results page
+      setGlobalDiagnosticResult(result); // Save to global context for Strategy page
     setPhase('results');
   };
 
@@ -194,11 +195,11 @@ export default function Onboarding() {
   }
 
   // Render results phase
-   if (phase === 'results' && diagnosticResult) {
+    if (phase === 'results' && localDiagnosticResult) {
     return (
       <div className="min-h-screen bg-background py-8 px-4">
         <div className="w-full max-w-3xl mx-auto">
-           <DiagnosticResults result={diagnosticResult} onComplete={handleFinishOnboarding} />
+           <DiagnosticResults result={localDiagnosticResult} onComplete={handleFinishOnboarding} />
         </div>
       </div>
     );
