@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
@@ -31,14 +33,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Plus,
   Search,
   MoreHorizontal,
@@ -47,23 +41,20 @@ import {
   Archive,
   Trash2,
   Calendar,
-  Target,
-  Filter,
-  Eye,
   Sparkles,
   AlertTriangle,
   Check,
   ChevronRight,
   ChevronLeft,
-   Link2,
-   FileText,
-   Upload,
-   User,
-   GripVertical,
-   X,
+  Link2,
+  FileText,
+  Upload,
+  User,
+  GripVertical,
+  X,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
-import { getStatusLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
+import { formatDatePTBR, mockPillars } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -71,46 +62,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
 import { Slider } from '@/components/ui/slider';
-
-const statusColors: Record<SprintStatus, string> = {
-  draft: 'bg-secondary text-secondary-foreground',
-  active: 'bg-success text-success-foreground',
-  completed: 'bg-primary text-primary-foreground',
-  archived: 'bg-muted text-muted-foreground',
-};
-
-// Mock priorities for demo
-const sprintPriorities: Record<string, 'high' | 'medium' | 'low'> = {
-  'sprint-1': 'high',
-  'sprint-2': 'medium',
-  'sprint-3': 'low',
-};
-
-// Mock progress details
-const getProgressDetails = (sprintId: string) => {
-  const details: Record<string, { draft: number; review: number; published: number; planned: number }> = {
-    'sprint-1': { draft: 2, review: 2, published: 4, planned: 2 },
-    'sprint-2': { draft: 0, review: 0, published: 0, planned: 8 },
-    'sprint-3': { draft: 0, review: 0, published: 15, planned: 0 },
-  };
-  return details[sprintId] || { draft: 0, review: 0, published: 0, planned: 0 };
-};
-
-// Mock score composition
-const getScoreDetails = (sprintId: string) => {
-  const details: Record<string, { strategyAlignment: number; publishConsistency: number; audienceAlignment: number; formatDiversity: number }> = {
-    'sprint-1': { strategyAlignment: 85, publishConsistency: 70, audienceAlignment: 90, formatDiversity: 75 },
-    'sprint-2': { strategyAlignment: 0, publishConsistency: 0, audienceAlignment: 0, formatDiversity: 0 },
-    'sprint-3': { strategyAlignment: 95, publishConsistency: 88, audienceAlignment: 92, formatDiversity: 85 },
-  };
-  return details[sprintId] || { strategyAlignment: 0, publishConsistency: 0, audienceAlignment: 0, formatDiversity: 0 };
-};
 
 // Content formats for wizard
 const contentFormats = [
