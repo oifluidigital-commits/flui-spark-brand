@@ -1,4 +1,5 @@
 import { useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,6 +39,7 @@ import {
   Filter,
   Calendar,
   Tag,
+   ArrowRight,
 } from 'lucide-react';
 import { Idea, IdeaStatus, ContentFormat } from '@/types';
 import { getStatusLabel, getFormatLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
@@ -54,6 +56,7 @@ const statusColors: Record<IdeaStatus, string> = {
 
 export default function Ideas() {
   const { ideas, sprints, addIdea, updateIdea, deleteIdea } = useApp();
+   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [formatFilter, setFormatFilter] = useState<string>('all');
@@ -417,6 +420,25 @@ export default function Ideas() {
                     <span>Até {formatDatePTBR(idea.dueDate)}</span>
                   </div>
                 )}
+
+               {/* Link to Sprint if assigned */}
+               {idea.sprintId && (
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   className="w-full mt-3 text-xs justify-center gap-1"
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     const sprint = sprints.find(s => s.id === idea.sprintId);
+                     if (sprint) {
+                       navigate(`/sprints/${idea.sprintId}`);
+                     }
+                   }}
+                 >
+                   Ver na Sprint
+                   <ArrowRight className="h-3 w-3" />
+                 </Button>
+               )}
               </CardContent>
             </Card>
           ))}

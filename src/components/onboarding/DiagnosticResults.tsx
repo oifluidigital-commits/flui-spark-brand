@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { mockDiagnosticResult, DiagnosticResult } from '@/data/onboardingData';
+ import { useNavigate } from 'react-router-dom';
 import {
   User,
   Target,
@@ -21,6 +22,7 @@ interface DiagnosticResultsProps {
 
 export default function DiagnosticResults({ onComplete }: DiagnosticResultsProps) {
   const result = mockDiagnosticResult;
+   const navigate = useNavigate();
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -222,9 +224,12 @@ export default function DiagnosticResults({ onComplete }: DiagnosticResultsProps
 
       {/* CTA */}
       <div className="pt-6">
-        <Button onClick={onComplete} className="w-full" size="lg">
+         <Button onClick={() => navigate('/strategy')} className="w-full" size="lg">
           <Sparkles className="h-4 w-4 mr-2" />
-          Usar como base da estratégia
+           Ver minha Estratégia Editorial
+         </Button>
+         <Button variant="outline" onClick={onComplete} className="w-full mt-3" size="lg">
+           Ir para o Dashboard
         </Button>
         <p className="text-center text-xs text-muted-foreground mt-3">
           Você poderá ajustar esses dados a qualquer momento nas configurações

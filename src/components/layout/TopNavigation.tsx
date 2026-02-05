@@ -1,5 +1,6 @@
  import { useState, useEffect } from 'react';
  import { useNavigate, useLocation } from 'react-router-dom';
+ import { useToast } from '@/hooks/use-toast';
  import { 
    LayoutDashboard, 
    Target, 
@@ -108,6 +109,7 @@
    const { user, setIsAuthenticated } = useApp();
    const navigate = useNavigate();
    const location = useLocation();
+   const { toast } = useToast();
    
    // Derive active menu item from current route
    const [activeMenuItem, setActiveMenuItem] = useState<string>(() => {
@@ -295,15 +297,15 @@
                </Button>
              </DropdownMenuTrigger>
              <DropdownMenuContent align="end" className="w-48">
-               <DropdownMenuItem className="cursor-pointer">
+               <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/profile')}>
                  <User className="h-4 w-4 mr-2" />
                  Perfil
                </DropdownMenuItem>
-               <DropdownMenuItem className="cursor-pointer">
+               <DropdownMenuItem className="cursor-pointer" onClick={() => toast({ description: 'Configurações em breve!' })}>
                  <Settings className="h-4 w-4 mr-2" />
                  Configurações
                </DropdownMenuItem>
-               <DropdownMenuItem className="cursor-pointer">
+               <DropdownMenuItem className="cursor-pointer" onClick={() => toast({ description: 'Ajuda em breve!' })}>
                  <HelpCircle className="h-4 w-4 mr-2" />
                  Ajuda
                </DropdownMenuItem>

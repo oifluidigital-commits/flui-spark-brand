@@ -19,7 +19,9 @@ import {
   ExternalLink,
   Zap,
   Clock,
+   Lightbulb,
 } from 'lucide-react';
+ import { useNavigate } from 'react-router-dom';
 import { TrendRelevance } from '@/types';
 import { formatDatePTBR } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -40,6 +42,7 @@ const relevanceLabels: Record<TrendRelevance, string> = {
 
 export default function Radar() {
   const { trends } = useApp();
+   const navigate = useNavigate();
    const radarGate = useGate('access-radar');
   const [searchQuery, setSearchQuery] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState<string>('all');
@@ -221,6 +224,19 @@ export default function Radar() {
                       <span>Descoberto em {formatDatePTBR(trend.discoveredAt)}</span>
                     </div>
                   </div>
+
+                     {/* Create Idea CTA */}
+                     <div className="pt-4 border-t border-border mt-4">
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         className="gap-2"
+                         onClick={() => navigate(`/content-lab/ideas?trend=${trend.id}`)}
+                       >
+                         <Lightbulb className="h-4 w-4" />
+                         Criar Ideia com esta Tendência
+                       </Button>
+                     </div>
                 </div>
               </CardContent>
             </Card>

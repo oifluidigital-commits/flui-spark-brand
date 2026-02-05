@@ -1,4 +1,5 @@
 import { useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 export default function Profile() {
   const { user, setUser } = useApp();
+   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user.name,
@@ -228,6 +230,20 @@ export default function Profile() {
                 <div className="text-sm text-muted-foreground">Consumo Mensal</div>
               </div>
             </div>
+
+             {/* Upgrade CTA when credits are low */}
+             {(user.aiCredits.total - user.aiCredits.used) / user.aiCredits.total < 0.2 && (
+               <div className="pt-4 border-t border-border mt-4">
+                 <Button
+                   variant="outline"
+                   className="w-full gap-2"
+                   onClick={() => navigate('/pricing')}
+                 >
+                   <Sparkles className="h-4 w-4" />
+                   Obter mais créditos
+                 </Button>
+               </div>
+             )}
           </CardContent>
         </Card>
         

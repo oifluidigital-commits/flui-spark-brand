@@ -1,6 +1,6 @@
  import { Card, CardContent } from '@/components/ui/card';
  import { Button } from '@/components/ui/button';
- import { AlertTriangle, ArrowLeft } from 'lucide-react';
+ import { AlertTriangle, ArrowRight } from 'lucide-react';
  import { useNavigate } from 'react-router-dom';
  
  export function StrategyBlockedState() {
@@ -29,8 +29,8 @@
              onClick={() => navigate('/onboarding')}
              className="w-full gap-2"
            >
-             <ArrowLeft className="h-4 w-4" />
-             Voltar ao Diagnóstico
+             Completar Diagnóstico
+             <ArrowRight className="h-4 w-4" />
            </Button>
          </CardContent>
        </Card>

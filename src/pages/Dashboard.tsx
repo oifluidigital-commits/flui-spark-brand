@@ -16,6 +16,7 @@ import {
   ArrowRight,
   LayoutDashboard,
   AlertCircle,
+   Target,
 } from 'lucide-react';
 import { getStatusLabel, formatDatePTBR } from '@/data/mockData';
  import { cn } from '@/lib/utils';
@@ -45,6 +46,27 @@ export default function Dashboard() {
              currentStep={user.onboardingStep}
              onboardingStatus={user.onboardingStatus}
            />
+         )}
+
+         {/* Strategy Ready Card - shown when onboarding is completed */}
+         {user.onboardingStatus === 'completed' && (
+           <Card 
+             className="border-primary/30 bg-primary/5 cursor-pointer hover:border-primary/50 transition-colors"
+             onClick={() => navigate('/strategy')}
+           >
+             <CardContent className="flex items-center justify-between p-4">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                   <Target className="h-5 w-5 text-primary" />
+                 </div>
+                 <div>
+                   <p className="font-medium">Sua Estratégia Editorial</p>
+                   <p className="text-sm text-muted-foreground">Baseada no seu diagnóstico</p>
+                 </div>
+               </div>
+               <ArrowRight className="h-4 w-4 text-muted-foreground" />
+             </CardContent>
+           </Card>
          )}
          
          {/* Quick Actions */}

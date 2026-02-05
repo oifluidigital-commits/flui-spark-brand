@@ -1,4 +1,5 @@
 import { useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import {
   Copy,
   ArrowRight,
 } from 'lucide-react';
+ import { useToast } from '@/hooks/use-toast';
 import { Framework, FrameworkCategory } from '@/types';
 import { getCategoryLabel } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -46,6 +48,8 @@ const categoryColors: Record<FrameworkCategory, string> = {
 
 export default function Frameworks() {
   const { frameworks, addFramework } = useApp();
+   const { toast } = useToast();
+   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedFramework, setSelectedFramework] = useState<Framework | null>(null);
@@ -322,7 +326,14 @@ export default function Frameworks() {
                 <Button variant="outline" onClick={() => setSelectedFramework(null)}>
                   Fechar
                 </Button>
-                <Button>
+                 <Button onClick={() => {
+                   toast({
+                     title: 'Framework copiado!',
+                     description: 'Use-o ao criar seu próximo conteúdo.',
+                   });
+                   setSelectedFramework(null);
+                   navigate('/content-lab/ideas');
+                 }}>
                   Usar Framework
                 </Button>
               </DialogFooter>
