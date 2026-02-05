@@ -272,15 +272,28 @@ const SprintCardSkeleton = () => (
 );
 
 // Content formats for wizard
-const contentFormats = [
-  { id: 'post', label: 'Post' },
-  { id: 'carousel', label: 'Carousel' },
-  { id: 'video', label: 'Vídeo' },
-  { id: 'story', label: 'Story' },
-  { id: 'thread', label: 'Thread' },
-  { id: 'newsletter', label: 'Newsletter' },
-  { id: 'article', label: 'Artigo' },
+const contentFormats: { id: string; label: string; category: string }[] = [
+  { id: 'post-linkedin-text', label: 'Post LinkedIn (texto curto)', category: 'social' },
+  { id: 'post-linkedin-carousel', label: 'Post LinkedIn (carrossel)', category: 'social' },
+  { id: 'article', label: 'Artigo longo', category: 'longform' },
+  { id: 'newsletter', label: 'Newsletter', category: 'longform' },
+  { id: 'video-short', label: 'Roteiro de vídeo curto', category: 'video' },
+  { id: 'video-long', label: 'Roteiro de vídeo longo', category: 'video' },
+  { id: 'thread', label: 'Thread', category: 'social' },
+  { id: 'case-study', label: 'Case', category: 'longform' },
+  { id: 'landing-page', label: 'Landing page', category: 'conversion' },
+  { id: 'email-marketing', label: 'Email marketing', category: 'conversion' },
+  { id: 'story', label: 'Story', category: 'social' },
+  { id: 'reels', label: 'Reels / TikTok', category: 'video' },
 ];
+
+// Pillar icon configuration
+const pillarIconConfig: Record<string, { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }> = {
+  'pillar-1': { icon: Crown, color: '#6366f1' },        // Autoridade
+  'pillar-2': { icon: GraduationCap, color: '#10b981' }, // Educacional
+  'pillar-3': { icon: Heart, color: '#f59e0b' },         // Conexão
+  'pillar-4': { icon: Target, color: '#ef4444' },        // Conversão
+};
 
 // Content Frameworks
 interface ContentFramework {
