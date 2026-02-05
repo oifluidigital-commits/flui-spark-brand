@@ -637,7 +637,7 @@ export default function Sprints() {
   };
 
   const handleViewDetails = (sprint: Sprint) => {
-    handleOpenDialog(sprint);
+     navigate(`/sprints/${sprint.id}`);
   };
 
   // Generate mock AI suggestions based on wizard data
