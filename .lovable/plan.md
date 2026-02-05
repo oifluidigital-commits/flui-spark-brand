@@ -1,591 +1,685 @@
 
-
-# Plano de Evolucao — Wizard de Sprints com UX Guiada por IA
+# Plano de Implementacao — Pagina de Detalhes da Sprint
 
 ## Visao Geral
 
-Evoluir o wizard de criacao de sprints para tornar o fluxo mais claro, acessivel e guiado por IA. As modificacoes abrangem 4 etapas principais: selecao de pilar, periodo da sprint, formatos de conteudo e sistema de frameworks com recomendacao automatica pela IA.
+Criar uma nova pagina dedicada em `/sprints/:sprintId` para gestao operacional dos conteudos de uma Sprint. Esta pagina funciona como um workspace de execucao, inspirado em ferramentas como Linear, Notion e Airtable, com foco em velocidade, leitura rapida e acoes diretas.
 
 ---
 
-## 1. Analise da Situacao Atual
+## 1. Arquivos a Criar/Modificar
 
-### Etapa 1 (Intencao Estrategica)
-- **Pilares**: Exibidos como cards com bolinhas coloridas (`w-3 h-3 rounded-full`)
-- **Problema**: Bolinhas coloridas nao sao acessiveis para usuarios com baixa percepcao de cor
-
-### Etapa 2 (Escopo)
-- **Datas**: Dois campos `<Input type="date">` separados
-- **Problema**: UX fragmentada, sem validacao visual do intervalo
-
-### Etapa 3 (Estrutura)
-- **Formatos**: Lista limitada de 7 opcoes (`contentFormats`)
-- **Problema**: Faltam formatos relevantes como "Post LinkedIn (carrossel)", "Roteiro de video", "Email marketing", etc.
-
-### Etapa 6 (Ajuste do Plano)
-- **Frameworks**: Usuario deve escolher manualmente framework por conteudo
-- **Problema**: IA nao recomenda frameworks automaticamente; UX complexa com multiplos campos visiveis
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/SprintDetail.tsx` | CRIAR - Nova pagina de detalhes |
+| `src/App.tsx` | MODIFICAR - Adicionar rota `/sprints/:sprintId` |
+| `src/pages/Sprints.tsx` | MODIFICAR - Adicionar navegacao para detalhes |
 
 ---
 
-## 2. Modificacao 1: Pilares com Icones Distintos
+## 2. Estrutura da Pagina SprintDetail
 
-### Implementacao
+### 2.1 Header de Navegacao (Fixo)
 
-Substituir bolinhas coloridas por icones Lucide com formas e cores distintas.
-
-**Antes (linha 848-850)**:
-```tsx
-<span
-  className="w-3 h-3 rounded-full"
-  style={{ backgroundColor: pillar.color }}
-/>
+```text
++-----------------------------------------------------------------------+
+| [← Voltar para Sprints]    Sprint #s1    [Badge: Active/Planning]    |
++-----------------------------------------------------------------------+
 ```
 
-**Depois**:
-```tsx
-const pillarIcons: Record<string, { icon: LucideIcon; color: string }> = {
-  'pillar-1': { icon: Crown, color: '#6366f1' },      // Autoridade - Coroa
-  'pillar-2': { icon: GraduationCap, color: '#10b981' }, // Educacional - Chapeu
-  'pillar-3': { icon: Heart, color: '#f59e0b' },       // Conexao - Coracao
-  'pillar-4': { icon: Target, color: '#ef4444' },      // Conversao - Alvo
-};
+**Componentes**:
+- Botao "Voltar para Sprints" com icone `ArrowLeft`
+- Titulo da Sprint
+- Badge de status (Planning/Active/Completed)
 
-// No render:
-{mockPillars.map((pillar) => {
-  const iconConfig = pillarIcons[pillar.id];
-  const IconComponent = iconConfig?.icon || Circle;
-  return (
-    <button
-      key={pillar.id}
-      onClick={() => setWizardData({ ...wizardData, pillarId: pillar.id })}
-      className={cn(
-        'p-3 rounded-lg border text-left transition-all',
-        wizardData.pillarId === pillar.id
-          ? 'border-primary bg-primary/10'
-          : 'border-border hover:border-primary/50'
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <IconComponent 
-          className="h-5 w-5" 
-          style={{ color: iconConfig?.color }}
-        />
-        <span className="font-medium text-sm">{pillar.name}</span>
-      </div>
-      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-        {pillar.description}
-      </p>
-    </button>
-  );
-})}
+### 2.2 Summary Strip (Contexto Compacto)
+
+```text
++-----------------------------------------------------------------------+
+| Autoridade em Produto  |  01 Fev - 28 Fev  |  "Objetivo da sprint..." |
+|                                                                        |
+| [Progress Bar: 4/10 conteudos prontos - 40%]                          |
++-----------------------------------------------------------------------+
 ```
 
-### Beneficios
-- Acessibilidade: Forma + cor para identificacao
-- Clareza visual: Icones distintos para cada pilar
-- Consistencia: Uso de Lucide Icons do design system
+**Campos**:
+- Nome da Sprint
+- Periodo (data inicial - data final)
+- Objetivo principal (texto truncado)
+- Barra de progresso com porcentagem
+
+### 2.3 Acoes Globais
+
+```text
++-----------------------------------------------------------------------+
+| [+ Adicionar Conteudo]  [Sparkles: Gerar Sugestoes IA]  [Reordenar]  |
++-----------------------------------------------------------------------+
+```
+
+### 2.4 Tabela de Conteudos (Central)
+
+```text
++---+-------------------+----------+------------+-------------+---------+
+| □ | Topic / Hook      | Format   | Status     | Target Date | Actions |
++---+-------------------+----------+------------+-------------+---------+
+| □ | Por que 90%...    | Carousel | [Review]   | 15 Fev      | ✎ 🗑    |
+|   | [ToFu]            |          |            |             |         |
++---+-------------------+----------+------------+-------------+---------+
+| □ | Como defino...    | Video    | [In Prog]  | 12 Fev ⚠    | ✎ 🗑    |
+|   | [MoFu]            |          |            | (atrasado)  |         |
++---+-------------------+----------+------------+-------------+---------+
+```
+
+**Colunas**:
+1. **Checkbox** - Selecao multipla
+2. **Topic/Hook** - Titulo + Tag de funil (ToFu/MoFu/BoFu)
+3. **Format** - Icone + label (dropdown inline)
+4. **Status** - Badge editavel (Idea/Review/Scheduled/Backlog/Completed)
+5. **Target Date** - Date picker inline
+6. **Actions** - Icones de editar e remover
 
 ---
 
-## 3. Modificacao 2: Date Range Picker
+## 3. Tipos e Interfaces
 
-### Implementacao
+### 3.1 SprintContent (Novo Tipo)
 
-Substituir os dois campos `<Input type="date">` por um Date Range Picker com Popover e Calendar.
+```typescript
+type ContentStatus = 'idea' | 'review' | 'scheduled' | 'backlog' | 'completed';
+type FunnelStage = 'tofu' | 'mofu' | 'bofu';
 
-**Imports adicionais**:
-```tsx
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format, isAfter, isBefore } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { DateRange } from 'react-day-picker';
-```
-
-**Estado do wizard atualizado**:
-```tsx
-// Substituir startDate/endDate strings por objeto DateRange
-const [dateRange, setDateRange] = useState<DateRange | undefined>({
-  from: wizardData.startDate ? new Date(wizardData.startDate) : undefined,
-  to: wizardData.endDate ? new Date(wizardData.endDate) : undefined,
-});
-```
-
-**Componente Date Range Picker**:
-```tsx
-<div className="space-y-3">
-  <Label>Período da Sprint</Label>
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        className={cn(
-          "w-full justify-start text-left font-normal",
-          !dateRange?.from && "text-muted-foreground"
-        )}
-      >
-        <Calendar className="mr-2 h-4 w-4" />
-        {dateRange?.from ? (
-          dateRange.to ? (
-            <>
-              {format(dateRange.from, "dd MMM yyyy", { locale: ptBR })} -{" "}
-              {format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}
-            </>
-          ) : (
-            format(dateRange.from, "dd MMM yyyy", { locale: ptBR })
-          )
-        ) : (
-          "Selecione o período"
-        )}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-      <Calendar
-        mode="range"
-        selected={dateRange}
-        onSelect={(range) => {
-          setDateRange(range);
-          setWizardData(prev => ({
-            ...prev,
-            startDate: range?.from?.toISOString().split('T')[0] || '',
-            endDate: range?.to?.toISOString().split('T')[0] || '',
-          }));
-        }}
-        numberOfMonths={2}
-        locale={ptBR}
-        disabled={(date) => isBefore(date, new Date())}
-        className="pointer-events-auto"
-      />
-    </PopoverContent>
-  </Popover>
-  {dateRange?.from && dateRange?.to && (
-    <p className="text-xs text-muted-foreground">
-      Duração: {Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24))} dias
-    </p>
-  )}
-</div>
-```
-
-### Validacao
-- Data final deve ser posterior a data inicial (handled by react-day-picker)
-- Datas passadas desabilitadas
-
----
-
-## 4. Modificacao 3: Lista Exaustiva de Formatos
-
-### Nova Lista de Formatos
-
-```tsx
-const contentFormats = [
-  { id: 'post-linkedin-text', label: 'Post LinkedIn (texto curto)', category: 'social' },
-  { id: 'post-linkedin-carousel', label: 'Post LinkedIn (carrossel)', category: 'social' },
-  { id: 'article', label: 'Artigo longo', category: 'longform' },
-  { id: 'newsletter', label: 'Newsletter', category: 'longform' },
-  { id: 'video-short', label: 'Roteiro de vídeo curto', category: 'video' },
-  { id: 'video-long', label: 'Roteiro de vídeo longo', category: 'video' },
-  { id: 'thread', label: 'Thread', category: 'social' },
-  { id: 'case-study', label: 'Case', category: 'longform' },
-  { id: 'landing-page', label: 'Landing page', category: 'conversion' },
-  { id: 'email-marketing', label: 'Email marketing', category: 'conversion' },
-  { id: 'story', label: 'Story', category: 'social' },
-  { id: 'reels', label: 'Reels / TikTok', category: 'video' },
-];
-```
-
-### UX do Seletor: Grid de Cards Selecionaveis
-
-```tsx
-<div className="space-y-3">
-  <Label>Formatos de conteúdo (selecione múltiplos)</Label>
-  <div className="grid grid-cols-2 gap-2">
-    {contentFormats.map((format) => (
-      <button
-        key={format.id}
-        type="button"
-        onClick={() => toggleFormat(format.id)}
-        className={cn(
-          'p-3 rounded-lg border text-left transition-all text-sm',
-          wizardData.formats.includes(format.id)
-            ? 'bg-primary/10 border-primary text-foreground'
-            : 'border-border hover:border-primary/50 text-muted-foreground'
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {wizardData.formats.includes(format.id) && (
-            <Check className="h-4 w-4 text-primary shrink-0" />
-          )}
-          <span className={cn(
-            !wizardData.formats.includes(format.id) && "ml-6"
-          )}>
-            {format.label}
-          </span>
-        </div>
-      </button>
-    ))}
-  </div>
-  <p className="text-xs text-muted-foreground">
-    {wizardData.formats.length} formato(s) selecionado(s)
-  </p>
-</div>
-```
-
----
-
-## 5. Modificacao 4: IA Recomenda Frameworks Automaticamente
-
-### Nova Logica de Geracao de Sugestoes
-
-A funcao `generateMockSuggestions` agora inclui recomendacao automatica de framework:
-
-```tsx
-// Framework recommendation based on intention and format
-const recommendFramework = (
-  intention: 'educate' | 'engage' | 'convert',
-  format: string
-): { framework: string; reason: string; benefit: string } => {
-  // Logic for AI recommendation
-  if (intention === 'convert') {
-    return {
-      framework: 'aida',
-      reason: 'Estrutura ideal para conteúdos de conversão, guiando o leitor até a ação',
-      benefit: 'Maior taxa de cliques e conversões'
-    };
-  }
-  if (intention === 'educate' && format.includes('carousel')) {
-    return {
-      framework: 'educational',
-      reason: 'Formato de carrossel combina com estrutura didática em etapas',
-      benefit: 'Retenção e compreensão do conteúdo'
-    };
-  }
-  if (intention === 'engage') {
-    return {
-      framework: 'storytelling',
-      reason: 'Narrativa gera conexão emocional e comentários',
-      benefit: 'Maior engajamento e compartilhamentos'
-    };
-  }
-  // Default
-  return {
-    framework: 'hvc',
-    reason: 'Estrutura direta e eficaz para redes sociais',
-    benefit: 'Clareza e objetividade'
-  };
-};
-
-// Update createSuggestion to include recommended framework
-const createSuggestion = (intention, index): SuggestedContent => {
-  const recommendation = recommendFramework(intention, format);
-  return {
-    id: `suggestion-${Date.now()}-${index}`,
-    theme,
-    intention,
-    format,
-    strategicObjective: '...',
-    hook: '...',
-    suggestedCta: '...',
-    framework: recommendation.framework, // Pre-populated!
-    frameworkReason: recommendation.reason,
-    frameworkBenefit: recommendation.benefit,
-  };
-};
-```
-
-### Tipo SuggestedContent Atualizado
-
-```tsx
-interface SuggestedContent {
+interface SprintContent {
   id: string;
-  theme: string;
-  intention: 'educate' | 'engage' | 'convert';
-  format: string;
-  strategicObjective: string;
+  sprintId: string;
+  title: string;
   hook: string;
-  suggestedCta: string;
+  description: string;
+  format: string;
+  status: ContentStatus;
+  funnelStage: FunnelStage;
+  targetDate?: string;
   framework: string;
-  frameworkReason?: string;  // NEW
-  frameworkBenefit?: string; // NEW
+  frameworkReason?: string;
+  intention: 'educate' | 'engage' | 'convert';
+  suggestedCta: string;
+  createdAt: string;
+  updatedAt: string;
 }
 ```
 
 ---
 
-## 6. Modificacao 5: UX de Selecao de Framework no Step 6
+## 4. Mock Data para Conteudos
 
-### Nova Interface do Content Detail Sheet
+```typescript
+const mockSprintContents: SprintContent[] = [
+  {
+    id: 'content-1',
+    sprintId: 'sprint-1',
+    title: 'Por que 90% dos roadmaps falham',
+    hook: '90% das pessoas erram nisso...',
+    description: 'Carousel explicando os erros mais comuns',
+    format: 'post-linkedin-carousel',
+    status: 'review',
+    funnelStage: 'tofu',
+    targetDate: '2024-02-15',
+    framework: 'educational',
+    intention: 'educate',
+    suggestedCta: 'Salve para consultar depois',
+    createdAt: '2024-02-01T10:00:00Z',
+    updatedAt: '2024-02-08T14:00:00Z',
+  },
+  {
+    id: 'content-2',
+    sprintId: 'sprint-1',
+    title: 'Como defino prioridades no meu time',
+    hook: 'O metodo que mudou minha carreira:',
+    description: 'Video mostrando meu processo real',
+    format: 'video-short',
+    status: 'scheduled',
+    funnelStage: 'mofu',
+    targetDate: '2024-02-12',
+    framework: 'storytelling',
+    intention: 'engage',
+    suggestedCta: 'Conta sua experiencia',
+    createdAt: '2024-02-02T09:00:00Z',
+    updatedAt: '2024-02-10T11:00:00Z',
+  },
+  // ... mais conteudos
+];
+```
 
-Quando o usuario abre o Sheet de detalhamento, a UX deve:
-1. Mostrar o framework recomendado pela IA em destaque
-2. Ocultar outros campos apos selecao
-3. Permitir troca por outro framework
+---
+
+## 5. Componentes da Pagina
+
+### 5.1 SprintDetailHeader
 
 ```tsx
-// Inside ContentDetailSheet
-const renderFrameworkSelection = (content: SuggestedContent) => {
-  const currentFramework = contentFrameworks.find(f => f.id === content.framework);
-  const recommendedFramework = content.framework; // IA's original recommendation
-  
+interface SprintDetailHeaderProps {
+  sprint: Sprint;
+  onBack: () => void;
+}
+
+const SprintDetailHeader = ({ sprint, onBack }: SprintDetailHeaderProps) => (
+  <div className="sticky top-16 z-10 bg-zinc-950 border-b border-zinc-800">
+    <div className="flex items-center justify-between p-4">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar para Sprints
+        </Button>
+        <div className="h-4 w-px bg-zinc-700" />
+        <h1 className="text-lg font-semibold text-zinc-50">
+          {sprint.title}
+        </h1>
+      </div>
+      <Badge variant="outline" className={getStatusClassName(sprint.status)}>
+        {getStatusLabel(sprint.status)}
+      </Badge>
+    </div>
+  </div>
+);
+```
+
+### 5.2 SprintSummaryStrip
+
+```tsx
+const SprintSummaryStrip = ({ sprint }: { sprint: Sprint }) => {
+  const progressPercentage = sprint.contentsPlanned > 0
+    ? Math.round((sprint.contentsPublished / sprint.contentsPlanned) * 100)
+    : 0;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-2">
-          Framework de Conteúdo
-          <Badge variant="default" className="text-xs bg-primary">
-            Obrigatório
-          </Badge>
-        </Label>
-      </div>
-
-      {/* AI Recommendation Banner */}
-      <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-        <div className="flex items-start gap-2">
-          <Sparkles className="h-4 w-4 text-primary mt-0.5" />
-          <div className="space-y-1 flex-1">
-            <p className="text-sm font-medium">Recomendação da IA</p>
-            <p className="text-xs text-muted-foreground">
-              {content.frameworkReason || 'Baseado na intenção e formato selecionados'}
-            </p>
-          </div>
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6">
+      <div className="flex flex-wrap items-center gap-6 mb-3">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4 text-zinc-400" />
+          <span className="text-zinc-400">
+            {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
+          </span>
+        </div>
+        <div className="text-sm text-zinc-400 flex-1 truncate">
+          "{sprint.description}"
         </div>
       </div>
-
-      {/* Selected Framework Display */}
-      {currentFramework && (
-        <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-primary" />
-              <span className="font-medium">{currentFramework.name}</span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => setShowFrameworkOptions(true)}
-            >
-              Trocar
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            {currentFramework.description}
-          </p>
-          {content.frameworkBenefit && (
-            <div className="flex items-center gap-2 mt-2 text-xs text-emerald-500">
-              <Check className="h-3 w-3" />
-              {content.frameworkBenefit}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Framework Options (shown when "Trocar" is clicked) */}
-      {showFrameworkOptions && (
-        <div className="space-y-2 max-h-[250px] overflow-y-auto">
-          {contentFrameworks
-            .filter(f => f.id !== content.framework)
-            .map((framework) => (
-              <button
-                key={framework.id}
-                onClick={() => {
-                  updateApprovedContent(content.id, { framework: framework.id });
-                  setShowFrameworkOptions(false);
-                }}
-                className="w-full p-3 rounded-lg border border-border text-left hover:border-primary/50 transition-all"
-              >
-                <span className="font-medium text-sm">{framework.name}</span>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {framework.description}
-                </p>
-                <p className="text-xs text-primary/80 mt-1">
-                  {framework.bestUse}
-                </p>
-              </button>
-            ))}
-        </div>
-      )}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-zinc-400">
+          {sprint.contentsPublished}/{sprint.contentsPlanned} conteudos prontos
+        </span>
+        <Progress value={progressPercentage} className="flex-1 h-2" />
+        <span className="text-sm font-medium text-zinc-50">{progressPercentage}%</span>
+      </div>
     </div>
   );
 };
 ```
 
-### Simplificacao Visual
+### 5.3 ContentTable
 
-Quando framework esta selecionado:
-- Ocultar lista completa de frameworks
-- Mostrar apenas resumo do framework escolhido
-- Botao "Trocar" para alterar
+```tsx
+const ContentTable = ({ 
+  contents, 
+  selectedIds, 
+  onSelect, 
+  onSelectAll,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  onDateChange,
+  onFormatChange
+}: ContentTableProps) => {
+  return (
+    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-zinc-900/50 hover:bg-zinc-900/50">
+            <TableHead className="w-12">
+              <Checkbox 
+                checked={selectedIds.length === contents.length}
+                onCheckedChange={onSelectAll}
+              />
+            </TableHead>
+            <TableHead>Topic / Hook</TableHead>
+            <TableHead className="w-32">Formato</TableHead>
+            <TableHead className="w-32">Status</TableHead>
+            <TableHead className="w-36">Data Alvo</TableHead>
+            <TableHead className="w-20">Acoes</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {contents.map((content) => (
+            <ContentRow 
+              key={content.id}
+              content={content}
+              isSelected={selectedIds.includes(content.id)}
+              onSelect={onSelect}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onStatusChange={onStatusChange}
+              onDateChange={onDateChange}
+              onFormatChange={onFormatChange}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+```
+
+### 5.4 ContentRow
+
+```tsx
+const ContentRow = ({ content, isSelected, ...handlers }: ContentRowProps) => {
+  const isOverdue = content.targetDate && 
+    isBefore(new Date(content.targetDate), new Date()) && 
+    content.status !== 'completed';
+
+  return (
+    <TableRow 
+      className={cn(
+        "hover:bg-zinc-900/50 transition-colors",
+        isOverdue && "bg-red-500/5",
+        content.status === 'completed' && "opacity-60",
+        content.status === 'backlog' && "opacity-80"
+      )}
+    >
+      <TableCell>
+        <Checkbox 
+          checked={isSelected}
+          onCheckedChange={() => handlers.onSelect(content.id)}
+        />
+      </TableCell>
+      <TableCell>
+        <div className="space-y-1">
+          <button 
+            onClick={() => handlers.onEdit(content)}
+            className="text-left hover:text-indigo-400 transition-colors"
+          >
+            <span className="font-medium text-zinc-50 line-clamp-1">
+              {content.title}
+            </span>
+          </button>
+          <Badge variant="outline" className="text-xs">
+            {getFunnelLabel(content.funnelStage)}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell>
+        <FormatDropdown 
+          value={content.format}
+          onChange={(format) => handlers.onFormatChange(content.id, format)}
+        />
+      </TableCell>
+      <TableCell>
+        <StatusDropdown 
+          value={content.status}
+          onChange={(status) => handlers.onStatusChange(content.id, status)}
+        />
+      </TableCell>
+      <TableCell>
+        <DatePicker 
+          value={content.targetDate}
+          onChange={(date) => handlers.onDateChange(content.id, date)}
+          isOverdue={isOverdue}
+        />
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => handlers.onEdit(content)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-red-500 hover:text-red-400"
+            onClick={() => handlers.onDelete(content.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+```
+
+### 5.5 ContentDetailSheet (Side Panel)
+
+```tsx
+const ContentDetailSheet = ({ 
+  isOpen, 
+  onClose, 
+  content, 
+  onSave 
+}: ContentDetailSheetProps) => (
+  <Sheet open={isOpen} onOpenChange={onClose}>
+    <SheetContent side="right" className="w-[540px] sm:max-w-[540px] overflow-y-auto">
+      <SheetHeader>
+        <SheetTitle>Detalhes do Conteudo</SheetTitle>
+        <SheetDescription>
+          Edite as informacoes do conteudo
+        </SheetDescription>
+      </SheetHeader>
+      
+      <div className="py-6 space-y-6">
+        {/* Briefing */}
+        <div className="space-y-2">
+          <Label>Titulo / Tema</Label>
+          <Input value={content.title} onChange={...} />
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Hook</Label>
+          <Textarea value={content.hook} rows={2} onChange={...} />
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Descricao</Label>
+          <Textarea value={content.description} rows={3} onChange={...} />
+        </div>
+        
+        {/* Framework */}
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="font-medium text-sm">Framework Selecionado</span>
+          </div>
+          <p className="text-zinc-50">{getFrameworkName(content.framework)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {content.frameworkReason}
+          </p>
+        </div>
+        
+        {/* Formato e Status */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Formato</Label>
+            <Select value={content.format}>...</Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={content.status}>...</Select>
+          </div>
+        </div>
+        
+        {/* Datas */}
+        <div className="space-y-2">
+          <Label>Data Alvo</Label>
+          <DatePicker value={content.targetDate} onChange={...} />
+        </div>
+        
+        {/* CTA */}
+        <div className="space-y-2">
+          <Label>CTA Sugerido</Label>
+          <Input value={content.suggestedCta} onChange={...} />
+        </div>
+        
+        {/* Acoes IA */}
+        <div className="pt-4 border-t border-zinc-800">
+          <Button variant="outline" className="w-full">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Gerar Texto com IA
+          </Button>
+        </div>
+      </div>
+      
+      <SheetFooter>
+        <Button variant="outline" onClick={onClose}>Cancelar</Button>
+        <Button onClick={onSave}>Salvar Alteracoes</Button>
+      </SheetFooter>
+    </SheetContent>
+  </Sheet>
+);
+```
 
 ---
 
-## 7. Modificacao 6: Validacao de Framework Obrigatorio
+## 6. Configuracoes de Status
 
-### Regra de Negocio
+```typescript
+const contentStatusConfig: Record<ContentStatus, { label: string; className: string }> = {
+  idea: { 
+    label: 'Ideia', 
+    className: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' 
+  },
+  backlog: { 
+    label: 'Backlog', 
+    className: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' 
+  },
+  review: { 
+    label: 'Revisao', 
+    className: 'bg-amber-500/20 text-amber-500 border-amber-500/30' 
+  },
+  scheduled: { 
+    label: 'Agendado', 
+    className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
+  },
+  completed: { 
+    label: 'Concluido', 
+    className: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' 
+  },
+};
 
-Se usuario nao selecionar framework manualmente, a IA ja tera sugerido um. A validacao garante que:
+const funnelStageConfig: Record<FunnelStage, { label: string; className: string }> = {
+  tofu: { label: 'ToFu', className: 'bg-blue-500/20 text-blue-400' },
+  mofu: { label: 'MoFu', className: 'bg-purple-500/20 text-purple-400' },
+  bofu: { label: 'BoFu', className: 'bg-orange-500/20 text-orange-400' },
+};
+```
+
+---
+
+## 7. Icones de Formato
+
+```typescript
+const formatIcons: Record<string, LucideIcon> = {
+  'post-linkedin-text': FileText,
+  'post-linkedin-carousel': LayoutGrid,
+  'article': FileText,
+  'newsletter': Mail,
+  'video-short': Video,
+  'video-long': Film,
+  'thread': MessageSquare,
+  'case-study': Briefcase,
+  'landing-page': Globe,
+  'email-marketing': Mail,
+  'story': Camera,
+  'reels': Video,
+};
+```
+
+---
+
+## 8. Roteamento
+
+### 8.1 Modificacao em App.tsx
 
 ```tsx
-// Antes de avancar do Step 6 para Step 7
-const canProceedStep6 = wizardData.approvedContents.length >= 1 && 
-  wizardData.approvedContents.every(c => c.framework);
+import SprintDetail from './pages/SprintDetail';
 
-// Mensagem se houver conteudo sem framework
-{wizardData.approvedContents.some(c => !c.framework) && (
-  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-    <AlertTriangle className="h-4 w-4 text-amber-500" />
-    <span className="text-xs text-amber-500">
-      Todos os conteúdos precisam ter um framework selecionado.
-    </span>
+// Dentro de AppRoutes:
+<Route 
+  path="/sprints/:sprintId" 
+  element={<ProtectedRoute><SprintDetail /></ProtectedRoute>} 
+/>
+```
+
+### 8.2 Navegacao em Sprints.tsx
+
+Modificar o `SprintCard` para navegar ao clicar:
+
+```tsx
+import { useNavigate } from 'react-router-dom';
+
+// No SprintCard:
+const navigate = useNavigate();
+
+<Button
+  variant="ghost"
+  size="icon"
+  className="h-8 w-8"
+  onClick={() => navigate(`/sprints/${sprint.id}`)}
+>
+  <ChevronRight className="h-4 w-4" />
+</Button>
+```
+
+---
+
+## 9. Ordenacao da Tabela
+
+```typescript
+type SortField = 'status' | 'targetDate' | 'format';
+type SortDirection = 'asc' | 'desc';
+
+const [sortField, setSortField] = useState<SortField>('targetDate');
+const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+const sortedContents = useMemo(() => {
+  return [...contents].sort((a, b) => {
+    let comparison = 0;
+    switch (sortField) {
+      case 'status':
+        comparison = statusOrder[a.status] - statusOrder[b.status];
+        break;
+      case 'targetDate':
+        comparison = (a.targetDate || '').localeCompare(b.targetDate || '');
+        break;
+      case 'format':
+        comparison = a.format.localeCompare(b.format);
+        break;
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+}, [contents, sortField, sortDirection]);
+```
+
+---
+
+## 10. Estados da Pagina
+
+### 10.1 Loading State
+
+```tsx
+const SprintDetailSkeleton = () => (
+  <div className="space-y-6">
+    {/* Header Skeleton */}
+    <div className="flex items-center gap-4">
+      <Skeleton className="h-9 w-40" />
+      <Skeleton className="h-6 w-32" />
+    </div>
+    
+    {/* Summary Skeleton */}
+    <Skeleton className="h-24 w-full rounded-lg" />
+    
+    {/* Table Skeleton */}
+    <div className="border border-zinc-800 rounded-lg">
+      <div className="p-4">
+        <Skeleton className="h-10 w-full" />
+      </div>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="p-4 border-t border-zinc-800">
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ))}
+    </div>
   </div>
-)}
+);
 ```
 
----
-
-## 8. Imports Adicionais
+### 10.2 Empty State
 
 ```tsx
-import { 
-  Crown, 
-  GraduationCap, 
-  Heart, 
-  Target,
-  Circle,
-} from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, isBefore } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { DateRange } from 'react-day-picker';
+const EmptyContentsState = ({ onAddContent }: { onAddContent: () => void }) => (
+  <div className="text-center py-16 border border-dashed border-zinc-700 rounded-lg">
+    <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+    <h3 className="text-lg font-medium text-zinc-50 mb-2">
+      Nenhum conteudo nesta Sprint
+    </h3>
+    <p className="text-zinc-400 mb-6 max-w-md mx-auto">
+      Comece adicionando conteudos manualmente ou deixe a IA sugerir 
+      baseado no objetivo da Sprint.
+    </p>
+    <div className="flex items-center justify-center gap-3">
+      <Button onClick={onAddContent}>
+        <Plus className="h-4 w-4 mr-2" />
+        Adicionar Conteudo
+      </Button>
+      <Button variant="outline">
+        <Sparkles className="h-4 w-4 mr-2" />
+        Gerar Sugestoes IA
+      </Button>
+    </div>
+  </div>
+);
 ```
 
 ---
 
-## 9. Arquivo a Modificar
+## 11. Visual Dictionary Aplicado
 
-| Arquivo | Modificacao |
-|---------|-------------|
-| `src/pages/Sprints.tsx` | Todas as modificacoes do wizard |
-
----
-
-## 10. Resumo das Mudancas
-
-### Etapa 1 — Pilares
-- Bolinhas coloridas → Icones Lucide distintos (Crown, GraduationCap, Heart, Target)
-- Acessibilidade melhorada: forma + cor
-
-### Etapa 2 — Periodo
-- Dois inputs date → Date Range Picker com Calendar
-- Validacao visual do intervalo
-- Duracao calculada automaticamente
-
-### Etapa 3 — Formatos
-- 7 formatos → 12 formatos exaustivos
-- Chips → Grid de cards selecionaveis
-- Categorias implicitas (social, longform, video, conversion)
-
-### Etapa 6 — Frameworks
-- Usuario escolhe → IA recomenda automaticamente
-- UX simplificada: mostra apenas framework selecionado
-- Botao "Trocar" para alterar
-- Oculta campos redundantes apos selecao
-
-### Validacao
-- Framework obrigatorio para todos os conteudos
-- IA sempre sugere um framework se usuario nao definir
-
----
-
-## 11. Secao Tecnica Detalhada
-
-### Mapeamento de Pilares para Icones
-
-```typescript
-const pillarIconMap: Record<string, LucideIcon> = {
-  'pillar-1': Crown,        // Autoridade
-  'pillar-2': GraduationCap, // Educacional
-  'pillar-3': Heart,         // Conexao
-  'pillar-4': Target,        // Conversao
-};
-```
-
-### Algoritmo de Recomendacao de Framework
-
-```typescript
-const getFrameworkRecommendation = (
-  intention: 'educate' | 'engage' | 'convert',
-  format: string,
-  pillarId: string
-): { id: string; reason: string; benefit: string } => {
-  // Convert intention -> primary framework mapping
-  const intentionMapping: Record<string, string[]> = {
-    educate: ['educational', 'hvc', 'authority'],
-    engage: ['storytelling', 'bab', 'pas'],
-    convert: ['aida', '4ps', 'pas'],
-  };
-
-  // Format-specific adjustments
-  if (format.includes('carousel')) {
-    return {
-      id: 'educational',
-      reason: 'Carrosséis funcionam melhor com estrutura de etapas',
-      benefit: 'Maior retenção e salvamentos'
-    };
-  }
-  
-  if (format === 'video-short' || format === 'reels') {
-    return {
-      id: 'hvc',
-      reason: 'Vídeos curtos precisam de gancho imediato e CTA direto',
-      benefit: 'Maior taxa de visualização completa'
-    };
-  }
-
-  // Default based on intention
-  const defaultFramework = intentionMapping[intention][0];
-  return {
-    id: defaultFramework,
-    reason: `Framework otimizado para conteúdos de ${
-      intention === 'educate' ? 'educação' :
-      intention === 'engage' ? 'engajamento' : 'conversão'
-    }`,
-    benefit: contentFrameworks.find(f => f.id === defaultFramework)?.bestUse || ''
-  };
-};
-```
+| Elemento | Classe Tailwind |
+|----------|-----------------|
+| Background da pagina | `bg-zinc-950` |
+| Header sticky | `bg-zinc-950 border-b border-zinc-800` |
+| Summary strip | `bg-zinc-900 border border-zinc-800` |
+| Tabela container | `border border-zinc-800 rounded-lg` |
+| Table header | `bg-zinc-900/50` |
+| Row hover | `hover:bg-zinc-900/50` |
+| Row atrasada | `bg-red-500/5` |
+| Texto primario | `text-zinc-50` |
+| Texto secundario | `text-zinc-400` |
+| Acoes primarias | `bg-indigo-600 hover:bg-indigo-700` |
 
 ---
 
 ## 12. Checklist de Entrega
 
-### Etapa 1 — Pilares com Icones
-- [ ] Adicionar imports de icones (Crown, GraduationCap, Heart, Target)
-- [ ] Criar mapeamento pillarId → icone
-- [ ] Substituir bolinhas por icones no renderWizardStep1
-- [ ] Manter cores originais nos icones
+### Roteamento
+- [ ] Criar rota `/sprints/:sprintId` em App.tsx
+- [ ] Importar e configurar SprintDetail page
+- [ ] Adicionar navegacao no SprintCard
 
-### Etapa 2 — Date Range Picker
-- [ ] Adicionar imports de Popover, Calendar, date-fns
-- [ ] Criar estado dateRange
-- [ ] Implementar Date Range Picker com dois meses
-- [ ] Adicionar validacao de data minima (hoje)
-- [ ] Exibir duracao em dias
+### Pagina SprintDetail
+- [ ] Criar arquivo `src/pages/SprintDetail.tsx`
+- [ ] Implementar SprintDetailHeader (fixo)
+- [ ] Implementar SprintSummaryStrip
+- [ ] Implementar barra de acoes globais
+- [ ] Implementar ContentTable
+- [ ] Implementar ContentRow com inline editing
+- [ ] Implementar ContentDetailSheet (Side Panel)
 
-### Etapa 3 — Formatos Exaustivos
-- [ ] Expandir contentFormats de 7 para 12 opcoes
-- [ ] Atualizar UX para grid de cards selecionaveis
-- [ ] Adicionar contador de formatos selecionados
+### Tabela de Conteudos
+- [ ] Checkbox para selecao multipla
+- [ ] Coluna Topic/Hook com tag de funil
+- [ ] Coluna Format com dropdown inline
+- [ ] Coluna Status com badge editavel
+- [ ] Coluna Target Date com date picker inline
+- [ ] Coluna Actions com icones sutis
+- [ ] Hover states por linha
+- [ ] Visual para conteudo atrasado
+- [ ] Visual para conteudo concluido
 
-### Etapa 6 — Framework com IA
-- [ ] Atualizar generateMockSuggestions para incluir framework recomendado
-- [ ] Adicionar campos frameworkReason e frameworkBenefit ao tipo
-- [ ] Redesenhar Sheet de detalhamento com foco no framework
-- [ ] Implementar "Trocar" para alterar framework
-- [ ] Ocultar campos redundantes apos selecao
+### Estados
+- [ ] Loading skeleton
+- [ ] Empty state educativo
+- [ ] Sprint nao encontrada (404)
 
-### Geral
-- [ ] Manter toda logica existente do wizard
-- [ ] Nao criar novas paginas
-- [ ] Usar apenas Side Panels (Sheet) para detalhamento
-- [ ] Seguir design system existente
+### Side Panel
+- [ ] Sheet para detalhamento de conteudo
+- [ ] Campos: briefing, framework, formato, status, datas
+- [ ] Botao de acao IA
+- [ ] Nao usar modais
 
+### UX
+- [ ] Navegacao clara de ida e volta
+- [ ] Edicao inline sempre que possivel
+- [ ] Acoes reversiveis
+- [ ] Ordenacao por status/data/formato
