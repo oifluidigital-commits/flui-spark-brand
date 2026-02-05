@@ -860,7 +860,7 @@ export default function Sprints() {
       id: `manual-${Date.now()}`,
       theme: 'Novo conteúdo',
       intention: 'educate',
-      format: wizardData.formats[0] || 'post',
+      format: wizardData.formats[0] || 'post-linkedin-text',
       strategicObjective: 'Defina o objetivo estratégico',
       hook: 'Adicione um gancho',
       suggestedCta: 'Adicione um CTA',
