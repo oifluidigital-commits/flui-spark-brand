@@ -11,3 +11,6 @@ project_id = "nkmssajykvamxmzphvai"
 
  [functions.generate-content-text]
  verify_jwt = false
+ 
+ [functions.discover-trends]
+ verify_jwt = false
