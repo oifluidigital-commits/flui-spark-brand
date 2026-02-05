@@ -410,10 +410,12 @@
  }) => {
    const [editedContent, setEditedContent] = useState<SprintContent | null>(content);
  
-   // Update local state when content changes
-   useState(() => {
-     setEditedContent(content);
-   });
+   // Update local state when content prop changes
+   useMemo(() => {
+     if (content) {
+       setEditedContent(content);
+     }
+   }, [content]);
  
    if (!content || !editedContent) return null;
  
