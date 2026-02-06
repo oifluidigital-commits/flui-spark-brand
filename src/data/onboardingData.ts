@@ -363,7 +363,7 @@ export interface OnboardingFormData {
 
 export const initialFormData: OnboardingFormData = {
   name: '',
-  email: 'pedro@flui.app',
+  email: '',
   profilePhoto: null,
   role: '',
   customRole: '',

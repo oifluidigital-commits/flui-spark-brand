@@ -68,12 +68,12 @@ interface DiagnosticLoadingProps {
     return () => clearInterval(messageInterval);
   }, []);
 
-   const handleRetry = async () => {
-     setHasError(false);
-     setProgress(0);
-     hasStarted.current = false;
-     
-     const result = await generateDiagnostic(formData);
+    const handleRetry = async () => {
+      setHasError(false);
+      setProgress(0);
+      // #10: Do NOT reset hasStarted - retry calls directly, not via useEffect
+      
+      const result = await generateDiagnostic(formData);
      
      if (result) {
        setProgress(100);

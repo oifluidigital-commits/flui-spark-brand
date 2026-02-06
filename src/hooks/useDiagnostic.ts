@@ -30,7 +30,7 @@
          selectedTopics: [...formData.selectedTopics, ...formData.customTopics],
          customTopics: formData.customTopics,
          audienceType: formData.audienceType === 'other' ? formData.customAudience : formData.audienceType,
-         challenges: formData.challenges.filter(c => c !== 'other'),
+         challenges: [...formData.challenges.filter(c => c !== 'other'), ...(formData.customChallenge?.trim() ? [formData.customChallenge.trim()] : [])],
          communicationStyle: formData.communicationStyle,
        };
  
