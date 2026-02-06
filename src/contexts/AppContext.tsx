@@ -186,7 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser((prev) => ({
       ...prev,
       onboardingStatus: 'completed',
-      onboardingStep: 4,
+      onboardingStep: 7,
     }));
   };
   

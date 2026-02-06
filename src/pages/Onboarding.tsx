@@ -1,10 +1,10 @@
- import { useState, useCallback, useEffect } from 'react';
- import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 // Components
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
@@ -19,88 +19,95 @@ import DiagnosticLoading from '@/components/onboarding/DiagnosticLoading';
 import DiagnosticResults from '@/components/onboarding/DiagnosticResults';
 
 // Data
- import { OnboardingFormData, DiagnosticResult, initialFormData } from '@/data/onboardingData';
+import { OnboardingFormData, DiagnosticResult, initialFormData } from '@/data/onboardingData';
+
+const STORAGE_KEY = 'flui_onboarding_form';
 
 type OnboardingPhase = 'wizard' | 'loading' | 'results';
 
 const stepConfig = [
-  { 
-    id: 1, 
-    title: 'Conta e Identidade', 
-    description: 'Vamos começar com o básico sobre você',
-    label: 'Identidade'
-  },
-  { 
-    id: 2, 
-    title: 'Cargo e Experiência', 
-    description: 'Nos conte sobre sua trajetória profissional',
-    label: 'Cargo'
-  },
-  { 
-    id: 3, 
-    title: 'Área de Atuação', 
-    description: 'Qual é o seu campo de expertise?',
-    label: 'Área'
-  },
-  { 
-    id: 4, 
-    title: 'Objetivos', 
-    description: 'O que você quer alcançar com conteúdo?',
-    label: 'Objetivos'
-  },
-  { 
-    id: 5, 
-    title: 'Tópicos de Conteúdo', 
-    description: 'Sobre o que você vai falar?',
-    label: 'Tópicos'
-  },
-  { 
-    id: 6, 
-    title: 'Audiência e Desafios', 
-    description: 'Para quem você cria e quais suas dificuldades?',
-    label: 'Audiência'
-  },
-  { 
-    id: 7, 
-    title: 'Estilo de Comunicação', 
-    description: 'Como você prefere se expressar?',
-    label: 'Estilo'
-  },
+  { id: 1, title: 'Conta e Identidade', description: 'Vamos começar com o básico sobre você', label: 'Identidade' },
+  { id: 2, title: 'Cargo e Experiência', description: 'Nos conte sobre sua trajetória profissional', label: 'Cargo' },
+  { id: 3, title: 'Área de Atuação', description: 'Qual é o seu campo de expertise?', label: 'Área' },
+  { id: 4, title: 'Objetivos', description: 'O que você quer alcançar com conteúdo?', label: 'Objetivos' },
+  { id: 5, title: 'Tópicos de Conteúdo', description: 'Sobre o que você vai falar?', label: 'Tópicos' },
+  { id: 6, title: 'Audiência e Desafios', description: 'Para quem você cria e quais suas dificuldades?', label: 'Audiência' },
+  { id: 7, title: 'Estilo de Comunicação', description: 'Como você prefere se expressar?', label: 'Estilo' },
 ];
+
+function loadFormDataFromStorage(): OnboardingFormData | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveFormDataToStorage(data: OnboardingFormData) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
+function clearFormDataStorage() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch { /* ignore */ }
+}
 
 export default function Onboarding() {
   const navigate = useNavigate();
-   const [searchParams] = useSearchParams();
-     const { completeOnboarding, setUser, user, setDiagnosticResult: setGlobalDiagnosticResult } = useApp();
-  
+  const [searchParams] = useSearchParams();
+  const { completeOnboarding, setUser, user, setDiagnosticResult: setGlobalDiagnosticResult, profile, refreshProfile } = useApp();
+
   const [phase, setPhase] = useState<OnboardingPhase>('wizard');
-   const [currentStep, setCurrentStep] = useState(() => {
-     const stepParam = searchParams.get('step');
-     if (stepParam) {
-       const parsedStep = parseInt(stepParam, 10);
-       if (!isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= stepConfig.length) {
-         return parsedStep;
-       }
-     }
-     // Fall back to user's current step if available
-     return user.onboardingStep >= 1 ? Math.min(user.onboardingStep, stepConfig.length) : 1;
-   });
-  const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
-    const [localDiagnosticResult, setLocalDiagnosticResult] = useState<DiagnosticResult | null>(null);
- 
-   // Update user's onboarding status when step changes
-   useEffect(() => {
-     if (phase === 'wizard' && currentStep >= 1) {
-       setUser((prev) => ({
-         ...prev,
-         onboardingStatus: prev.onboardingStatus === 'completed' ? 'completed' : 'in_progress',
-         onboardingStep: currentStep,
-       }));
-     }
-   }, [currentStep, phase, setUser]);
+  const [currentStep, setCurrentStep] = useState(() => {
+    const stepParam = searchParams.get('step');
+    if (stepParam) {
+      const parsedStep = parseInt(stepParam, 10);
+      if (!isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= stepConfig.length) {
+        return parsedStep;
+      }
+    }
+    return user.onboardingStep >= 1 ? Math.min(user.onboardingStep, stepConfig.length) : 1;
+  });
+
+  const [formData, setFormData] = useState<OnboardingFormData>(() => {
+    // #1: Restore from localStorage if available
+    const stored = loadFormDataFromStorage();
+    return stored || initialFormData;
+  });
+  const [localDiagnosticResult, setLocalDiagnosticResult] = useState<DiagnosticResult | null>(null);
+
+  // #2 & #11: Pre-populate name and email from authenticated profile
+  useEffect(() => {
+    if (profile) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || profile.name || '',
+        email: profile.email || prev.email || '',
+      }));
+    }
+  }, [profile]);
+
+  // Update user's onboarding status when step changes
+  useEffect(() => {
+    if (phase === 'wizard' && currentStep >= 1) {
+      setUser((prev) => ({
+        ...prev,
+        onboardingStatus: prev.onboardingStatus === 'completed' ? 'completed' : 'in_progress',
+        onboardingStep: currentStep,
+      }));
+    }
+  }, [currentStep, phase, setUser]);
 
   const updateFormData = useCallback((updates: Partial<OnboardingFormData>) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
+    setFormData((prev) => {
+      const next = { ...prev, ...updates };
+      // #1: Persist to localStorage on every update
+      saveFormDataToStorage(next);
+      return next;
+    });
   }, []);
 
   const isStepValid = (): boolean => {
@@ -108,23 +115,21 @@ export default function Onboarding() {
       case 1:
         return formData.name.trim().length >= 2;
       case 2:
-        return formData.role !== '';
+        // #7: Validate customRole when role is 'custom'
+        return formData.role !== '' && (formData.role !== 'custom' || formData.customRole.trim().length > 0);
       case 3:
-        // Allow "other" if customArea is filled, or any non-other area
-        return formData.primaryArea !== '' && 
+        return formData.primaryArea !== '' &&
           (formData.primaryArea !== 'other' || formData.customArea.trim().length > 0);
       case 4:
-        // Allow "other" if customPrimaryGoal is filled, or any non-other goal
         return formData.primaryGoal !== '' &&
           (formData.primaryGoal !== 'other' || formData.customPrimaryGoal.trim().length > 0);
       case 5:
         return (formData.selectedTopics.length + formData.customTopics.length) >= 1;
       case 6:
-        // Allow "other" if customAudience is filled, or any non-other audience
         return formData.audienceType !== '' &&
           (formData.audienceType !== 'other' || formData.customAudience.trim().length > 0);
       case 7:
-        return true; // Sliders always have values
+        return true;
       default:
         return false;
     }
@@ -134,7 +139,6 @@ export default function Onboarding() {
     if (currentStep < stepConfig.length) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      // Start diagnostic generation
       setPhase('loading');
     }
   };
@@ -145,38 +149,76 @@ export default function Onboarding() {
     }
   };
 
-  const handleSkipOnboarding = () => {
+  // #3: Persist skip to database
+  const handleSkipOnboarding = async () => {
     setUser((prev) => ({
       ...prev,
       name: formData.name,
       onboardingStatus: 'in_progress',
       onboardingStep: currentStep,
     }));
-    
+
+    // Persist to DB
+    if (user.id) {
+      await supabase.from('profiles').update({
+        name: formData.name,
+        onboarding_status: 'in_progress' as const,
+        onboarding_step: currentStep,
+      }).eq('user_id', user.id);
+    }
+
     navigate('/dashboard');
   };
 
-   const handleDiagnosticComplete = (result: DiagnosticResult) => {
-      setLocalDiagnosticResult(result); // Save to local state for results page
-      setGlobalDiagnosticResult(result); // Save to global context for Strategy page
+  const handleDiagnosticComplete = async (result: DiagnosticResult) => {
+    setLocalDiagnosticResult(result);
+    setGlobalDiagnosticResult(result);
+
+    // #6: Persist diagnostic result to database
+    if (user.id) {
+      await supabase.from('diagnostics').insert({
+        user_id: user.id,
+        form_data: formData as any,
+        result: result as any,
+      });
+    }
+
     setPhase('results');
   };
 
-   const handleDiagnosticError = () => {
-     setPhase('wizard');
-   };
- 
-  const handleFinishOnboarding = () => {
-    // Update user with form data
+  const handleDiagnosticError = () => {
+    setPhase('wizard');
+  };
+
+  // #5 & #4 & #9: Persist onboarding completion to DB, accept optional redirect
+  const handleFinishOnboarding = async (redirectTo?: string) => {
+    const totalSteps = stepConfig.length;
+
     setUser((prev) => ({
       ...prev,
       name: formData.name,
       onboardingStatus: 'completed',
-      onboardingStep: 4,
+      onboardingStep: totalSteps,
     }));
-    
+
     completeOnboarding();
-    navigate('/dashboard');
+
+    // Persist to DB
+    if (user.id) {
+      await supabase.from('profiles').update({
+        name: formData.name,
+        onboarding_status: 'completed' as const,
+        onboarding_step: totalSteps,
+      }).eq('user_id', user.id);
+
+      // Refresh profile so AppContext has latest data
+      await refreshProfile();
+    }
+
+    // #1: Clear localStorage after completion
+    clearFormDataStorage();
+
+    navigate(redirectTo || '/dashboard');
   };
 
   // Render loading phase
@@ -184,22 +226,22 @@ export default function Onboarding() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-           <DiagnosticLoading 
-             formData={formData}
-             onComplete={handleDiagnosticComplete} 
-             onError={handleDiagnosticError}
-           />
+          <DiagnosticLoading
+            formData={formData}
+            onComplete={handleDiagnosticComplete}
+            onError={handleDiagnosticError}
+          />
         </div>
       </div>
     );
   }
 
   // Render results phase
-    if (phase === 'results' && localDiagnosticResult) {
+  if (phase === 'results' && localDiagnosticResult) {
     return (
       <div className="min-h-screen bg-background py-8 px-4">
         <div className="w-full max-w-3xl mx-auto">
-           <DiagnosticResults result={localDiagnosticResult} onComplete={handleFinishOnboarding} />
+          <DiagnosticResults result={localDiagnosticResult} onComplete={handleFinishOnboarding} />
         </div>
       </div>
     );
@@ -280,12 +322,8 @@ export default function Onboarding() {
         </CardContent>
       </Card>
 
-      {/* Skip for demo */}
+      {/* Skip for demo - #12: removed duplicate step counter */}
       <div className="flex flex-col items-center gap-2 mt-4">
-        <p className="text-xs text-muted-foreground">
-          Passo {currentStep} de {stepConfig.length}
-        </p>
-        
         {formData.name.trim().length >= 2 && (
           <button
             onClick={handleSkipOnboarding}

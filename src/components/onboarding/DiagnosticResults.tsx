@@ -2,8 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
- import { DiagnosticResult } from '@/data/onboardingData';
- import { useNavigate } from 'react-router-dom';
+import { DiagnosticResult } from '@/data/onboardingData';
 import {
   User,
   Target,
@@ -17,13 +16,11 @@ import {
 } from 'lucide-react';
 
 interface DiagnosticResultsProps {
-   result: DiagnosticResult;
-  onComplete: () => void;
+  result: DiagnosticResult;
+  onComplete: (redirectTo?: string) => void;
 }
 
- export default function DiagnosticResults({ result, onComplete }: DiagnosticResultsProps) {
-   const navigate = useNavigate();
-
+export default function DiagnosticResults({ result, onComplete }: DiagnosticResultsProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
@@ -222,14 +219,14 @@ interface DiagnosticResultsProps {
         </CardContent>
       </Card>
 
-      {/* CTA */}
+      {/* CTA - #9: Both buttons call onComplete */}
       <div className="pt-6">
-         <Button onClick={() => navigate('/strategy')} className="w-full" size="lg">
+        <Button onClick={() => onComplete('/strategy')} className="w-full" size="lg">
           <Sparkles className="h-4 w-4 mr-2" />
-           Ver minha Estratégia Editorial
-         </Button>
-         <Button variant="outline" onClick={onComplete} className="w-full mt-3" size="lg">
-           Ir para o Dashboard
+          Ver minha Estratégia Editorial
+        </Button>
+        <Button variant="outline" onClick={() => onComplete()} className="w-full mt-3" size="lg">
+          Ir para o Dashboard
         </Button>
         <p className="text-center text-xs text-muted-foreground mt-3">
           Você poderá ajustar esses dados a qualquer momento nas configurações
