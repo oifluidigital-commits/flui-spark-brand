@@ -1,402 +1,250 @@
 
-
-# Plano: Pagina de Login com Autenticacao Real (Supabase)
-
-## Objetivo
-Construir uma pagina de login completa e funcional com autenticacao real usando Supabase Auth (Email/Password + Google OAuth), substituindo toda logica mock por integracao real com o backend.
+# QA Report: Flui Onboarding Wizard
 
 ---
 
-## Arquitetura da Solucao
-
-```text
-+------------------+       +-------------------+       +------------------+
-|   Login.tsx      |  -->  |  useAuth hook     |  -->  |  Supabase Auth   |
-| (UI + Forms)     |       | (Auth logic)      |       |  (Backend)       |
-+------------------+       +-------------------+       +------------------+
-        |                         |                          |
-        v                         v                          v
-  - Email/Password        - signInWithPassword       - auth.users
-  - Google OAuth          - signInWithOAuth          - Session mgmt
-  - Error handling        - getSession               - JWT tokens
-  - Loading states        - onAuthStateChange        
-                                  |
-                                  v
-                          +------------------+
-                          |  profiles table  |
-                          | (User data)      |
-                          +------------------+
-                                  |
-                                  v
-                          +------------------+
-                          |   AppContext     |
-                          | (Global state)   |
-                          +------------------+
-```
+## 1. Issues Found
 
 ---
 
-## Componentes a Criar/Modificar
+### ISSUE #1: Form data is lost on page refresh/reload
+- **Step/Screen:** All steps (1-7)
+- **Description:** `formData` is stored in React state (`useState`) with `initialFormData` defaults. If the user refreshes the browser at step 5, all data from steps 1-4 is erased. The `?step=5` URL param restores the step number, but the inputs are empty.
+- **Why this is a problem:** User loses all progress. They must re-fill everything from scratch, which causes abandonment.
 
-### 1. Hook useAuth (NOVO)
-**Arquivo:** `src/hooks/useAuth.ts`
+**Impact Level:** CRITICAL
 
-Responsabilidades:
-- Encapsular toda logica de autenticacao Supabase
-- Gerenciar estados de loading/error
-- Expor funcoes de login, logout, signup
-- Monitorar mudancas de sessao
+**Correction Proposal:**
+- Persist `formData` to `localStorage` on every update (via `useEffect` or within `updateFormData`)
+- On mount, read from `localStorage` to restore state
+- Clear `localStorage` after successful diagnostic generation
 
-```typescript
-export function useAuth() {
-  return {
-    // Auth state
-    user: AuthUser | null,
-    session: Session | null,
-    isLoading: boolean,
-    
-    // Auth methods
-    signInWithEmail: (email, password) => Promise<{ error }>,
-    signInWithGoogle: () => Promise<{ error }>,
-    signUp: (email, password, name) => Promise<{ error }>,
-    signOut: () => Promise<void>,
-    
-    // Profile methods
-    fetchProfile: (userId) => Promise<Profile>,
-    createProfile: (userData) => Promise<void>,
-  }
-}
-```
-
-### 2. Login.tsx (REFATORAR COMPLETAMENTE)
-**Arquivo:** `src/pages/Login.tsx`
-
-Alteracoes:
-- Remover toda logica mock
-- Integrar hook useAuth
-- Adicionar validacao de formularios com Zod
-- Implementar estados de loading, erro e sucesso
-- Adicionar toggle para criar conta
-- Exibir erros inline abaixo dos inputs
-- Chamar Google OAuth via Lovable Cloud
-
-### 3. Signup.tsx (NOVO)
-**Arquivo:** `src/pages/Signup.tsx`
-
-Responsabilidades:
-- Formulario de criacao de conta
-- Campos: nome, email, senha, confirmar senha
-- Validacao com Zod
-- Chamada a supabase.auth.signUp
-- Redirecionamento para /onboarding apos sucesso
-
-### 4. AppContext.tsx (MODIFICAR)
-**Arquivo:** `src/contexts/AppContext.tsx`
-
-Alteracoes:
-- Adicionar verificacao de sessao no mount
-- Integrar com onAuthStateChange listener
-- Sincronizar estado do usuario com profile do banco
-- Expor funcao de logout global
-
-### 5. App.tsx (MODIFICAR)
-**Arquivo:** `src/App.tsx`
-
-Alteracoes:
-- Adicionar rota /signup
-- Melhorar ProtectedRoute para verificar sessao real
-- Adicionar AuthProvider wrapper
-
-### 6. AuthLayout.tsx (MELHORAR)
-**Arquivo:** `src/components/layout/AuthLayout.tsx`
-
-Alteracoes:
-- Adicionar suporte a dark/light mode
-- Melhorar layout visual conforme design system
-- Adicionar animacoes suaves
+**Validation Checklist:**
+- [ ] Fill steps 1-4, refresh page, verify data is restored
+- [ ] Complete wizard, verify localStorage is cleared
+- [ ] Open in new tab, verify data is available
 
 ---
 
-## Estados de Interface
+### ISSUE #2: Hardcoded email in initialFormData
+- **Step/Screen:** Step 1 (Account Identity)
+- **Description:** `initialFormData` has `email: 'pedro@flui.app'` hardcoded. This email is displayed in the read-only email field regardless of who is logged in.
+- **Why this is a problem:** The authenticated user's real email is never used. The wrong email is shown and potentially sent to the AI diagnostic function.
 
-### Loading State (Verificando Sessao)
-- Tela de loading centralizada com spinner
-- Logo Flui animado
-- Mensagem "Verificando sessao..."
+**Impact Level:** CRITICAL
 
-### Login Form State
-- Inputs para email e senha
-- Botao "Entrar" com loading spinner
-- Separador "ou continue com"
-- Botao Google OAuth
-- Link para "Criar conta"
-- Link para "Esqueci minha senha"
+**Correction Proposal:**
+- Set `initialFormData.email` to `''`
+- In `Onboarding.tsx`, populate `formData.email` from the authenticated user's profile on mount: `updateFormData({ email: profile?.email || '' })`
 
-### Error States
-- Erro inline vermelho abaixo do input afetado
-- Toast com mensagem de erro
-- Mensagens especificas para:
-  - "Email ou senha incorretos"
-  - "Conta nao encontrada"
-  - "Email ja cadastrado"
-  - "Senha muito fraca"
-
-### Success State
-- Redirecionamento automatico
-- Toast de boas-vindas (opcional)
+**Validation Checklist:**
+- [ ] Login with a real account, verify the correct email appears in Step 1
+- [ ] Verify the email sent to `generate-diagnostic` is accurate
 
 ---
 
-## Detalhes Tecnicos
+### ISSUE #3: "Pular e ir para o dashboard" skips onboarding but does NOT persist profile name to database
+- **Step/Screen:** All steps (skip button)
+- **Description:** `handleSkipOnboarding` updates the local `user` state with `formData.name` and navigates to `/dashboard`, but never calls Supabase to update the `profiles` table. On next login/refresh, the name reverts to the DB value.
+- **Why this is a problem:** User thinks they saved their name but it's lost on reload.
 
-### Verificacao de Sessao (On Mount)
-```typescript
-useEffect(() => {
-  // Setup listener BEFORE getSession
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (session) {
-        const profile = await fetchProfile(session.user.id);
-        updateAppState(profile);
-        redirectBasedOnOnboarding(profile);
-      } else {
-        setIsAuthenticated(false);
-      }
-    }
-  );
+**Impact Level:** HIGH
 
-  // Then check existing session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-      handleSession(session);
-    }
-  });
+**Correction Proposal:**
+- Call `supabase.from('profiles').update({ name: formData.name, onboarding_status: 'in_progress', onboarding_step: currentStep }).eq('user_id', user.id)` before navigating
 
-  return () => subscription.unsubscribe();
-}, []);
-```
-
-### Email/Password Login
-```typescript
-const signInWithEmail = async (email: string, password: string) => {
-  setIsLoading(true);
-  setError(null);
-  
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
-  });
-  
-  if (error) {
-    if (error.message.includes('Invalid login credentials')) {
-      setError('Email ou senha incorretos');
-    } else {
-      setError('Erro ao fazer login. Tente novamente.');
-    }
-    return { error };
-  }
-  
-  // Fetch profile and redirect
-  const profile = await fetchProfile(data.user.id);
-  return { error: null, profile };
-};
-```
-
-### Google OAuth (Lovable Cloud)
-```typescript
-// Necessita configurar via supabase--configure-social-auth tool
-import { lovable } from "@/integrations/lovable/index";
-
-const signInWithGoogle = async () => {
-  const { error } = await lovable.auth.signInWithOAuth("google", {
-    redirect_uri: window.location.origin,
-  });
-  
-  if (error) {
-    toast.error('Erro ao conectar com Google');
-  }
-};
-```
-
-### Fetch/Create Profile
-```typescript
-const fetchProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  
-  if (error && error.code === 'PGRST116') {
-    // Profile not found - should not happen if trigger is working
-    return null;
-  }
-  
-  return data;
-};
-```
-
-### Redirect Logic
-```typescript
-const redirectBasedOnOnboarding = (profile: Profile) => {
-  if (profile.onboarding_status === 'completed') {
-    navigate('/dashboard');
-  } else {
-    navigate('/onboarding');
-  }
-};
-```
-
-### Form Validation (Zod)
-```typescript
-const loginSchema = z.object({
-  email: z.string()
-    .trim()
-    .email({ message: 'Email invalido' })
-    .max(255, { message: 'Email muito longo' }),
-  password: z.string()
-    .min(6, { message: 'Senha deve ter no minimo 6 caracteres' }),
-});
-
-const signupSchema = loginSchema.extend({
-  name: z.string()
-    .trim()
-    .min(2, { message: 'Nome deve ter no minimo 2 caracteres' })
-    .max(100, { message: 'Nome muito longo' }),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Senhas nao conferem',
-  path: ['confirmPassword'],
-});
-```
+**Validation Checklist:**
+- [ ] Skip onboarding after entering name, refresh, verify name persists
+- [ ] Verify `onboarding_step` is correctly saved in DB
 
 ---
 
-## Arquivos a Criar
+### ISSUE #4: handleFinishOnboarding sets onboardingStep to hardcoded 4 instead of 7
+- **Step/Screen:** Results page (after diagnostic)
+- **Description:** Line 176 in `Onboarding.tsx`: `onboardingStep: 4`. After completing all 7 steps and generating a diagnostic, the step is set to 4. This breaks the OnboardingProgressCard logic on the dashboard if the user returns.
+- **Why this is a problem:** Data inconsistency. The user completed 7 steps but the system records 4.
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/hooks/useAuth.ts` | Hook | Encapsula autenticacao Supabase |
-| `src/pages/Signup.tsx` | Pagina | Formulario de cadastro |
+**Impact Level:** HIGH
 
-## Arquivos a Modificar
+**Correction Proposal:**
+- Change to `onboardingStep: 7` (or `stepConfig.length`)
+- Also persist this to the database via Supabase update
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Login.tsx` | Refatorar para auth real |
-| `src/contexts/AppContext.tsx` | Adicionar sessao real e onAuthStateChange |
-| `src/App.tsx` | Adicionar rota /signup |
-| `src/components/layout/AuthLayout.tsx` | Melhorar visual |
-
----
-
-## Fluxo do Usuario
-
-### Login com Email/Password
-1. Usuario acessa /login
-2. App verifica sessao existente (getSession)
-3. Se sessao valida: redireciona baseado em onboarding
-4. Se nao: exibe formulario de login
-5. Usuario preenche email e senha
-6. Clica em "Entrar"
-7. Loading spinner no botao
-8. Se sucesso: fetch profile -> redirect
-9. Se erro: exibe mensagem inline + toast
-
-### Login com Google
-1. Usuario clica em "Continuar com Google"
-2. Lovable Cloud redireciona para Google OAuth
-3. Usuario autoriza
-4. Retorna para /login com sessao
-5. onAuthStateChange detecta sessao
-6. Fetch profile (ja criado pelo trigger)
-7. Redirect baseado em onboarding
-
-### Novo Usuario (Signup)
-1. Usuario clica em "Criar conta" no login
-2. Navega para /signup
-3. Preenche nome, email, senha
-4. Clica em "Criar conta"
-5. signUp cria usuario em auth.users
-6. Trigger handle_new_user cria profile
-7. Redirect para /onboarding
+**Validation Checklist:**
+- [ ] Complete wizard, verify profile shows step 7 and status "completed"
+- [ ] Check OnboardingProgressCard renders correctly after completion
 
 ---
 
-## Integracao com Google OAuth
+### ISSUE #5: Onboarding completion is NOT persisted to the database
+- **Step/Screen:** Results page
+- **Description:** `handleFinishOnboarding` and `completeOnboarding` only update local React state. Neither writes `onboarding_status: 'completed'` to the `profiles` table. On next login, the user is redirected back to `/onboarding` because the DB still has `not_started` or `in_progress`.
+- **Why this is a problem:** The user can never permanently complete onboarding. Every login loops them back.
 
-Para habilitar o Google OAuth, sera necessario usar a ferramenta `supabase--configure-social-auth` com provider "google". Isso ira:
+**Impact Level:** CRITICAL
 
-1. Gerar o modulo `@lovable.dev/cloud-auth-js`
-2. Criar arquivos em `src/integrations/lovable/`
-3. Configurar OAuth managed pelo Lovable Cloud
+**Correction Proposal:**
+- In `handleFinishOnboarding`, call `supabase.from('profiles').update({ onboarding_status: 'completed', onboarding_step: 7 }).eq('user_id', user.id)`
+- Refresh the auth profile after the update
 
-O codigo usara:
-```typescript
-import { lovable } from "@/integrations/lovable/index";
-
-await lovable.auth.signInWithOAuth("google", {
-  redirect_uri: window.location.origin,
-});
-```
+**Validation Checklist:**
+- [ ] Complete wizard, logout, login again, verify redirect goes to `/dashboard`
+- [ ] Check `profiles` table in DB has `onboarding_status = 'completed'`
 
 ---
 
-## Secao Tecnica
+### ISSUE #6: Diagnostic result is NOT persisted to the database
+- **Step/Screen:** Diagnostic Loading / Results
+- **Description:** The AI-generated diagnostic is stored only in React state (`localDiagnosticResult` and `diagnosticResult` in AppContext). The `diagnostics` table exists in the DB schema but is never written to. On page refresh or next session, the diagnostic is lost.
+- **Why this is a problem:** The diagnostic (which costs AI credits) must be regenerated every time. The Strategy page depends on `diagnosticResult` from AppContext which is empty on fresh loads.
 
-### Dependencias Existentes
-- `@supabase/supabase-js` (ja instalado)
-- `zod` (ja instalado)
-- `react-hook-form` (ja instalado)
-- `@hookform/resolvers` (ja instalado)
-- `sonner` (ja instalado)
+**Impact Level:** CRITICAL
 
-### Trigger Existente
-O banco ja possui o trigger `handle_new_user` que cria automaticamente um profile quando um novo usuario e criado em auth.users:
+**Correction Proposal:**
+- After successful diagnostic generation, insert into `diagnostics` table with `user_id`, result JSON, and metadata
+- On app load (or Strategy page load), fetch the diagnostic from the DB if AppContext is empty
 
-```sql
-CREATE OR REPLACE FUNCTION public.handle_new_user()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-BEGIN
-  INSERT INTO public.profiles (user_id, email, name)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1))
-  );
-  RETURN NEW;
-END;
-$function$
-```
-
-### RLS Policies (profiles)
-- Users can insert own profile
-- Users can update own profile
-- Users can view own profile
-
-### Campos do Profile
-- user_id (uuid) - referencia auth.users
-- email (text)
-- name (text)
-- avatar_url (text)
-- onboarding_status (enum: not_started, in_progress, completed)
-- onboarding_step (integer)
-- plan (enum: free, pro, studio)
-- ai_credits_total (integer)
-- ai_credits_used (integer)
-- company (text)
-- role (text)
+**Validation Checklist:**
+- [ ] Complete diagnostic, refresh, verify diagnostic data loads from DB
+- [ ] Navigate to /strategy after refresh, verify it can load the diagnostic
 
 ---
 
-## Consideracoes de Seguranca
+### ISSUE #7: Step 2 role validation allows "custom" without customRole text
+- **Step/Screen:** Step 2 (Role and Experience)
+- **Description:** The `isStepValid` check for step 2 is `formData.role !== ''`. When the user types a search query and selects the custom option, `role` is set to `'custom'` and `customRole` to the text. However, the validation does NOT check that `customRole` is non-empty when `role === 'custom'`. If somehow `customRole` is cleared after selection, the user can proceed with an empty custom role.
+- **Why this is a problem:** Edge case where empty role data is sent to AI.
 
-1. Emails sao normalizados (lowercase + trim) antes de enviar
-2. Senhas nunca sao logadas no console
-3. Erros genericos para evitar enumeration attacks
-4. RLS garante isolamento de dados entre usuarios
-5. Sessoes persistidas com autoRefreshToken habilitado
+**Impact Level:** MEDIUM
 
+**Correction Proposal:**
+- Update validation: `return formData.role !== '' && (formData.role !== 'custom' || formData.customRole.trim().length > 0)`
+
+**Validation Checklist:**
+- [ ] Select custom role, clear text, verify "Continuar" is disabled
+
+---
+
+### ISSUE #8: Challenges custom text is NOT sent to the edge function
+- **Step/Screen:** Step 6 / Diagnostic Generation
+- **Description:** In `useDiagnostic.ts` line 33, challenges are filtered with `.filter(c => c !== 'other')` but `formData.customChallenge` is never included in the payload sent to the edge function. The custom challenge text is collected but discarded.
+- **Why this is a problem:** User provides specific challenge info that the AI never receives.
+
+**Impact Level:** HIGH
+
+**Correction Proposal:**
+- Add `customChallenge` to the prepared data: `challenges: [...formData.challenges.filter(c => c !== 'other'), ...(formData.customChallenge.trim() ? [formData.customChallenge.trim()] : [])]`
+
+**Validation Checklist:**
+- [ ] Select "Outro" challenge, type custom text, verify it appears in the edge function request body
+
+---
+
+### ISSUE #9: "Ver minha Estrategia Editorial" button navigates away without completing onboarding
+- **Step/Screen:** DiagnosticResults.tsx (CTA section)
+- **Description:** The "Ver minha Estrategia Editorial" button calls `navigate('/strategy')` directly (line 227) without calling `onComplete` (which triggers `handleFinishOnboarding`). The user leaves the onboarding flow without marking it as completed. The "Ir para o Dashboard" button does call `onComplete`.
+- **Why this is a problem:** If the user clicks "Ver Estrategia", `onboarding_status` is never set to `completed`. On next login they are redirected back to onboarding.
+
+**Impact Level:** CRITICAL
+
+**Correction Proposal:**
+- Modify the "Ver Estrategia" button to first call `onComplete()` and then navigate, or modify `onComplete` to accept a redirect path
+
+**Validation Checklist:**
+- [ ] Click "Ver minha Estrategia Editorial", verify onboarding is marked completed
+- [ ] Logout, login again, verify user goes to dashboard (not onboarding)
+
+---
+
+### ISSUE #10: DiagnosticLoading retry does NOT reset hasStarted ref properly
+- **Step/Screen:** Diagnostic Loading (error state)
+- **Description:** In `handleRetry` (line 71-84), `hasStarted.current` is set to `false`, but `generateDiagnostic` is called directly in the same function without going through the `useEffect`. This means the `useEffect` could re-fire on a re-render and cause a double invocation. The logic is inconsistent between the initial call (via useEffect) and retry (direct call).
+- **Why this is a problem:** Potential double API call wasting AI credits.
+
+**Impact Level:** MEDIUM
+
+**Correction Proposal:**
+- Either always call via useEffect (set a trigger state), or remove the useEffect pattern entirely and trigger on mount via a different mechanism. The simplest fix: do NOT set `hasStarted.current = false` in `handleRetry` since the retry calls directly.
+
+**Validation Checklist:**
+- [ ] Simulate error, click retry, verify only one API call is made (check network tab)
+
+---
+
+### ISSUE #11: Step 1 does NOT pre-populate name from authenticated profile
+- **Step/Screen:** Step 1 (Account Identity)
+- **Description:** `initialFormData.name` is `''`. The user already has a `name` in their `profiles` record (set by the `handle_new_user` trigger). This existing name is not loaded into the form.
+- **Why this is a problem:** User has to re-type their name even though the system already knows it.
+
+**Impact Level:** MEDIUM
+
+**Correction Proposal:**
+- In `Onboarding.tsx`, on mount, populate `formData.name` and `formData.email` from the authenticated profile
+
+**Validation Checklist:**
+- [ ] Sign up with a name, navigate to onboarding, verify name is pre-filled in Step 1
+
+---
+
+### ISSUE #12: Progress bar shows 0% on Step 1
+- **Step/Screen:** OnboardingProgress component
+- **Description:** Progress formula is `((currentStep - 1) / (totalSteps - 1)) * 100`. On step 1, this is `0 / 6 = 0%`. The user sees "0% concluido" before they've done anything, which is correct, but the step 1 indicator is highlighted as "current" while showing 0% -- this is fine UX but duplicated at the bottom ("Passo 1 de 7").
+- **Why this is a problem:** Minor redundancy. Two places show step count.
+
+**Impact Level:** LOW
+
+**Correction Proposal:**
+- Remove the "Passo X de Y" text at the bottom of the page (line 286) since the progress bar already shows this info
+
+**Validation Checklist:**
+- [ ] Verify no duplicate step indicators
+
+---
+
+## 2. Summary Table
+
+| # | Issue | Impact | Category |
+|---|-------|--------|----------|
+| 1 | Form data lost on refresh | CRITICAL | Data Persistence |
+| 2 | Hardcoded email | CRITICAL | Data Integrity |
+| 3 | Skip button doesn't persist to DB | HIGH | Data Persistence |
+| 4 | Hardcoded step 4 on completion | HIGH | Logic Error |
+| 5 | Onboarding status not persisted to DB | CRITICAL | Data Persistence |
+| 6 | Diagnostic result not persisted to DB | CRITICAL | Data Persistence |
+| 7 | Custom role validation gap | MEDIUM | Validation |
+| 8 | Custom challenge not sent to AI | HIGH | Data Loss |
+| 9 | "Ver Estrategia" skips onComplete | CRITICAL | Flow Logic |
+| 10 | Retry may double-fire | MEDIUM | Edge Case |
+| 11 | Name not pre-populated from profile | MEDIUM | UX Friction |
+| 12 | Duplicate step counter | LOW | Polish |
+
+---
+
+## 3. Priority Order for Fixes
+
+1. **#5** - Persist onboarding completion to DB (blocks all returning users)
+2. **#9** - Fix "Ver Estrategia" to call onComplete (breaks completion flow)
+3. **#2** - Replace hardcoded email with real user email
+4. **#6** - Persist diagnostic result to DB (prevents credit waste)
+5. **#1** - Add localStorage persistence for form data
+6. **#8** - Include customChallenge in AI payload
+7. **#4** - Fix hardcoded step number
+8. **#3** - Persist skip action to DB
+9. **#11** - Pre-populate name from profile
+10. **#7** - Fix custom role validation
+11. **#10** - Clean up retry logic
+12. **#12** - Remove duplicate step counter
+
+---
+
+## 4. Test Scenarios Results
+
+| Scenario | Result |
+|----------|--------|
+| First-time user, no data | Works, but email shows wrong value (#2) |
+| Returning user, partial data | Form data lost on return (#1), step number restored via URL |
+| User abandons mid-way, returns | All input data lost (#1), step resets to profile value |
+| User skips optional steps | Works correctly, sliders have defaults |
+| User inputs minimal data | Works, validation allows progression |
+| Complete flow end-to-end | Works visually but nothing persists to DB (#5, #6) |
+| Click "Ver Estrategia" after diagnostic | Onboarding not marked complete (#9) |
