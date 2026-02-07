@@ -1,132 +1,153 @@
 
-# Select Framework → Generate Content: Full Flow Implementation
+
+# Redesign Framework UI: Library, Selector, and Preview
 
 ## Overview
 
-This plan implements the complete stateful flow from content creation to AI text generation within SprintDetail. Currently, the "Gerar Texto com IA" button is disabled/non-functional, content uses mock data, and there's no DB persistence. We will wire everything end-to-end.
+Three UI surfaces for content frameworks, all read-only. The current `Frameworks.tsx` page must be rebuilt (it has a "Criar Framework" button and uses mock data from context). The `ContentDetailSheet.tsx` selector needs refinement. A new inline preview component is needed for content review.
 
 ## Current State
 
-- **SprintDetail.tsx** (1228 lines): Uses local `useState` with mock data. No Supabase reads/writes. The "Gerar Texto com IA" button does nothing.
-- **generate-content-text** edge function: Already exists and works -- accepts content/brand/strategy, calls Gemini-2.5-flash with tool calling, returns `{ generatedText, alternativeVersions, hashtags, estimatedReadTime }`.
-- **sprint_contents** DB table: Fully configured with `framework`, `framework_origin`, `framework_reason`, `intention`, `funnel_stage`, `suggested_cta`, `generated_text`, `status` (enum: idea/backlog/review/scheduled/completed). RLS policies exist via sprint ownership.
-- **frameworks** DB table: Has 5 seed rows (AIDA, PAS, Storytelling, Lista Numerada, Antes/Depois). Global rows have `user_id = null`, accessible to all via RLS.
+- **`Frameworks.tsx`**: Uses `useApp()` context with mock `frameworks` array. Has a creation dialog, detail dialog with "Usar Framework" button. Does NOT use `useFrameworksDB` hook (DB data).
+- **`ContentDetailSheet.tsx`**: Already has a working framework selector (cards with name, category badge, description) and a read-only locked view. Functional but missing funnel stage badge in selector cards and "suggest with AI" action.
+- **DB**: 10 frameworks with `name`, `category`, `structure[]`, `example`, `description`. No `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen` columns -- these fields only exist in the JSON prompt output, not persisted.
 
-## What Changes
+## Database Consideration
 
-### 1. Database Migration: Seed 3 Missing Frameworks
+The user's framework JSON schema includes `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen`, `toneGuidelines`, `lengthGuidelines`, `ctaGuidelines`. None of these exist as DB columns. Two options:
 
-The user's prompt defined 8 frameworks. The DB already has 5. We need to add the 3 missing ones:
-- **Story-Lesson-CTA** (storytelling)
-- **Contrarian Insight** (authority)
-- **Step-by-Step Educational** (educational)
+**Chosen approach**: Add a `metadata` jsonb column to the `frameworks` table to store these extended fields without altering the core schema. This keeps the table clean while allowing the Library page to display rich information. A migration will add the column and update existing rows with metadata.
 
-SQL migration to insert these as global seed frameworks (`user_id = null`, `is_custom = false`).
+## Changes
 
-### 2. New Hook: `useSprintContents.ts`
+### 1. Database Migration: Add `metadata` jsonb column
 
-Centralizes all sprint_contents CRUD with Supabase:
+Add `metadata` column (nullable jsonb, default `null`) to `frameworks` table. Update existing 10 rows with structured metadata containing `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen`, `toneGuidelines`, `lengthGuidelines`, `ctaGuidelines`.
 
+### 2. Update `useFrameworksDB.ts`
+
+- Add `metadata` to the SELECT query and to the `FrameworkDB` interface
+- Interface addition:
+  ```text
+  metadata: {
+    primaryGoal?: string;
+    recommendedFunnelStage?: 'tofu' | 'mofu' | 'bofu';
+    bestFor?: string[];
+    avoidWhen?: string[];
+    toneGuidelines?: string;
+    lengthGuidelines?: string;
+    ctaGuidelines?: string;
+  } | null;
+  ```
+
+### 3. Rebuild `Frameworks.tsx` (Surface 1: Frameworks Library)
+
+**Remove entirely**: Creation dialog, form state, `addFramework` call, `useApp()` dependency, `getCategoryLabel` import.
+
+**Replace with**: Read-only discovery page using `useFrameworksDB()`.
+
+**Layout**:
+- Page header: "Frameworks" (text-[28px] font-semibold) + subtitle "Guias de estrutura para seus conteudos"
+- No action buttons in header (no "Criar")
+- Filter bar: Search input (left) + Category select filter (right)
+- Grid: 3 cols desktop, 2 cols tablet, 1 col mobile, gap-6
+
+**Card structure** (each framework):
+- Top: Icon container (BookOpen, size-5, `text-violet-600`, in `bg-violet-600/10 rounded-lg h-10 w-10`) + Name (text-lg font-medium)
+- Below name: Category badge (rounded-full, existing `categoryColors` map) + Funnel stage badge (`tofu`/`mofu`/`bofu` with teal/violet/fuchsia colors)
+- Description: text-sm text-muted-foreground, line-clamp-2
+- Structure steps: Numbered list, text-xs, showing step names only (from `structure[]`), max 4 visible + "+N mais" if more
+- Footer: step count label
+- Card click opens detail dialog
+
+**Detail Dialog** (read-only, max-w-2xl):
+- Header: Icon + Name + Category badge + Funnel badge
+- Section "Objetivo": `primaryGoal` text
+- Section "Estrutura": Full numbered steps with `bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3`
+- Section "Melhor para": `bestFor[]` as chip badges
+- Section "Evitar quando": `avoidWhen[]` as chip badges (rose tint)
+- Section "Exemplo": Blockquote style, italic, with Copy button
+- Section "Diretrizes": Tone + Length + CTA guidelines in compact format
+- Footer: single "Fechar" button (no "Usar Framework")
+
+**States**:
+- Loading: 6 skeleton cards (h-[260px])
+- Empty (no results): Standard empty state with Search icon, "Nenhum framework encontrado", subtitle about adjusting filters
+- Error: Not needed (silent fallback to empty array)
+
+### 4. Refine `ContentDetailSheet.tsx` (Surface 2: Framework Selector)
+
+Minor refinements to the existing selector within the Sheet:
+
+**Selector cards** (already exist, lines 319-345):
+- Add funnel stage badge next to category badge
+- Keep: name, category, description (short)
+- Do NOT add steps or examples (per spec: "Do NOT show full steps or long examples")
+
+**Add "Sugerir com IA" button**:
+- Placed above the framework list, after the warning banner
+- Button: `variant="outline"`, Sparkles icon, "Sugerir Framework com IA"
+- On click: sets `frameworkOrigin` to `'ai'` and auto-selects the first framework as placeholder (simulated suggestion with toast "Sugestao de framework pela IA")
+- Gate: disabled if `!aiAllowed`, shows PlanBadge
+
+**No other changes** to the confirmed/locked state (Surface 3 handles the preview).
+
+### 5. New Component: `FrameworkPreview.tsx` (Surface 3: Read-Only Preview)
+
+**Location**: `src/components/sprint/FrameworkPreview.tsx`
+
+**Purpose**: Inline read-only execution guide shown inside `ContentDetailSheet` when framework is confirmed.
+
+**This replaces** the current inline framework display (lines 235-299 in ContentDetailSheet) with a dedicated component.
+
+**Layout**:
+- Container: `rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4`
+- Header row: Framework name (font-medium) + Origin badge (AI/Manual) + Lock icon
+- Numbered steps: Each step in its own row with `text-primary font-mono` number + step text (text-sm)
+- No edit affordance on steps (no hover, no cursor-pointer, no icons suggesting editability)
+- Footer: "Trocar Framework" button (outline, RefreshCw icon)
+  - If `generatedText` exists, label becomes "Trocar Framework (limpa texto gerado)"
+  - On click: clears framework + generated text, resets status to idea
+
+**Props**:
 ```text
-Functions:
-- loadContents(sprintId) -> SprintContent[]
-- createContent(sprintId, data) -> SprintContent (saves with status 'idea')
-- updateContent(id, updates) -> void
-- deleteContent(id) -> void
-- generateText(contentId) -> { generatedText, alternatives, hashtags }
+interface FrameworkPreviewProps {
+  frameworkName: string;
+  frameworkOrigin: 'ai' | 'manual' | null;
+  frameworkReason?: string;
+  structure: string[] | null;
+  hasGeneratedText: boolean;
+  onChangeFramework: () => void;
+  onClearFrameworkAndText: () => void;
+}
 ```
 
-The `generateText` function:
-1. Validates framework is set (throws if not)
-2. Loads brand and strategy from context/DB
-3. Calls `generate-content-text` edge function via `supabase.functions.invoke`
-4. Persists `generated_text` to the row
-5. Updates status from 'idea' to 'review'
-6. Returns the AI result
+**States**:
+- Default: shows name, steps, origin badge
+- With generated text: "Trocar" button shows destructive warning label
+- Disabled: N/A (this is always read-only display)
 
-### 3. New Hook: `useFrameworksDB.ts`
+### 6. Update `ContentDetailSheet.tsx` to use `FrameworkPreview`
 
-Loads frameworks from DB instead of the hardcoded `contentFrameworks` array:
+Replace the inline framework display block (lines 234-299) with `<FrameworkPreview />` component. Pass the relevant props from existing local state.
 
-```text
-Functions:
-- loadFrameworks() -> Framework[] (from DB, both global and user's custom)
-- cached in state, loaded once
-```
-
-### 4. Refactor `SprintDetail.tsx`
-
-Major changes to make the page stateful and DB-connected:
-
-**A. Replace mock data with DB reads:**
-- On mount, call `loadContents(sprintId)` to fetch real `sprint_contents` rows
-- Load frameworks from DB via `useFrameworksDB`
-- Show loading skeleton during fetch
-
-**B. Wire CRUD to DB:**
-- `handleAddContent` -> inserts row via `createContent` with status `idea`
-- `handleSaveContent` -> calls `updateContent`
-- `handleDelete` -> calls `deleteContent`
-- `handleStatusChange`, `handleDateChange`, `handleFormatChange` -> call `updateContent`
-
-**C. Enforce framework-first rule in ContentDetailSheet:**
-- When framework is empty/null, show mandatory framework selection (no other fields visible)
-- Once framework is confirmed, lock the structure display (read-only)
-- Only `intention`, `funnel_stage`, and `suggested_cta` remain editable below the locked framework
-- "Gerar Texto com IA" button becomes active only when framework is confirmed
-
-**D. Wire "Gerar Texto com IA" button:**
-- Calls `generateText(contentId)` from the hook
-- Shows loading state with spinner
-- On success: displays generated text in a new section within the Sheet
-- Updates content status to 'review' locally and in DB
-- Handles 429/402 errors with toast messages
-
-**E. Generated text section in ContentDetailSheet:**
-- Read-only textarea showing `generated_text`
-- "Copiar" button to clipboard
-- "Regenerar" button to call generateText again
-- "Trocar Framework" button that clears generated_text and re-opens framework selection
-
-### 5. Update Edge Function Prompt
-
-Enhance `generate-content-text/index.ts` to use the framework's `structure` steps from the DB row instead of just the framework name string. The content's `framework` field stores the framework name/id -- the edge function will receive the full framework structure from the frontend.
-
-Update the request body to accept `frameworkStructure` (the steps array) in addition to the existing `framework` (name).
-
-## File Changes Summary
+## Files Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/hooks/useSprintContents.ts` | CREATE | CRUD + AI generation for sprint_contents via Supabase |
-| `src/hooks/useFrameworksDB.ts` | CREATE | Load frameworks from DB |
-| `src/pages/SprintDetail.tsx` | MODIFY | Replace mock data with DB, wire CRUD, enforce framework-first, wire AI generation, display generated text |
-| `supabase/functions/generate-content-text/index.ts` | MODIFY | Accept `frameworkStructure` array for richer prompt assembly |
-| Migration SQL | CREATE | Seed 3 missing framework rows |
-
-## State Machine (Content Lifecycle)
-
-```text
-[Create] -> status: "idea", framework: null
-    |
-[Select Framework] -> framework: set, frameworkOrigin: "manual"
-    |
-[Adjust intention/funnel/CTA] -> editable fields only
-    |
-[Generate Text] -> AI call -> generated_text populated, status: "review"
-    |
-[Review] -> user can edit text, regenerate, or change framework
-    |         (changing framework clears generated_text, resets to "idea")
-    |
-[Schedule/Complete] -> manual status change
-```
+| Migration SQL | CREATE | Add `metadata` jsonb column, seed extended data for 10 frameworks |
+| `src/hooks/useFrameworksDB.ts` | MODIFY | Add `metadata` to SELECT and interface |
+| `src/pages/Frameworks.tsx` | REWRITE | Read-only library with DB data, detail dialog, no creation |
+| `src/components/sprint/FrameworkPreview.tsx` | CREATE | Reusable read-only framework execution guide |
+| `src/components/sprint/ContentDetailSheet.tsx` | MODIFY | Use FrameworkPreview, add AI suggest button, add funnel badge to selector |
 
 ## What Will NOT Change
 
-- No new pages or routes
-- No changes to existing edge functions except `generate-content-text`
+- No new routes (Frameworks is already at `/content-lab/frameworks`)
+- No changes to `useSprintContents.ts`
+- No changes to edge functions
 - No changes to AppContext
-- No schema changes to `sprint_contents` table (all columns already exist)
-- No changes to RLS policies
-- Frameworks page (`Frameworks.tsx`) remains unchanged
-- UI design system fully preserved (Shadcn, Tailwind, zinc palette, dark/light mode)
+- No changes to types/index.ts
+- No RLS policy changes
+- No changes to navigation/sidebar
+
