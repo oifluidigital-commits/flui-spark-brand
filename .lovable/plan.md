@@ -1,250 +1,180 @@
 
-# QA Report: Flui Onboarding Wizard
+# Plano: Limpeza de Mock Data Apos Autenticacao
+
+## Problema Atual
+
+O `AppContext` inicializa todos os estados com mock data (`mockUser`, `mockBrand`, `mockSprints`, `mockIdeas`, `mockFrameworks`, `mockTrends`) independentemente do estado de autenticacao. Isso significa que usuarios autenticados veem dados falsos misturados com dados reais. Alem disso, paginas como `Profile.tsx` importam `mockActivities` diretamente.
 
 ---
 
-## 1. Issues Found
+## Solucao
+
+Quando `isAuthenticated` muda de `false` para `true`, limpar todos os arrays e objetos mock, renderizando a UI exclusivamente com dados reais do usuario (vindos do perfil, diagnostico e estrategia).
 
 ---
 
-### ISSUE #1: Form data is lost on page refresh/reload
-- **Step/Screen:** All steps (1-7)
-- **Description:** `formData` is stored in React state (`useState`) with `initialFormData` defaults. If the user refreshes the browser at step 5, all data from steps 1-4 is erased. The `?step=5` URL param restores the step number, but the inputs are empty.
-- **Why this is a problem:** User loses all progress. They must re-fill everything from scratch, which causes abandonment.
+## Alteracoes por Arquivo
 
-**Impact Level:** CRITICAL
+### 1. `src/contexts/AppContext.tsx`
 
-**Correction Proposal:**
-- Persist `formData` to `localStorage` on every update (via `useEffect` or within `updateFormData`)
-- On mount, read from `localStorage` to restore state
-- Clear `localStorage` after successful diagnostic generation
+**O que muda:**
+- Inicializar `sprints`, `ideas`, `frameworks`, `trends` como arrays vazios `[]`
+- Inicializar `brand` como `null` (alterar tipo para `Brand | null`)
+- Remover imports de mock data (exceto helpers como `getStatusLabel`, `formatDatePTBR`)
+- Inicializar `user` com um objeto vazio padrao (sem dados de "Pedro Meira")
+- Adicionar `useEffect` que, quando `auth.profile` e detectado, popula `user` exclusivamente com dados do perfil
+- Quando `diagnosticResult` e `strategy` existem no contexto, derivar `brand` a partir da estrategia (tom de voz, pilares, posicionamento)
 
-**Validation Checklist:**
-- [ ] Fill steps 1-4, refresh page, verify data is restored
-- [ ] Complete wizard, verify localStorage is cleared
-- [ ] Open in new tab, verify data is available
+**Novo fluxo de estado:**
+```text
+Auth detectado
+  -> Perfil carregado do Supabase
+  -> user = dados do perfil
+  -> sprints = [] (vazio ate carregar do DB)
+  -> ideas = [] (vazio ate carregar do DB)
+  -> brand = null (ate derivar da estrategia)
+  -> strategy = carregada do cache/DB
+```
 
----
+### 2. `src/pages/Dashboard.tsx`
 
-### ISSUE #2: Hardcoded email in initialFormData
-- **Step/Screen:** Step 1 (Account Identity)
-- **Description:** `initialFormData` has `email: 'pedro@flui.app'` hardcoded. This email is displayed in the read-only email field regardless of who is logged in.
-- **Why this is a problem:** The authenticated user's real email is never used. The wrong email is shown and potentially sent to the AI diagnostic function.
+**O que muda:**
+- Remover `suggestedIdeas` hardcoded
+- Quando `sprints` esta vazio, mostrar empty state com CTA "Completar diagnostico" (se onboarding nao completo) ou "Criar Sprint" (se completo)
+- Quando `ideas` esta vazio, mostrar empty state educativo
+- Adicionar Skeleton loading state inicial (exibido enquanto `isAuthLoading` e `true`)
 
-**Impact Level:** CRITICAL
+### 3. `src/pages/Brand.tsx`
 
-**Correction Proposal:**
-- Set `initialFormData.email` to `''`
-- In `Onboarding.tsx`, populate `formData.email` from the authenticated user's profile on mount: `updateFormData({ email: profile?.email || '' })`
+**O que muda:**
+- Verificar se `brand` e `null`
+- Se `null` e onboarding nao completo: empty state com CTA "Completar diagnostico"
+- Se `null` e onboarding completo mas estrategia nao gerada: empty state com CTA "Gerar estrategia"
+- Se `brand` existe (derivado da estrategia): renderizar normalmente
+- Adicionar Skeleton loading durante carregamento
 
-**Validation Checklist:**
-- [ ] Login with a real account, verify the correct email appears in Step 1
-- [ ] Verify the email sent to `generate-diagnostic` is accurate
+### 4. `src/pages/Profile.tsx`
 
----
+**O que muda:**
+- Remover import direto de `mockActivities`
+- Substituir secao de atividades por empty state: "Nenhuma atividade registrada ainda"
+- Dados do perfil (nome, email, empresa, cargo) ja vem do `user` do contexto (que agora reflete o perfil real)
 
-### ISSUE #3: "Pular e ir para o dashboard" skips onboarding but does NOT persist profile name to database
-- **Step/Screen:** All steps (skip button)
-- **Description:** `handleSkipOnboarding` updates the local `user` state with `formData.name` and navigates to `/dashboard`, but never calls Supabase to update the `profiles` table. On next login/refresh, the name reverts to the DB value.
-- **Why this is a problem:** User thinks they saved their name but it's lost on reload.
+### 5. `src/pages/Strategy.tsx`
 
-**Impact Level:** HIGH
+**O que muda:**
+- Remover fallback para `mockStrategy` (linha 82)
+- Quando nao ha `diagnosticResult` e nao ha `cachedStrategy`, exibir empty state com CTA "Completar diagnostico"
+- Remover import de `mockStrategy`
 
-**Correction Proposal:**
-- Call `supabase.from('profiles').update({ name: formData.name, onboarding_status: 'in_progress', onboarding_step: currentStep }).eq('user_id', user.id)` before navigating
+### 6. `src/pages/SprintDetail.tsx`
 
-**Validation Checklist:**
-- [ ] Skip onboarding after entering name, refresh, verify name persists
-- [ ] Verify `onboarding_step` is correctly saved in DB
+**O que muda:**
+- Remover fallback para `mockSprints` (linha 836)
+- Remover import de `mockPillars` e `mockSprints`
+- Se sprint nao encontrado, exibir estado de "Sprint nao encontrado" com link para voltar
 
----
+### 7. `src/hooks/useTrends.ts`
 
-### ISSUE #4: handleFinishOnboarding sets onboardingStep to hardcoded 4 instead of 7
-- **Step/Screen:** Results page (after diagnostic)
-- **Description:** Line 176 in `Onboarding.tsx`: `onboardingStep: 4`. After completing all 7 steps and generating a diagnostic, the step is set to 4. This breaks the OnboardingProgressCard logic on the dashboard if the user returns.
-- **Why this is a problem:** Data inconsistency. The user completed 7 steps but the system records 4.
+**O que muda:**
+- Remover import e uso de `mockStrategy`
+- Usar a estrategia real do `AppContext` como parametro para a edge function
 
-**Impact Level:** HIGH
+### 8. `src/data/mockData.ts`
 
-**Correction Proposal:**
-- Change to `onboardingStep: 7` (or `stepConfig.length`)
-- Also persist this to the database via Supabase update
+**O que muda:**
+- Manter apenas os helpers utilitarios (`getStatusLabel`, `formatDatePTBR`, `getRemainingCredits`, `getCreditPercentage`)
+- Manter `mockPricingPlans` (dados estaticos de planos, nao sao user-scoped)
+- Remover `mockUser`, `mockBrand`, `mockSprints`, `mockIdeas`, `mockFrameworks`, `mockTrends`, `mockActivities`, `mockPillars`
+- Renomear arquivo para `src/data/helpers.ts` ou manter com conteudo reduzido
 
-**Validation Checklist:**
-- [ ] Complete wizard, verify profile shows step 7 and status "completed"
-- [ ] Check OnboardingProgressCard renders correctly after completion
+### 9. `src/data/strategyData.ts`
 
----
-
-### ISSUE #5: Onboarding completion is NOT persisted to the database
-- **Step/Screen:** Results page
-- **Description:** `handleFinishOnboarding` and `completeOnboarding` only update local React state. Neither writes `onboarding_status: 'completed'` to the `profiles` table. On next login, the user is redirected back to `/onboarding` because the DB still has `not_started` or `in_progress`.
-- **Why this is a problem:** The user can never permanently complete onboarding. Every login loops them back.
-
-**Impact Level:** CRITICAL
-
-**Correction Proposal:**
-- In `handleFinishOnboarding`, call `supabase.from('profiles').update({ onboarding_status: 'completed', onboarding_step: 7 }).eq('user_id', user.id)`
-- Refresh the auth profile after the update
-
-**Validation Checklist:**
-- [ ] Complete wizard, logout, login again, verify redirect goes to `/dashboard`
-- [ ] Check `profiles` table in DB has `onboarding_status = 'completed'`
+**O que muda:**
+- Remover `mockStrategy`
+- Manter apenas a interface/tipo `Strategy`
 
 ---
 
-### ISSUE #6: Diagnostic result is NOT persisted to the database
-- **Step/Screen:** Diagnostic Loading / Results
-- **Description:** The AI-generated diagnostic is stored only in React state (`localDiagnosticResult` and `diagnosticResult` in AppContext). The `diagnostics` table exists in the DB schema but is never written to. On page refresh or next session, the diagnostic is lost.
-- **Why this is a problem:** The diagnostic (which costs AI credits) must be regenerated every time. The Strategy page depends on `diagnosticResult` from AppContext which is empty on fresh loads.
+## Derivacao de Brand a partir da Estrategia
 
-**Impact Level:** CRITICAL
+Quando a estrategia e gerada pela IA, ela contem dados que alimentam o Brand Hub:
 
-**Correction Proposal:**
-- After successful diagnostic generation, insert into `diagnostics` table with `user_id`, result JSON, and metadata
-- On app load (or Strategy page load), fetch the diagnostic from the DB if AppContext is empty
+```text
+strategy.contentPillars -> brand.pillars
+strategy.guidelines -> brand.voice.tone
+strategy.diagnosticSummary.brandArchetype -> brand.voice.personality
+strategy.strategicGoal -> brand.positioning.valueProposition
+```
 
-**Validation Checklist:**
-- [ ] Complete diagnostic, refresh, verify diagnostic data loads from DB
-- [ ] Navigate to /strategy after refresh, verify it can load the diagnostic
+Um `useEffect` no `AppContext` ira derivar `brand` automaticamente quando `strategy` mudar.
 
 ---
 
-### ISSUE #7: Step 2 role validation allows "custom" without customRole text
-- **Step/Screen:** Step 2 (Role and Experience)
-- **Description:** The `isStepValid` check for step 2 is `formData.role !== ''`. When the user types a search query and selects the custom option, `role` is set to `'custom'` and `customRole` to the text. However, the validation does NOT check that `customRole` is non-empty when `role === 'custom'`. If somehow `customRole` is cleared after selection, the user can proceed with an empty custom role.
-- **Why this is a problem:** Edge case where empty role data is sent to AI.
+## Empty States (Obrigatorios)
 
-**Impact Level:** MEDIUM
+Cada pagina deve ter um empty state educativo com:
+- Icone ilustrativo
+- Titulo explicativo
+- Descricao do que aquela secao faz
+- CTA principal (ex: "Completar diagnostico" ou "Criar Sprint")
 
-**Correction Proposal:**
-- Update validation: `return formData.role !== '' && (formData.role !== 'custom' || formData.customRole.trim().length > 0)`
-
-**Validation Checklist:**
-- [ ] Select custom role, clear text, verify "Continuar" is disabled
+Nenhum estado silencioso ou vazio sem orientacao.
 
 ---
 
-### ISSUE #8: Challenges custom text is NOT sent to the edge function
-- **Step/Screen:** Step 6 / Diagnostic Generation
-- **Description:** In `useDiagnostic.ts` line 33, challenges are filtered with `.filter(c => c !== 'other')` but `formData.customChallenge` is never included in the payload sent to the edge function. The custom challenge text is collected but discarded.
-- **Why this is a problem:** User provides specific challenge info that the AI never receives.
+## Skeleton States
 
-**Impact Level:** HIGH
-
-**Correction Proposal:**
-- Add `customChallenge` to the prepared data: `challenges: [...formData.challenges.filter(c => c !== 'other'), ...(formData.customChallenge.trim() ? [formData.customChallenge.trim()] : [])]`
-
-**Validation Checklist:**
-- [ ] Select "Outro" challenge, type custom text, verify it appears in the edge function request body
+Apos login, todas as paginas protegidas devem exibir `Skeleton` components enquanto o perfil e carregado. Isso ja e parcialmente implementado via `isAuthLoading` no `App.tsx`, mas deve ser replicado dentro de cada pagina para secoes especificas (cards, listas, etc).
 
 ---
 
-### ISSUE #9: "Ver minha Estrategia Editorial" button navigates away without completing onboarding
-- **Step/Screen:** DiagnosticResults.tsx (CTA section)
-- **Description:** The "Ver minha Estrategia Editorial" button calls `navigate('/strategy')` directly (line 227) without calling `onComplete` (which triggers `handleFinishOnboarding`). The user leaves the onboarding flow without marking it as completed. The "Ir para o Dashboard" button does call `onComplete`.
-- **Why this is a problem:** If the user clicks "Ver Estrategia", `onboarding_status` is never set to `completed`. On next login they are redirected back to onboarding.
+## Secao Tecnica
 
-**Impact Level:** CRITICAL
+### Tipo Brand alterado
 
-**Correction Proposal:**
-- Modify the "Ver Estrategia" button to first call `onComplete()` and then navigate, or modify `onComplete` to accept a redirect path
+```typescript
+// AppContext
+brand: Brand | null
+setBrand: React.Dispatch<React.SetStateAction<Brand | null>>
+```
 
-**Validation Checklist:**
-- [ ] Click "Ver minha Estrategia Editorial", verify onboarding is marked completed
-- [ ] Logout, login again, verify user goes to dashboard (not onboarding)
+### Default User (sem mock)
 
----
+```typescript
+const defaultUser: User = {
+  id: '',
+  name: '',
+  email: '',
+  onboardingStatus: 'not_started',
+  onboardingStep: 0,
+  plan: 'free',
+  aiCredits: { total: 0, used: 0 },
+  createdAt: new Date().toISOString(),
+};
+```
 
-### ISSUE #10: DiagnosticLoading retry does NOT reset hasStarted ref properly
-- **Step/Screen:** Diagnostic Loading (error state)
-- **Description:** In `handleRetry` (line 71-84), `hasStarted.current` is set to `false`, but `generateDiagnostic` is called directly in the same function without going through the `useEffect`. This means the `useEffect` could re-fire on a re-render and cause a double invocation. The logic is inconsistent between the initial call (via useEffect) and retry (direct call).
-- **Why this is a problem:** Potential double API call wasting AI credits.
+### Arquivos afetados
 
-**Impact Level:** MEDIUM
+| Arquivo | Acao |
+|---------|------|
+| `src/contexts/AppContext.tsx` | Remover mocks, inicializar vazio |
+| `src/pages/Dashboard.tsx` | Empty states + skeleton |
+| `src/pages/Brand.tsx` | Null check + empty state |
+| `src/pages/Profile.tsx` | Remover mockActivities |
+| `src/pages/Strategy.tsx` | Remover mockStrategy fallback |
+| `src/pages/SprintDetail.tsx` | Remover mock fallbacks |
+| `src/hooks/useTrends.ts` | Usar estrategia real |
+| `src/data/mockData.ts` | Limpar mocks, manter helpers |
+| `src/data/strategyData.ts` | Remover mockStrategy |
 
-**Correction Proposal:**
-- Either always call via useEffect (set a trigger state), or remove the useEffect pattern entirely and trigger on mount via a different mechanism. The simplest fix: do NOT set `hasStarted.current = false` in `handleRetry` since the retry calls directly.
+### Ordem de execucao
 
-**Validation Checklist:**
-- [ ] Simulate error, click retry, verify only one API call is made (check network tab)
-
----
-
-### ISSUE #11: Step 1 does NOT pre-populate name from authenticated profile
-- **Step/Screen:** Step 1 (Account Identity)
-- **Description:** `initialFormData.name` is `''`. The user already has a `name` in their `profiles` record (set by the `handle_new_user` trigger). This existing name is not loaded into the form.
-- **Why this is a problem:** User has to re-type their name even though the system already knows it.
-
-**Impact Level:** MEDIUM
-
-**Correction Proposal:**
-- In `Onboarding.tsx`, on mount, populate `formData.name` and `formData.email` from the authenticated profile
-
-**Validation Checklist:**
-- [ ] Sign up with a name, navigate to onboarding, verify name is pre-filled in Step 1
-
----
-
-### ISSUE #12: Progress bar shows 0% on Step 1
-- **Step/Screen:** OnboardingProgress component
-- **Description:** Progress formula is `((currentStep - 1) / (totalSteps - 1)) * 100`. On step 1, this is `0 / 6 = 0%`. The user sees "0% concluido" before they've done anything, which is correct, but the step 1 indicator is highlighted as "current" while showing 0% -- this is fine UX but duplicated at the bottom ("Passo 1 de 7").
-- **Why this is a problem:** Minor redundancy. Two places show step count.
-
-**Impact Level:** LOW
-
-**Correction Proposal:**
-- Remove the "Passo X de Y" text at the bottom of the page (line 286) since the progress bar already shows this info
-
-**Validation Checklist:**
-- [ ] Verify no duplicate step indicators
-
----
-
-## 2. Summary Table
-
-| # | Issue | Impact | Category |
-|---|-------|--------|----------|
-| 1 | Form data lost on refresh | CRITICAL | Data Persistence |
-| 2 | Hardcoded email | CRITICAL | Data Integrity |
-| 3 | Skip button doesn't persist to DB | HIGH | Data Persistence |
-| 4 | Hardcoded step 4 on completion | HIGH | Logic Error |
-| 5 | Onboarding status not persisted to DB | CRITICAL | Data Persistence |
-| 6 | Diagnostic result not persisted to DB | CRITICAL | Data Persistence |
-| 7 | Custom role validation gap | MEDIUM | Validation |
-| 8 | Custom challenge not sent to AI | HIGH | Data Loss |
-| 9 | "Ver Estrategia" skips onComplete | CRITICAL | Flow Logic |
-| 10 | Retry may double-fire | MEDIUM | Edge Case |
-| 11 | Name not pre-populated from profile | MEDIUM | UX Friction |
-| 12 | Duplicate step counter | LOW | Polish |
-
----
-
-## 3. Priority Order for Fixes
-
-1. **#5** - Persist onboarding completion to DB (blocks all returning users)
-2. **#9** - Fix "Ver Estrategia" to call onComplete (breaks completion flow)
-3. **#2** - Replace hardcoded email with real user email
-4. **#6** - Persist diagnostic result to DB (prevents credit waste)
-5. **#1** - Add localStorage persistence for form data
-6. **#8** - Include customChallenge in AI payload
-7. **#4** - Fix hardcoded step number
-8. **#3** - Persist skip action to DB
-9. **#11** - Pre-populate name from profile
-10. **#7** - Fix custom role validation
-11. **#10** - Clean up retry logic
-12. **#12** - Remove duplicate step counter
-
----
-
-## 4. Test Scenarios Results
-
-| Scenario | Result |
-|----------|--------|
-| First-time user, no data | Works, but email shows wrong value (#2) |
-| Returning user, partial data | Form data lost on return (#1), step number restored via URL |
-| User abandons mid-way, returns | All input data lost (#1), step resets to profile value |
-| User skips optional steps | Works correctly, sliders have defaults |
-| User inputs minimal data | Works, validation allows progression |
-| Complete flow end-to-end | Works visually but nothing persists to DB (#5, #6) |
-| Click "Ver Estrategia" after diagnostic | Onboarding not marked complete (#9) |
+1. Limpar `mockData.ts` e `strategyData.ts` (remover objetos mock)
+2. Refatorar `AppContext.tsx` (inicializar vazio, derivar brand)
+3. Atualizar `Dashboard.tsx` (empty states + skeleton)
+4. Atualizar `Brand.tsx` (null check + empty state)
+5. Atualizar `Profile.tsx` (remover mockActivities)
+6. Atualizar `Strategy.tsx` (remover fallback mock)
+7. Atualizar `SprintDetail.tsx` (remover mock fallback)
+8. Atualizar `useTrends.ts` (usar estrategia real)
