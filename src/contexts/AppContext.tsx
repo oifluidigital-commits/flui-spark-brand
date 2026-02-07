@@ -33,8 +33,10 @@ interface AppContextType {
   // Auth profile from Supabase
   profile: Profile | null;
   isAuthLoading: boolean;
+  needsNameCollection: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (userId: string, updates: Partial<Profile>) => Promise<boolean>;
   
   // Brand state
   brand: Brand | null;
@@ -229,8 +231,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated,
         profile: auth.profile,
         isAuthLoading: auth.isLoading,
+        needsNameCollection: auth.needsNameCollection,
         signOut: auth.signOut,
         refreshProfile: auth.refreshProfile,
+        updateProfile: auth.updateProfile,
         brand,
         setBrand,
         diagnosticResult,

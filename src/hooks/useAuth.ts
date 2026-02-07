@@ -266,6 +266,9 @@ export function useAuth() {
     }
   }, [state.user, fetchProfile]);
 
+  // Derived state: user needs to provide their name
+  const needsNameCollection = !!state.session && !!state.profile && (!state.profile.name || state.profile.name.trim() === '');
+
   return {
     // State
     user: state.user,
@@ -274,6 +277,7 @@ export function useAuth() {
     isLoading: state.isLoading,
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.session,
+    needsNameCollection,
 
     // Methods
     signInWithEmail,
