@@ -105,31 +105,34 @@
    '/privacy-policy': 'privacy',
  };
  
- export function TopNavigation() {
-   const { user, setIsAuthenticated } = useApp();
-   const navigate = useNavigate();
-   const location = useLocation();
-   const { toast } = useToast();
-   
-   // Derive active menu item from current route
-   const [activeMenuItem, setActiveMenuItem] = useState<string>(() => {
-     return routeToMenuItem[location.pathname] || 'diagnostico';
-   });
-   
-   // Update active menu item when route changes
-   useEffect(() => {
-     const menuItem = routeToMenuItem[location.pathname];
-     if (menuItem) {
-       setActiveMenuItem(menuItem);
-     }
-   }, [location.pathname]);
-   
-   // Derive diagnostic status from user context
-   const diagnosticStatus = user.onboardingStatus === 'completed' ? 'concluido' : 'em_andamento';
-   
-   // AI Credits
-   const remainingCredits = getRemainingCredits(user);
-   const creditPercentage = getCreditPercentage(user);
+export function TopNavigation() {
+  const { user, signOut } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  
+  // Check if onboarding is complete to enable/disable navigation
+  const isOnboardingComplete = user.onboardingStatus === 'completed';
+  
+  // Derive active menu item from current route
+  const [activeMenuItem, setActiveMenuItem] = useState<string>(() => {
+    return routeToMenuItem[location.pathname] || 'diagnostico';
+  });
+  
+  // Update active menu item when route changes
+  useEffect(() => {
+    const menuItem = routeToMenuItem[location.pathname];
+    if (menuItem) {
+      setActiveMenuItem(menuItem);
+    }
+  }, [location.pathname]);
+  
+  // Derive diagnostic status from user context
+  const diagnosticStatus = user.onboardingStatus === 'completed' ? 'concluido' : 'em_andamento';
+  
+  // AI Credits
+  const remainingCredits = getRemainingCredits(user);
+  const creditPercentage = getCreditPercentage(user);
  
    // Mobile drawer state
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,11 +157,11 @@
      }
    };
    
-   // Handle logout (visual only)
-   const handleLogout = () => {
-     setIsAuthenticated(false);
-   };
-   
+  // Handle logout
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
    return (
      <header className="h-16 bg-card border-b border-border fixed top-0 left-0 right-0 z-50">
        <div className="h-full max-w-full mx-auto px-4 md:px-6 flex items-center justify-between">
@@ -167,16 +170,19 @@
            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
              <span className="text-primary-foreground font-bold text-sm">F</span>
            </div>
-             <button 
-               onClick={() => navigate('/dashboard')}
-               className="font-semibold text-foreground text-lg hidden sm:inline hover:text-primary transition-colors"
-             >
+              <button 
+                onClick={() => isOnboardingComplete && navigate('/dashboard')}
+                className={cn(
+                  "font-semibold text-foreground text-lg hidden sm:inline transition-colors",
+                  isOnboardingComplete ? "hover:text-primary cursor-pointer" : "cursor-default"
+                )}
+              >
                Flui
              </button>
          </div>
          
          {/* CENTER: Desktop Horizontal Menu */}
-         <nav className="hidden lg:flex items-center gap-1">
+         <nav className={cn("hidden lg:flex items-center gap-1", !isOnboardingComplete && "pointer-events-none opacity-50")}>
            {menuItems.map((item) => {
              const Icon = item.icon;
              const isActive = activeMenuItem === item.id;
@@ -353,7 +359,7 @@
                  </div>
  
                {/* Mobile Menu Items */}
-               <nav className="flex flex-col gap-1">
+               <nav className={cn("flex flex-col gap-1", !isOnboardingComplete && "pointer-events-none opacity-50")}>
                  {menuItems.map((item) => {
                    const Icon = item.icon;
                    const isActive = activeMenuItem === item.id;

@@ -47,7 +47,9 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isInitialized && isAuthenticated && profile) {
-      if (profile.onboarding_status === 'completed') {
+      if (!profile.name || profile.name.trim() === '') {
+        navigate('/complete-profile', { replace: true });
+      } else if (profile.onboarding_status === 'completed') {
         navigate('/dashboard', { replace: true });
       } else {
         navigate('/onboarding', { replace: true });
