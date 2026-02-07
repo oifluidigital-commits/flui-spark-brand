@@ -149,14 +149,14 @@ const InlineDatePicker = ({ value, onChange, isOverdue }: { value?: string; onCh
   );
 };
 
-const EmptyContentsState = ({ onAddContent, aiAllowed }: { onAddContent: () => void; aiAllowed: boolean }) => (
+const EmptyContentsState = ({ onAddContent, aiAllowed, onGenerateSuggestions }: { onAddContent: () => void; aiAllowed: boolean; onGenerateSuggestions: () => void }) => (
   <div className="text-center py-16 border border-dashed border-border rounded-lg">
     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
     <h3 className="text-lg font-medium text-foreground mb-2">Nenhum conteúdo nesta Sprint</h3>
     <p className="text-muted-foreground mb-6 max-w-md mx-auto">Comece adicionando conteúdos manualmente ou deixe a IA sugerir baseado no objetivo da Sprint.</p>
     <div className="flex items-center justify-center gap-3">
       <Button onClick={onAddContent}><Plus className="h-4 w-4 mr-2" />Adicionar Conteúdo</Button>
-      <Button variant="outline" disabled={!aiAllowed}>
+      <Button variant="outline" disabled={!aiAllowed} onClick={onGenerateSuggestions}>
         <Sparkles className="h-4 w-4 mr-2" />Gerar Sugestões IA
         {!aiAllowed && <PlanBadge requiredPlan="pro" />}
       </Button>
@@ -267,6 +267,46 @@ export default function SprintDetail() {
     if (item) handleEdit(item);
   };
 
+  const handleGenerateSuggestions = async () => {
+    if (!sprintId || !sprint) return;
+
+    if (userGate.contentCredits < CREDIT_COST) {
+      toast({ title: 'Créditos insuficientes', description: 'Você não tem créditos suficientes para gerar sugestões.', variant: 'destructive' });
+      return;
+    }
+
+    const mockSuggestions = [
+      { title: `${sprint.title} — Visão geral`, format: 'post-linkedin-text', hook: 'Você sabia que...', intention: 'educate' as const, suggested_cta: 'Salve para depois' },
+      { title: `${sprint.title} — Dicas práticas`, format: 'post-linkedin-carousel', hook: '5 dicas que você precisa conhecer:', intention: 'educate' as const, suggested_cta: 'Compartilhe com alguém' },
+      { title: `${sprint.title} — Bastidores`, format: 'post-linkedin-text', hook: 'O que ninguém te conta sobre...', intention: 'engage' as const, suggested_cta: 'Comente sua experiência' },
+      { title: `${sprint.title} — Case de sucesso`, format: 'article', hook: 'Resultados reais:', intention: 'convert' as const, suggested_cta: 'Agende uma conversa' },
+    ];
+
+    let created = 0;
+    for (const s of mockSuggestions) {
+      const item = await createContent({
+        title: s.title,
+        format: s.format,
+        description: s.hook,
+      });
+      if (item) {
+        await updateContent(item.id, {
+          hook: s.hook,
+          intention: s.intention,
+          suggested_cta: s.suggested_cta,
+        });
+        created++;
+      }
+    }
+
+    if (created > 0) {
+      toast({ title: `${created} sugestões criadas com sucesso!` });
+      await loadContents();
+    } else {
+      toast({ title: 'Erro ao gerar sugestões', description: 'Nenhum conteúdo pôde ser criado. Verifique se a sprint existe no banco de dados.', variant: 'destructive' });
+    }
+  };
+
   const handleSheetSave = async (updates: Record<string, unknown>) => {
     if (!editingContent) return;
     await updateContent(editingContent.id, updates as any);
@@ -365,7 +405,7 @@ export default function SprintDetail() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button onClick={handleAddContent}><Plus className="h-4 w-4 mr-2" />Adicionar Conteúdo</Button>
-              <Button variant="outline" disabled={!aiGate.allowed}>
+              <Button variant="outline" disabled={!aiGate.allowed} onClick={handleGenerateSuggestions}>
                 <Sparkles className="h-4 w-4 mr-2" />Gerar Sugestões IA
                 {!aiGate.allowed && <PlanBadge requiredPlan="pro" />}
               </Button>
@@ -383,7 +423,7 @@ export default function SprintDetail() {
 
           {/* Content Table or Empty State */}
           {contents.length === 0 ? (
-            <EmptyContentsState onAddContent={handleAddContent} aiAllowed={aiGate.allowed} />
+            <EmptyContentsState onAddContent={handleAddContent} aiAllowed={aiGate.allowed} onGenerateSuggestions={handleGenerateSuggestions} />
           ) : (
             <div className="border border-border rounded-lg overflow-hidden">
               <Table>
