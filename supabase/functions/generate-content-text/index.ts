@@ -1,13 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, authenticateRequest, sanitizeString } from "../_shared/auth.ts";
 
+const CREDIT_COST = 10;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let supabaseClient: ReturnType<typeof import("https://esm.sh/@supabase/supabase-js@2").createClient> | null = null;
+  let userId: string | null = null;
+
   try {
-    const { user } = await authenticateRequest(req);
+    const { user, supabaseClient: client } = await authenticateRequest(req);
+    supabaseClient = client;
+    userId = user.id;
 
     const { content, brand, strategy } = await req.json();
 
@@ -124,6 +131,23 @@ Gere o texto completo do conteúdo com versões alternativas.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", response.status, errorText);
+
+      // Log error to ai_usage_log
+      if (supabaseClient && userId) {
+        try {
+          await supabaseClient.from('ai_usage_log').insert({
+            user_id: userId,
+            action_type: 'generate-content-text',
+            model_used: 'google/gemini-2.5-flash',
+            credits_consumed: 0,
+            request_payload: { framework, format, funnelStage, intention },
+            response_preview: `Error ${response.status}: ${errorText.substring(0, 200)}`,
+          });
+        } catch (logErr) {
+          console.error('Usage log error (on AI failure):', logErr);
+        }
+      }
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -150,6 +174,24 @@ Gere o texto completo do conteúdo com versões alternativas.`;
 
     const result = JSON.parse(toolCall.function.arguments);
 
+    // Log successful AI usage
+    if (supabaseClient && userId) {
+      try {
+        await supabaseClient.from('ai_usage_log').insert({
+          user_id: userId,
+          action_type: 'generate-content-text',
+          model_used: 'google/gemini-2.5-flash',
+          tokens_input: data.usage?.prompt_tokens || null,
+          tokens_output: data.usage?.completion_tokens || null,
+          credits_consumed: CREDIT_COST,
+          request_payload: { framework, format, funnelStage, intention },
+          response_preview: result.generatedText?.substring(0, 200) || null,
+        });
+      } catch (logErr) {
+        console.error('Usage log error:', logErr);
+      }
+    }
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -157,6 +199,22 @@ Gere o texto completo do conteúdo com versões alternativas.`;
   } catch (error) {
     if (error instanceof Response) return error;
     console.error("Error generating content text:", error);
+
+    // Log unexpected error
+    if (supabaseClient && userId) {
+      try {
+        await supabaseClient.from('ai_usage_log').insert({
+          user_id: userId,
+          action_type: 'generate-content-text',
+          model_used: 'google/gemini-2.5-flash',
+          credits_consumed: 0,
+          response_preview: `Unexpected error: ${String(error).substring(0, 200)}`,
+        });
+      } catch (logErr) {
+        console.error('Usage log error (on unexpected failure):', logErr);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       error: "Erro ao gerar texto. Tente novamente." 
     }), {

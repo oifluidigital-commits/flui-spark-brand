@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
+import { useUserGate } from '@/contexts/UserGateContext';
 import { useGate } from '@/hooks/useGate';
 import { useSprintContents } from '@/hooks/useSprintContents';
 import { useFrameworksDB } from '@/hooks/useFrameworksDB';
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import { SprintStatus } from '@/types';
 import { formatDatePTBR } from '@/data/mockData';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -187,6 +189,7 @@ export default function SprintDetail() {
   const { sprintId } = useParams<{ sprintId: string }>();
   const navigate = useNavigate();
   const { sprints, brand, strategy } = useApp();
+  const { userGate, setUserGate } = useUserGate();
   const aiGate = useGate('use-ai');
   const pillars = brand?.pillars ?? [];
 
@@ -272,8 +275,24 @@ export default function SprintDetail() {
     if (refreshed) setEditingContent({ ...refreshed, ...updates as any });
   };
 
+  const CREDIT_COST = 10;
+
+  const handleConsumeCredits = (cost: number) => {
+    setUserGate((prev) => ({
+      ...prev,
+      contentCredits: Math.max(0, prev.contentCredits - cost),
+    }));
+  };
+
   const handleGenerate = async () => {
     if (!editingContent) return;
+
+    // Pre-validate credits
+    if (userGate.contentCredits < CREDIT_COST) {
+      toast({ title: 'Créditos insuficientes', description: `São necessários ${CREDIT_COST} créditos para gerar texto.`, variant: 'destructive' });
+      return;
+    }
+
     const fw = frameworks.find(
       (f) => f.name === editingContent.framework || f.id === editingContent.framework
     );
@@ -282,6 +301,7 @@ export default function SprintDetail() {
       fw?.structure || null,
       brand ? { name: brand.name, voice: brand.voice, positioning: brand.positioning } : null,
       strategy as any,
+      handleConsumeCredits,
     );
     if (result) {
       // Refresh editing content
