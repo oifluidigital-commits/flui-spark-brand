@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 
 // Pages
 import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+// Signup removed - unified into Login
 import Onboarding from "./pages/Onboarding";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
@@ -89,7 +89,7 @@ function AppRoutes() {
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+      <Route path="/signup" element={<Navigate to="/login" replace />} />
       
       {/* Semi-protected: requires auth but not onboarding */}
       <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
