@@ -86,7 +86,7 @@ export default function StepGoals({
                 key={goal.id}
                 onClick={() => handlePrimaryGoalSelect(goal.id)}
                 className={cn(
-                  'p-4 cursor-pointer transition-all hover:border-zinc-700',
+                  'p-4 cursor-pointer transition-all hover:border-primary/50',
                   isSelected
                     ? 'border-primary bg-primary/10'
                     : 'border-border bg-secondary',
@@ -166,7 +166,7 @@ export default function StepGoals({
                     key={goal.id}
                     onClick={() => handleSecondaryGoalSelect(goal.id)}
                     className={cn(
-                      'p-3 cursor-pointer transition-all hover:border-zinc-700',
+                      'p-3 cursor-pointer transition-all hover:border-primary/50',
                       isSelected
                         ? 'border-primary/60 bg-primary/5'
                         : 'border-border bg-secondary/50',

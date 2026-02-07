@@ -9,10 +9,10 @@
  }
  
  const planConfig = {
-   pro: { 
-     label: 'Pro', 
-     className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
-   },
+  pro: { 
+    label: 'Pro', 
+    className: 'bg-violet-500/20 text-violet-400 border-violet-500/30' 
+  },
    studio: { 
      label: 'Studio', 
      className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' 

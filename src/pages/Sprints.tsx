@@ -115,16 +115,16 @@ const NewSprintCard = ({ onClick }: NewSprintCardProps) => (
     className={cn(
       'flex flex-col items-center justify-center gap-3',
       'min-h-[240px] rounded-lg',
-      'border-2 border-dashed border-zinc-700',
-      'bg-zinc-900/50 hover:border-indigo-600',
+      'border-2 border-dashed border-border',
+      'bg-card/50 hover:border-primary',
       'transition-colors cursor-pointer',
       'group'
     )}
   >
-    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-600/20 transition-colors">
-      <Plus className="h-6 w-6 text-zinc-400 group-hover:text-indigo-500" />
+    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+      <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
     </div>
-    <span className="text-zinc-400 group-hover:text-zinc-50 text-sm font-medium transition-colors">
+    <span className="text-muted-foreground group-hover:text-foreground text-sm font-medium transition-colors">
       Criar nova Sprint
     </span>
   </button>
@@ -154,7 +154,7 @@ interface SprintCardProps {
   return (
     <Card
       className={cn(
-        'bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors',
+        'bg-card border-border hover:border-primary/30 transition-colors',
         sprint.status === 'active' && 'ring-1 ring-violet-500/30'
       )}
     >
@@ -169,7 +169,7 @@ interface SprintCardProps {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEdit(sprint)}>
               <Pencil className="h-4 w-4 mr-2" />
               Editar
@@ -196,7 +196,7 @@ interface SprintCardProps {
       {/* Body */}
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-zinc-50 line-clamp-1">{sprint.title}</h3>
+          <h3 className="text-lg font-semibold text-foreground line-clamp-1">{sprint.title}</h3>
           {pillar && (
             <Badge
               variant="outline"
@@ -211,13 +211,13 @@ interface SprintCardProps {
         {/* Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-zinc-400">
+            <span className="text-muted-foreground">
               {sprint.contentsPublished}/{sprint.contentsPlanned} conteúdos prontos
             </span>
             <span
               className={cn(
                 'font-medium',
-                sprint.status === 'completed' ? 'text-emerald-500' : 'text-zinc-50'
+                sprint.status === 'completed' ? 'text-emerald-500' : 'text-foreground'
               )}
             >
               {progressPercentage}%
@@ -231,8 +231,8 @@ interface SprintCardProps {
       </CardContent>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
+      <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarIcon className="h-4 w-4" />
           <span>
             {formatDatePTBR(sprint.startDate)} - {formatDatePTBR(sprint.endDate)}
@@ -253,27 +253,27 @@ interface SprintCardProps {
 
 // SprintCardSkeleton component
 const SprintCardSkeleton = () => (
-  <Card className="bg-zinc-900 border-zinc-800">
+  <Card className="bg-card border-border">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <Skeleton className="h-5 w-24 bg-zinc-800" />
-      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-8 w-8 rounded-md" />
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="space-y-2">
-        <Skeleton className="h-6 w-3/4 bg-zinc-800" />
-        <Skeleton className="h-5 w-20 bg-zinc-800" />
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-5 w-20" />
       </div>
       <div className="space-y-2">
         <div className="flex justify-between">
-          <Skeleton className="h-4 w-32 bg-zinc-800" />
-          <Skeleton className="h-4 w-12 bg-zinc-800" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-12" />
         </div>
-        <Skeleton className="h-2 w-full bg-zinc-800" />
+        <Skeleton className="h-2 w-full" />
       </div>
     </CardContent>
-    <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
-      <Skeleton className="h-4 w-40 bg-zinc-800" />
-      <Skeleton className="h-8 w-8 rounded-md bg-zinc-800" />
+    <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-8 w-8 rounded-md" />
     </div>
   </Card>
 );
@@ -1913,12 +1913,12 @@ export default function Sprints() {
   return (
     <MainLayout>
       <TooltipProvider>
-        <div className="space-y-6 bg-zinc-950 min-h-screen">
+        <div className="space-y-6 bg-background min-h-screen">
           {/* Page Header */}
           <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-zinc-50">Sprints de Conteúdo</h2>
-              <p className="text-zinc-400">
+              <h2 className="text-2xl font-bold text-foreground">Sprints de Conteúdo</h2>
+              <p className="text-muted-foreground">
                 Organize suas campanhas estratégicas e ciclos de produção
               </p>
             </div>
@@ -1927,41 +1927,29 @@ export default function Sprints() {
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               {/* Search */}
               <div className="relative w-full lg:max-w-xs">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar sprints..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-zinc-900 border-zinc-800"
+                  className="pl-10"
                 />
               </div>
 
               {/* Tabs + Button */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                 <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-                  <TabsList className="bg-zinc-900 border border-zinc-800">
-                    <TabsTrigger
-                      value="all"
-                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
-                    >
+                  <TabsList>
+                    <TabsTrigger value="all">
                       Todas
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="active"
-                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
-                    >
+                    <TabsTrigger value="active">
                       Ativas
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="draft"
-                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
-                    >
+                    <TabsTrigger value="draft">
                       Planejamento
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="completed"
-                      className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-50"
-                    >
+                    <TabsTrigger value="completed">
                       Concluídas
                     </TabsTrigger>
                   </TabsList>
@@ -1971,7 +1959,7 @@ export default function Sprints() {
                   <SheetTrigger asChild>
                     <Button
                       onClick={() => handleOpenDialog()}
-                      className="bg-indigo-600 hover:bg-indigo-700"
+                      className="bg-primary hover:bg-primary/90"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Nova Sprint
@@ -2088,7 +2076,7 @@ export default function Sprints() {
 
           {filteredSprints.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-zinc-400">
+             <p className="text-muted-foreground">
                 Nenhuma sprint encontrada para os filtros selecionados.
               </p>
             </div>
