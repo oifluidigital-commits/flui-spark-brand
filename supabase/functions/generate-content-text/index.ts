@@ -17,6 +17,12 @@ serve(async (req) => {
       });
     }
 
+    if (!content.framework) {
+      return new Response(JSON.stringify({ error: "Framework é obrigatório para gerar texto." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -31,6 +37,15 @@ serve(async (req) => {
     const intention = sanitizeString(content.intention, 50);
     const suggestedCta = sanitizeString(content.suggestedCta, 200);
 
+    // Build framework structure section
+    const frameworkStructure: string[] = Array.isArray(content.frameworkStructure)
+      ? content.frameworkStructure.slice(0, 10).map((s: unknown) => sanitizeString(s, 300))
+      : [];
+
+    const frameworkSection = frameworkStructure.length > 0
+      ? `\nESTRUTURA DO FRAMEWORK (siga rigorosamente cada etapa na ordem):\n${frameworkStructure.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')}`
+      : '';
+
     const brandName = sanitizeString(brand?.name, 100);
     const brandVoice = brand?.voice ? JSON.stringify(brand.voice).substring(0, 1000) : '';
     const brandPositioning = brand?.positioning ? JSON.stringify(brand.positioning).substring(0, 1000) : '';
@@ -41,7 +56,9 @@ serve(async (req) => {
 Gere textos prontos para publicação seguindo o framework e tom de voz especificados.
 
 DIRETRIZES:
-- Siga a estrutura do framework rigorosamente
+- Siga a estrutura do framework rigorosamente, etapa por etapa, na ordem fornecida
+- Cada etapa do framework deve gerar um bloco correspondente no texto final
+- Nunca omita, reordene ou funda etapas do framework
 - Use o tom de voz da marca
 - Mantenha o texto escaneável com quebras de linha
 - Inclua emojis estrategicamente (não excessivo)
@@ -54,7 +71,7 @@ DIRETRIZES:
 - Hook: ${hook}
 - Descrição: ${description}
 - Formato: ${format}
-- Framework: ${framework}
+- Framework: ${framework}${frameworkSection}
 - Estágio do Funil: ${funnelStage}
 - Intenção: ${intention}
 - CTA Sugerido: ${suggestedCta}
@@ -95,7 +112,8 @@ Gere o texto completo do conteúdo com versões alternativas.`;
                 hashtags: { type: "array", items: { type: "string" } },
                 estimatedReadTime: { type: "number" }
               },
-              required: ["generatedText", "alternativeVersions", "hashtags", "estimatedReadTime"]
+              required: ["generatedText", "alternativeVersions", "hashtags", "estimatedReadTime"],
+              additionalProperties: false
             }
           }
         }],
