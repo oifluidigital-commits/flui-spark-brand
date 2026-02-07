@@ -100,7 +100,7 @@ export default function StepContentTopics({
                       'cursor-pointer transition-all py-2 px-3 text-sm',
                       isSelected
                         ? 'bg-primary hover:bg-primary/90'
-                        : 'hover:border-zinc-700',
+                        : 'hover:border-primary/50',
                       isDisabled && 'opacity-50 cursor-not-allowed'
                     )}
                     onClick={() => !isDisabled && handleTopicToggle(topic)}

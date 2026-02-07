@@ -106,7 +106,7 @@ export default function StepExpertiseArea({
                 key={area.id}
                 onClick={() => handleAreaSelect(area.id)}
                 className={cn(
-                  'p-3 cursor-pointer transition-all hover:border-zinc-700',
+                  'p-3 cursor-pointer transition-all hover:border-primary/50',
                   isSelected
                     ? 'border-primary bg-primary/10'
                     : 'border-border bg-secondary',
@@ -179,7 +179,7 @@ export default function StepExpertiseArea({
                     'cursor-pointer transition-all py-2 px-3',
                     isSelected
                       ? 'bg-primary hover:bg-primary/90'
-                      : 'hover:border-zinc-700',
+                      : 'hover:border-primary/50',
                     isDisabled && 'opacity-50 cursor-not-allowed'
                   )}
                   onClick={() => !isDisabled && handleSubareaToggle(subarea)}

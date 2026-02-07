@@ -106,7 +106,7 @@ export default function StepAudienceChallenges({
                 key={audience.id}
                 onClick={() => handleAudienceSelect(audience.id)}
                 className={cn(
-                  'p-4 cursor-pointer transition-all hover:border-zinc-700',
+                  'p-4 cursor-pointer transition-all hover:border-primary/50',
                   isSelected
                     ? 'border-primary bg-primary/10'
                     : 'border-border bg-secondary',
@@ -187,7 +187,7 @@ export default function StepAudienceChallenges({
                     : 'border-border bg-secondary/50',
                   isDisabled
                     ? 'opacity-50 cursor-not-allowed'
-                    : 'cursor-pointer hover:border-zinc-700',
+                    : 'cursor-pointer hover:border-primary/50',
                   isOther && !isSelected && 'border-dashed'
                 )}
                 onClick={() => !isDisabled && handleChallengeToggle(challenge.id)}

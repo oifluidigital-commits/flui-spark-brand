@@ -123,10 +123,10 @@
      label: 'Revisão',
      className: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
    },
-   scheduled: {
-     label: 'Agendado',
-     className: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-   },
+  scheduled: {
+    label: 'Agendado',
+    className: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  },
    completed: {
      label: 'Concluído',
      className: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
@@ -561,9 +561,9 @@
                      variant="outline" 
                      className={cn(
                        'text-xs',
-                       frameworkOrigin === 'ai' 
-                         ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
-                         : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
+                      frameworkOrigin === 'ai' 
+                        ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' 
+                        : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
                      )}
                    >
                      {frameworkOrigin === 'ai' ? 'Sugerido pela IA' : 'Definido manualmente'}
@@ -773,7 +773,7 @@
  // Empty State Component
  const EmptyContentsState = ({ onAddContent, aiAllowed }: { onAddContent: () => void; aiAllowed: boolean }) => (
    <div className="text-center py-16 border border-dashed border-border rounded-lg">
-     <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
      <h3 className="text-lg font-medium text-foreground mb-2">Nenhum conteúdo nesta Sprint</h3>
      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
        Comece adicionando conteúdos manualmente ou deixe a IA sugerir baseado no objetivo da Sprint.
