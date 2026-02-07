@@ -1,130 +1,132 @@
 
+# Select Framework → Generate Content: Full Flow Implementation
 
-# Migrate Strategy & Diagnostic from localStorage to Database
+## Overview
 
-## Problem
+This plan implements the complete stateful flow from content creation to AI text generation within SprintDetail. Currently, the "Gerar Texto com IA" button is disabled/non-functional, content uses mock data, and there's no DB persistence. We will wire everything end-to-end.
 
-After onboarding, `diagnosticResult` and `strategy` are stored in localStorage (and React Context in-memory). This means data is lost across devices and browsers, and is not properly tied to `user_id`.
+## Current State
 
-## Current State (What Already Works)
+- **SprintDetail.tsx** (1228 lines): Uses local `useState` with mock data. No Supabase reads/writes. The "Gerar Texto com IA" button does nothing.
+- **generate-content-text** edge function: Already exists and works -- accepts content/brand/strategy, calls Gemini-2.5-flash with tool calling, returns `{ generatedText, alternativeVersions, hashtags, estimatedReadTime }`.
+- **sprint_contents** DB table: Fully configured with `framework`, `framework_origin`, `framework_reason`, `intention`, `funnel_stage`, `suggested_cta`, `generated_text`, `status` (enum: idea/backlog/review/scheduled/completed). RLS policies exist via sprint ownership.
+- **frameworks** DB table: Has 5 seed rows (AIDA, PAS, Storytelling, Lista Numerada, Antes/Depois). Global rows have `user_id = null`, accessible to all via RLS.
 
-- **Diagnostics ARE already saved to DB** during onboarding (Onboarding.tsx line 179) with `form_data` and `result` as jsonb
-- The `strategies` table exists with the correct schema but is **never written to**
-- The `useStrategy` hook calls the `generate-strategy` edge function and returns a `Strategy` object, but only stores it in React Context + localStorage
+## What Changes
 
-## Actual DB Schema (differs from prompt)
+### 1. Database Migration: Seed 3 Missing Frameworks
 
-The user prompt assumed individual columns, but the actual schema is:
+The user's prompt defined 8 frameworks. The DB already has 5. We need to add the 3 missing ones:
+- **Story-Lesson-CTA** (storytelling)
+- **Contrarian Insight** (authority)
+- **Step-by-Step Educational** (educational)
 
-- **`diagnostics`**: `id`, `user_id`, `form_data` (jsonb), `result` (jsonb), `ai_model_used`, `tokens_consumed`, `created_at`
-- **`strategies`**: `id`, `user_id`, `diagnostic_id` (FK), `data` (jsonb), `is_active` (boolean), `created_at`, `updated_at`
+SQL migration to insert these as global seed frameworks (`user_id = null`, `is_custom = false`).
 
-No schema changes needed -- the existing tables support this migration as-is.
+### 2. New Hook: `useSprintContents.ts`
 
-## Changes
-
-### 1. `src/hooks/useStrategy.ts` -- Save strategy to DB after generation
-
-After the edge function returns a strategy, persist it to the `strategies` table:
-
-- Get the authenticated user via `supabase.auth.getUser()`
-- Find the user's latest diagnostic ID from the `diagnostics` table
-- Archive any existing active strategies (`is_active = false`)
-- Insert the new strategy with `data` = full Strategy object, `is_active = true`, `diagnostic_id` = latest diagnostic
-
-Add a new function `loadActiveStrategy` that:
-- Fetches the user's strategy where `is_active = true`
-- Returns the `data` field cast as `Strategy`, or null
-
-### 2. `src/pages/Strategy.tsx` -- Load from DB instead of context
-
-Replace the current logic that depends on `cachedStrategy` from AppContext:
-
-- On mount, call `loadActiveStrategy()` from the updated hook
-- If a strategy exists in DB, use it directly (no context dependency)
-- If no strategy exists and diagnostic is completed, show error state with retry
-- Also load the diagnostic result from DB to populate the `diagnosticResult` for potential retry
-
-### 3. `src/contexts/AppContext.tsx` -- Remove localStorage persistence
-
-- Remove localStorage initialization for `diagnosticResult` and `strategy` (revert to simple `useState(null)`)
-- Remove the two `useEffect` hooks that sync to localStorage
-- Remove `localStorage.removeItem` calls from `signOut`
-- Keep `setDiagnosticResult` and `setStrategy` in context (still used by onboarding flow for in-session state)
-
-### 4. `src/pages/Onboarding.tsx` -- No changes needed
-
-The onboarding already saves diagnostics to DB (line 179). The strategy generation and save will happen on the `/strategy` page via `useStrategy`, which is the existing flow. No onboarding changes required.
-
-## Technical Details
-
-### Strategy save (in `useStrategy.ts`):
+Centralizes all sprint_contents CRUD with Supabase:
 
 ```text
-// After edge function returns successfully:
-const { data: latestDiagnostic } = await supabase
-  .from('diagnostics')
-  .select('id')
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
-
-// Archive existing
-await supabase
-  .from('strategies')
-  .update({ is_active: false })
-  .eq('is_active', true);
-
-// Insert new
-await supabase
-  .from('strategies')
-  .insert({
-    user_id: user.id,
-    diagnostic_id: latestDiagnostic?.id || null,
-    data: strategy as any,  // Strategy object as jsonb
-    is_active: true,
-  });
+Functions:
+- loadContents(sprintId) -> SprintContent[]
+- createContent(sprintId, data) -> SprintContent (saves with status 'idea')
+- updateContent(id, updates) -> void
+- deleteContent(id) -> void
+- generateText(contentId) -> { generatedText, alternatives, hashtags }
 ```
 
-### Strategy load (new function in `useStrategy.ts`):
+The `generateText` function:
+1. Validates framework is set (throws if not)
+2. Loads brand and strategy from context/DB
+3. Calls `generate-content-text` edge function via `supabase.functions.invoke`
+4. Persists `generated_text` to the row
+5. Updates status from 'idea' to 'review'
+6. Returns the AI result
+
+### 3. New Hook: `useFrameworksDB.ts`
+
+Loads frameworks from DB instead of the hardcoded `contentFrameworks` array:
 
 ```text
-const { data } = await supabase
-  .from('strategies')
-  .select('data')
-  .eq('is_active', true)
-  .maybeSingle();
-
-return data ? (data.data as unknown as Strategy) : null;
+Functions:
+- loadFrameworks() -> Framework[] (from DB, both global and user's custom)
+- cached in state, loaded once
 ```
 
-### Diagnostic load (new function or inline in Strategy.tsx):
+### 4. Refactor `SprintDetail.tsx`
+
+Major changes to make the page stateful and DB-connected:
+
+**A. Replace mock data with DB reads:**
+- On mount, call `loadContents(sprintId)` to fetch real `sprint_contents` rows
+- Load frameworks from DB via `useFrameworksDB`
+- Show loading skeleton during fetch
+
+**B. Wire CRUD to DB:**
+- `handleAddContent` -> inserts row via `createContent` with status `idea`
+- `handleSaveContent` -> calls `updateContent`
+- `handleDelete` -> calls `deleteContent`
+- `handleStatusChange`, `handleDateChange`, `handleFormatChange` -> call `updateContent`
+
+**C. Enforce framework-first rule in ContentDetailSheet:**
+- When framework is empty/null, show mandatory framework selection (no other fields visible)
+- Once framework is confirmed, lock the structure display (read-only)
+- Only `intention`, `funnel_stage`, and `suggested_cta` remain editable below the locked framework
+- "Gerar Texto com IA" button becomes active only when framework is confirmed
+
+**D. Wire "Gerar Texto com IA" button:**
+- Calls `generateText(contentId)` from the hook
+- Shows loading state with spinner
+- On success: displays generated text in a new section within the Sheet
+- Updates content status to 'review' locally and in DB
+- Handles 429/402 errors with toast messages
+
+**E. Generated text section in ContentDetailSheet:**
+- Read-only textarea showing `generated_text`
+- "Copiar" button to clipboard
+- "Regenerar" button to call generateText again
+- "Trocar Framework" button that clears generated_text and re-opens framework selection
+
+### 5. Update Edge Function Prompt
+
+Enhance `generate-content-text/index.ts` to use the framework's `structure` steps from the DB row instead of just the framework name string. The content's `framework` field stores the framework name/id -- the edge function will receive the full framework structure from the frontend.
+
+Update the request body to accept `frameworkStructure` (the steps array) in addition to the existing `framework` (name).
+
+## File Changes Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/hooks/useSprintContents.ts` | CREATE | CRUD + AI generation for sprint_contents via Supabase |
+| `src/hooks/useFrameworksDB.ts` | CREATE | Load frameworks from DB |
+| `src/pages/SprintDetail.tsx` | MODIFY | Replace mock data with DB, wire CRUD, enforce framework-first, wire AI generation, display generated text |
+| `supabase/functions/generate-content-text/index.ts` | MODIFY | Accept `frameworkStructure` array for richer prompt assembly |
+| Migration SQL | CREATE | Seed 3 missing framework rows |
+
+## State Machine (Content Lifecycle)
 
 ```text
-const { data } = await supabase
-  .from('diagnostics')
-  .select('result')
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
-
-return data?.result ? (data.result as unknown as DiagnosticResult) : null;
+[Create] -> status: "idea", framework: null
+    |
+[Select Framework] -> framework: set, frameworkOrigin: "manual"
+    |
+[Adjust intention/funnel/CTA] -> editable fields only
+    |
+[Generate Text] -> AI call -> generated_text populated, status: "review"
+    |
+[Review] -> user can edit text, regenerate, or change framework
+    |         (changing framework clears generated_text, resets to "idea")
+    |
+[Schedule/Complete] -> manual status change
 ```
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `src/hooks/useStrategy.ts` | Add `saveStrategyToDB`, `loadActiveStrategy`, `loadDiagnosticResult` functions; call save after generation |
-| `src/pages/Strategy.tsx` | Load strategy from DB on mount instead of relying on context |
-| `src/contexts/AppContext.tsx` | Remove all localStorage logic for diagnostic/strategy (revert to plain `useState(null)`) |
 
 ## What Will NOT Change
 
-- No database schema changes or migrations
-- No new files created
-- No changes to onboarding flow (already saves diagnostics to DB)
-- No changes to edge functions
-- No changes to UI/visual rendering
-- No changes to RLS policies (already configured correctly)
-- Existing `Strategy` and `DiagnosticResult` types remain unchanged
+- No new pages or routes
+- No changes to existing edge functions except `generate-content-text`
+- No changes to AppContext
+- No schema changes to `sprint_contents` table (all columns already exist)
+- No changes to RLS policies
+- Frameworks page (`Frameworks.tsx`) remains unchanged
+- UI design system fully preserved (Shadcn, Tailwind, zinc palette, dark/light mode)
