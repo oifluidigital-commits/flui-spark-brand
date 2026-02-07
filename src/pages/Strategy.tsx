@@ -41,70 +41,85 @@
    FileText,
  };
  
- export default function Strategy() {
-   const navigate = useNavigate();
-   const { user, diagnosticResult, strategy: cachedStrategy, setStrategy: setCachedStrategy } = useApp();
-   const { generateStrategy, isLoading: isGenerating, error } = useStrategy();
-   const [localStrategy, setLocalStrategy] = useState<Strategy | null>(null);
-   const [hasError, setHasError] = useState(false);
- 
-   // Check if diagnostic is completed (onboarding completed = diagnostic done)
-   const diagnosticCompleted = user.onboardingStatus === 'completed';
- 
-   // Determine strategy source
-   const strategy = localStrategy || cachedStrategy;
- 
-   // Generate strategy when component mounts and diagnostic is available
-   useEffect(() => {
-     if (!diagnosticCompleted) return;
-     
-     // If we already have a strategy cached, use it
-     if (cachedStrategy) {
-       setLocalStrategy(cachedStrategy);
-       return;
-     }
- 
-     // If we have a diagnostic result, generate strategy
-     if (diagnosticResult) {
-       const generate = async () => {
-         const result = await generateStrategy(diagnosticResult);
-         if (result) {
-           setLocalStrategy(result);
-           setCachedStrategy(result);
-         } else {
-           setHasError(true);
-         }
-       };
-       generate();
-    } else {
-      // No diagnostic result available — show error state
-      setHasError(true);
-    }
-   }, [diagnosticCompleted, diagnosticResult, cachedStrategy, generateStrategy, setCachedStrategy]);
- 
-   const handleRetry = async () => {
-     if (!diagnosticResult) {
-       toast.error('Diagnóstico não encontrado. Complete o onboarding primeiro.');
-       return;
-     }
-     
-     setHasError(false);
-     const result = await generateStrategy(diagnosticResult);
-     if (result) {
-       setLocalStrategy(result);
-       setCachedStrategy(result);
-     } else {
-       setHasError(true);
-     }
-   };
+export default function Strategy() {
+    const navigate = useNavigate();
+    const { user, setStrategy: setCachedStrategy } = useApp();
+    const { generateStrategy, loadActiveStrategy, loadLatestDiagnosticResult, isLoading: isGenerating, error } = useStrategy();
+    const [strategy, setLocalStrategy] = useState<Strategy | null>(null);
+    const [hasError, setHasError] = useState(false);
+    const [isLoadingFromDB, setIsLoadingFromDB] = useState(true);
+
+    // Check if diagnostic is completed (onboarding completed = diagnostic done)
+    const diagnosticCompleted = user.onboardingStatus === 'completed';
+
+    // Load strategy from DB on mount
+    useEffect(() => {
+      if (!diagnosticCompleted) {
+        setIsLoadingFromDB(false);
+        return;
+      }
+
+      const load = async () => {
+        setIsLoadingFromDB(true);
+        try {
+          // Try loading existing strategy from DB
+          const existing = await loadActiveStrategy();
+          if (existing) {
+            setLocalStrategy(existing);
+            setCachedStrategy(existing);
+            return;
+          }
+
+          // No strategy in DB — load diagnostic and generate
+          const diagResult = await loadLatestDiagnosticResult();
+          if (diagResult) {
+            const result = await generateStrategy(diagResult);
+            if (result) {
+              setLocalStrategy(result);
+              setCachedStrategy(result);
+            } else {
+              setHasError(true);
+            }
+          } else {
+            setHasError(true);
+          }
+        } catch (err) {
+          console.error('Error loading strategy:', err);
+          setHasError(true);
+        } finally {
+          setIsLoadingFromDB(false);
+        }
+      };
+
+      load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [diagnosticCompleted]);
+
+    const handleRetry = async () => {
+      setHasError(false);
+      const diagResult = await loadLatestDiagnosticResult();
+      if (!diagResult) {
+        toast.error('Diagnóstico não encontrado. Complete o onboarding primeiro.');
+        setHasError(true);
+        return;
+      }
+      
+      const result = await generateStrategy(diagResult);
+      if (result) {
+        setLocalStrategy(result);
+        setCachedStrategy(result);
+      } else {
+        setHasError(true);
+      }
+    };
  
    // Show blocked state if diagnostic not completed
    if (!diagnosticCompleted) {
      return <StrategyBlockedState />;
    }
  
-   // Show loading state while generating
-   if (isGenerating || (!strategy && !hasError)) {
+    // Show loading state while generating or loading from DB
+    if (isLoadingFromDB || isGenerating || (!strategy && !hasError)) {
      return <StrategyLoadingState />;
    }
  
