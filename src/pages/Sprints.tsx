@@ -477,7 +477,15 @@ const mockCtas: Record<string, string[]> = {
 
 export default function Sprints() {
   const { sprints, brand, addSprint, updateSprint, deleteSprint } = useApp();
-  const pillars = brand?.pillars ?? [];
+  const rawPillars = brand?.pillars ?? [];
+  // Fallback pillars for demo when no strategy exists
+  const defaultPillars = [
+    { id: 'pillar-1', name: 'Autoridade', description: 'Posicionamento como referência', color: '#6366f1' },
+    { id: 'pillar-2', name: 'Educacional', description: 'Ensinar e compartilhar conhecimento', color: '#10b981' },
+    { id: 'pillar-3', name: 'Conexão', description: 'Relacionamento e engajamento', color: '#f59e0b' },
+    { id: 'pillar-4', name: 'Conversão', description: 'Resultados e vendas', color: '#ef4444' },
+  ];
+  const pillars = rawPillars.length > 0 ? rawPillars : defaultPillars;
    const { userGate, getPlanLimits } = useUserGate();
    const createSprintGate = useGate('create-sprint');
    const navigate = useNavigate();
