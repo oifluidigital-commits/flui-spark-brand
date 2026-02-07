@@ -29,7 +29,7 @@ export default function DiagnosticResults({ result, onComplete }: DiagnosticResu
           <Sparkles className="h-4 w-4" />
           <span className="text-sm font-medium">Diagnóstico Completo</span>
         </div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">
+        <h2 className="text-[28px] font-semibold leading-tight text-foreground mb-2">
           Seu Perfil Estratégico
         </h2>
         <p className="text-muted-foreground">

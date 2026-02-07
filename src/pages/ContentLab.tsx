@@ -69,7 +69,7 @@ export default function ContentLab() {
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Content Lab</h2>
+          <h2 className="text-[28px] font-semibold leading-tight">Content Lab</h2>
           <p className="text-muted-foreground">
             Seu laboratório de criação de conteúdo estratégico
           </p>

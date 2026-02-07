@@ -75,7 +75,7 @@ export default function Brand() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Hub da Marca</h2>
+            <h2 className="text-[28px] font-semibold leading-tight">Hub da Marca</h2>
             <p className="text-muted-foreground">
               Gerencie todos os aspectos da sua identidade de marca
             </p>
@@ -87,28 +87,28 @@ export default function Brand() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-secondary">
-            <TabsTrigger value="identity" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsList>
+            <TabsTrigger value="identity">
               <Palette className="h-4 w-4 mr-2" />
               Identidade
             </TabsTrigger>
-            <TabsTrigger value="voice" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="voice">
               <MessageSquare className="h-4 w-4 mr-2" />
               Voz & Tom
             </TabsTrigger>
-            <TabsTrigger value="positioning" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="positioning">
               <Target className="h-4 w-4 mr-2" />
               Posicionamento
             </TabsTrigger>
-            <TabsTrigger value="pillars" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="pillars">
               <LayoutGrid className="h-4 w-4 mr-2" />
               Pilares
             </TabsTrigger>
-            <TabsTrigger value="competitors" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="competitors">
               <Users className="h-4 w-4 mr-2" />
               Concorrentes
             </TabsTrigger>
-            <TabsTrigger value="guidelines" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="guidelines">
               <FileText className="h-4 w-4 mr-2" />
               Diretrizes
             </TabsTrigger>

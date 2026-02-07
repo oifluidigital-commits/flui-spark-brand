@@ -101,7 +101,7 @@ export default function Frameworks() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Frameworks</h2>
+            <h2 className="text-[28px] font-semibold leading-tight">Frameworks</h2>
             <p className="text-muted-foreground">
               Templates e estruturas para seus conteúdos
             </p>
@@ -263,8 +263,12 @@ export default function Frameworks() {
         </div>
         
         {filteredFrameworks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Nenhum framework encontrado</p>
+          <div className="flex flex-col items-center justify-center text-center py-16">
+            <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-6">
+              <Search className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold leading-tight mb-2">Nenhum framework encontrado</h3>
+            <p className="text-sm text-muted-foreground max-w-md">Tente ajustar os filtros ou o termo de busca para encontrar o que procura.</p>
           </div>
         )}
         
