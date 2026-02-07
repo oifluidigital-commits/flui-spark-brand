@@ -67,7 +67,7 @@ export function useSprintContents(sprintId: string | undefined) {
 
     if (error) {
       console.error('Error loading sprint contents:', error);
-      toast({ title: 'Erro ao carregar conteúdos', variant: 'destructive' });
+      toast({ title: 'Erro ao carregar conteúdos', description: error.message || 'Erro desconhecido', variant: 'destructive' });
     } else {
       setContents((data || []).map(rowToItem));
     }
@@ -94,7 +94,10 @@ export function useSprintContents(sprintId: string | undefined) {
 
     if (error) {
       console.error('Error creating content:', error);
-      toast({ title: 'Erro ao criar conteúdo', variant: 'destructive' });
+      const detail = error.code === '42501'
+        ? 'Sprint não encontrada no banco de dados. Recrie a sprint.'
+        : (error.message || 'Erro desconhecido');
+      toast({ title: 'Erro ao criar conteúdo', description: detail, variant: 'destructive' });
       return null;
     }
     const item = rowToItem(row);
@@ -124,7 +127,7 @@ export function useSprintContents(sprintId: string | undefined) {
 
     if (error) {
       console.error('Error updating content:', error);
-      toast({ title: 'Erro ao atualizar conteúdo', variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar conteúdo', description: error.message || 'Erro desconhecido', variant: 'destructive' });
       return false;
     }
 
@@ -160,7 +163,7 @@ export function useSprintContents(sprintId: string | undefined) {
 
     if (error) {
       console.error('Error deleting content:', error);
-      toast({ title: 'Erro ao remover conteúdo', variant: 'destructive' });
+      toast({ title: 'Erro ao remover conteúdo', description: error.message || 'Erro desconhecido', variant: 'destructive' });
       return false;
     }
     setContents((prev) => prev.filter((c) => c.id !== id));

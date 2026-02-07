@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { supabase } from '@/integrations/supabase/client';
  import { useUserGate } from '@/contexts/UserGateContext';
  import { useGate } from '@/hooks/useGate';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -62,6 +63,7 @@ import {
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
 import { formatDatePTBR } from '@/data/mockData';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -599,13 +601,20 @@ export default function Sprints() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editingSprint) {
       updateSprint(editingSprint.id, formData);
-    } else {
-      const pillar = pillars.find(p => p.id === wizardData.pillarId);
+      setIsDialogOpen(false);
+      return;
+    }
+
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      // Fallback: create local-only sprint for demo without auth
+      const localId = crypto.randomUUID();
       const newSprint: Sprint = {
-        id: `sprint-${Date.now()}`,
+        id: localId,
         title: wizardData.title,
         description: wizardData.description,
         theme: wizardData.objective.slice(0, 50),
@@ -620,8 +629,79 @@ export default function Sprints() {
         updatedAt: new Date().toISOString(),
       };
       addSprint(newSprint);
+      setIsDialogOpen(false);
+      navigate(`/sprints/${localId}`);
+      return;
     }
+
+    // Insert sprint into DB
+    const { data: sprintRow, error: sprintError } = await supabase
+      .from('sprints')
+      .insert({
+        title: wizardData.title,
+        description: wizardData.description,
+        theme: wizardData.objective.slice(0, 50),
+        status: 'draft',
+        start_date: wizardData.startDate || null,
+        end_date: wizardData.endDate || null,
+        pillar_id: wizardData.pillarId || null,
+        alignment_score: estimatedScore,
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (sprintError || !sprintRow) {
+      console.error('Error creating sprint:', sprintError);
+      toast({ title: 'Erro ao criar Sprint', description: sprintError?.message || 'Erro desconhecido', variant: 'destructive' });
+      return;
+    }
+
+    // Bulk-insert approved contents from wizard
+    if (wizardData.approvedContents.length > 0) {
+      const contentRows = wizardData.approvedContents.map((c: any) => ({
+        sprint_id: sprintRow.id,
+        title: c.theme || c.title || 'Conteúdo',
+        format: c.format || 'post-linkedin-text',
+        hook: c.hook || null,
+        suggested_cta: c.suggestedCta || null,
+        intention: c.intention || null,
+        framework: c.framework || null,
+        framework_reason: c.frameworkReason || null,
+        framework_origin: 'ai' as const,
+        status: 'idea' as const,
+        funnel_stage: null,
+      }));
+
+      const { error: contentsError } = await supabase
+        .from('sprint_contents')
+        .insert(contentRows);
+
+      if (contentsError) {
+        console.error('Error creating sprint contents:', contentsError);
+        toast({ title: 'Sprint criada, mas erro ao salvar conteúdos', description: contentsError.message, variant: 'destructive' });
+      }
+    }
+
+    // Add to local state and navigate
+    const newSprint: Sprint = {
+      id: sprintRow.id,
+      title: sprintRow.title,
+      description: sprintRow.description || '',
+      theme: sprintRow.theme || '',
+      status: (sprintRow.status || 'draft') as SprintStatus,
+      startDate: sprintRow.start_date || '',
+      endDate: sprintRow.end_date || '',
+      pillarId: sprintRow.pillar_id || '',
+      contentsPlanned: wizardData.contentsPlanned,
+      alignmentScore: sprintRow.alignment_score || 0,
+      contentsPublished: 0,
+      createdAt: sprintRow.created_at || '',
+      updatedAt: sprintRow.updated_at || '',
+    };
+    addSprint(newSprint);
     setIsDialogOpen(false);
+    navigate(`/sprints/${sprintRow.id}`);
   };
 
   const handleEditSave = () => {
