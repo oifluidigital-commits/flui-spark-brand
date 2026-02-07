@@ -172,7 +172,9 @@ export function useSprintContents(sprintId: string | undefined) {
     frameworkStructure: string[] | null,
     brand?: { name?: string; voice?: unknown; positioning?: unknown } | null,
     strategy?: { strategicGoal?: { statement?: string }; diagnosticSummary?: { brandArchetype?: string } } | null,
+    onCreditsConsumed?: (cost: number) => void,
   ) => {
+    const CREDIT_COST = 10;
     const content = contents.find((c) => c.id === contentId);
     if (!content) throw new Error('Conteúdo não encontrado');
     if (!content.framework) throw new Error('Selecione um framework antes de gerar texto');
@@ -218,6 +220,11 @@ export function useSprintContents(sprintId: string | undefined) {
         generated_text: generatedText,
         status: 'review',
       });
+
+      // Consume credits after successful persistence
+      if (onCreditsConsumed) {
+        onCreditsConsumed(CREDIT_COST);
+      }
 
       toast({ title: 'Texto gerado com sucesso!' });
       return data;

@@ -111,6 +111,7 @@ export function ContentDetailSheet({
   // Framework editing mode
   const [isEditingFramework, setIsEditingFramework] = useState(false);
   const [tempFramework, setTempFramework] = useState('');
+  const [aiSuggestedFrameworkId, setAiSuggestedFrameworkId] = useState<string | null>(null);
 
   // Determine if framework needs to be selected (new content with no framework)
   const needsFramework = !framework;
@@ -143,13 +144,15 @@ export function ContentDetailSheet({
   const handleConfirmFramework = async () => {
     if (!tempFramework) return;
     const fw = frameworks.find((f) => f.id === tempFramework);
+    const origin = aiSuggestedFrameworkId === tempFramework ? 'ai' : 'manual';
     setFramework(fw?.name || tempFramework);
-    setFrameworkOrigin('manual');
+    setFrameworkOrigin(origin);
     setFrameworkReason(undefined);
     setIsEditingFramework(false);
+    setAiSuggestedFrameworkId(null);
     await onSave({
       framework: fw?.name || tempFramework,
-      framework_origin: 'manual',
+      framework_origin: origin,
       framework_reason: null,
     });
   };
@@ -259,8 +262,9 @@ export function ContentDetailSheet({
                   disabled={!aiAllowed || frameworks.length === 0}
                   onClick={() => {
                     if (frameworks.length > 0) {
-                      setTempFramework(frameworks[0].id);
-                      setFrameworkOrigin('ai');
+                      const suggestedId = frameworks[0].id;
+                      setTempFramework(suggestedId);
+                      setAiSuggestedFrameworkId(suggestedId);
                       toast({ title: 'Sugestão de framework pela IA' });
                     }
                   }}
@@ -291,7 +295,13 @@ export function ContentDetailSheet({
                         <button
                           key={fw.id}
                           type="button"
-                          onClick={() => setTempFramework(fw.id)}
+                          onClick={() => {
+                            setTempFramework(fw.id);
+                            // If user manually selects a different card, clear AI suggestion tracking
+                            if (fw.id !== aiSuggestedFrameworkId) {
+                              setAiSuggestedFrameworkId(null);
+                            }
+                          }}
                           className={cn(
                             'w-full p-4 rounded-lg border text-left transition-all',
                             tempFramework === fw.id
