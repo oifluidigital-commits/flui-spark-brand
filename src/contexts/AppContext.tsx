@@ -93,18 +93,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // All state initialized empty — no mock data
   const [user, setUser] = useState<User>(defaultUser);
   const [brand, setBrand] = useState<Brand | null>(null);
-  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(() => {
-    try {
-      const stored = localStorage.getItem('flui_diagnostic_result');
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
-  const [strategy, setStrategy] = useState<Strategy | null>(() => {
-    try {
-      const stored = localStorage.getItem('flui_strategy');
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+  const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
@@ -134,19 +124,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [auth.isAuthenticated, auth.profile]);
 
-  // Persist diagnosticResult to localStorage
-  useEffect(() => {
-    if (diagnosticResult) {
-      localStorage.setItem('flui_diagnostic_result', JSON.stringify(diagnosticResult));
-    }
-  }, [diagnosticResult]);
-
-  // Persist strategy to localStorage
-  useEffect(() => {
-    if (strategy) {
-      localStorage.setItem('flui_strategy', JSON.stringify(strategy));
-    }
-  }, [strategy]);
 
   // Derive brand from strategy when strategy changes
   useEffect(() => {
@@ -258,8 +235,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         needsNameCollection: auth.needsNameCollection,
         signOut: async () => {
           await auth.signOut();
-          localStorage.removeItem('flui_diagnostic_result');
-          localStorage.removeItem('flui_strategy');
           setDiagnosticResult(null);
           setStrategy(null);
         },
