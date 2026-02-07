@@ -1,116 +1,110 @@
 
 
-# Fix Blocking Issues: frameworkOrigin, Credit Consumption, AI Usage Logging
+# QA Fix: Sprint Creation → AI Suggestions → Content Display
 
-## Overview
+## Root Cause Analysis
 
-Three backend logic fixes in the AI generation workflow. No new features, no UX changes, no new pages.
+Five blocking issues identified through code tracing:
 
-## Issue 1: Premature frameworkOrigin Assignment
+### B1 (Critical): Sprint exists only in client memory, not in database
+`Sprints.tsx` line 607-623 creates a Sprint via `addSprint()` which pushes to React state only (`AppContext.setSprints`). The sprint is NEVER inserted into the `sprints` table in the database. When `SprintDetail` loads and calls `useSprintContents(sprintId)`, all Supabase operations fail silently because RLS on `sprint_contents` requires `EXISTS (SELECT 1 FROM sprints WHERE sprints.id = sprint_contents.sprint_id AND sprints.user_id = auth.uid())`.
 
-**Problem**: In `ContentDetailSheet.tsx` line 263, clicking "Sugerir Framework com IA" immediately sets `setFrameworkOrigin('ai')` before the user confirms. If the user then selects a different framework manually and confirms, the origin remains incorrectly set to `'ai'`.
+**Result**: "Add Content" always fails with generic error. All content CRUD is blocked.
 
-**Fix**: Remove `setFrameworkOrigin('ai')` from the AI suggest button handler (line 263). Instead, track a local `suggestedByAI` boolean flag. In `handleConfirmFramework`, determine origin based on whether the confirmed framework matches the AI suggestion:
+### B2 (Critical): "Gerar Sugestoes IA" button has no onClick handler
+`SprintDetail.tsx` line 368-371: the button is rendered but has no `onClick` prop. It is a dead button that does nothing when clicked.
 
-```text
-ContentDetailSheet.tsx changes:
-- Add state: suggestedByAI (boolean, default false)
-- AI suggest button: set suggestedByAI = true, set tempFramework, do NOT set frameworkOrigin
-- handleConfirmFramework: set frameworkOrigin = suggestedByAI && tempFramework matches suggestion ? 'ai' : 'manual'
-- Reset suggestedByAI when entering editing mode or selecting a different card manually
-```
+### B3 (Critical): Sprint ID format mismatch
+Sprints are created with `id: sprint-${Date.now()}` (line 608) which is NOT a valid UUID. The `sprints.id` column is `uuid` type. Even if an insert were attempted, it would fail on type validation.
 
-## Issue 2: Missing AI Credit Consumption
+### B4 (Medium): Wizard-approved contents are discarded
+`handleSave` (line 602-625) only saves the sprint shell. The `wizardData.approvedContents` array (populated in steps 5-6 with themes, formats, frameworks, hooks, CTAs) is never persisted as `sprint_contents` records.
 
-**Problem**: `useGate('use-ai')` checks `contentCredits > 0` but credits are never decremented after successful generation. The `UserGateContext` state remains unchanged.
+### B5 (Medium): Error messages are generic
+`useSprintContents.ts` lines 96-97 and 69-70 show generic toasts ("Erro ao criar conteudo", "Erro ao carregar conteudos") without surfacing the actual Supabase error message.
 
-**Fix**: Add credit consumption in `useSprintContents.generateText` after successful AI call. Since there is no real auth and credits are mock state in `UserGateContext`, the hook needs access to `setUserGate` to decrement credits.
+## Fix Plan
 
-**Implementation**:
-- `useSprintContents` will accept a `consumeCredits` callback parameter
-- `SprintDetail.tsx` will pass a callback that calls `setUserGate` to decrement `contentCredits`
-- The decrement happens AFTER successful text persistence, BEFORE usage log
-- Fixed cost per generation: 10 credits (constant, configurable)
-- If credits reach 0, subsequent calls are blocked by existing `useGate` check
+### Fix 1: Persist sprints to database on creation
 
-```text
-Orchestration order in generateText:
-1. Validate framework exists (already done)
-2. Validate credits > 0 via callback (NEW)
-3. Assemble prompt and call edge function (already done)
-4. Persist generated_text + status update (already done)
-5. Consume credits via callback (NEW)
-6. Write usage log (NEW - see Issue 3)
-```
+**File**: `src/hooks/useSprintContents.ts`
 
-Changes to `useSprintContents.ts`:
-- Add parameter: `onCreditsConsumed?: (cost: number) => void`
-- Add parameter: `onLogUsage?: (log: UsageLogEntry) => void`
-- After successful updateContent, call `onCreditsConsumed(CREDIT_COST)`
+Add a new exported function `createSprint` that:
+1. Inserts into `sprints` table via Supabase with proper UUID (`crypto.randomUUID()`)
+2. Returns the created sprint row
+3. Shows specific error on failure
 
-Changes to `SprintDetail.tsx`:
-- Pass `onCreditsConsumed` callback that calls `setUserGate(prev => ({ ...prev, contentCredits: Math.max(0, prev.contentCredits - cost) }))`
-- Add pre-generation credit validation: if `userGate.contentCredits < CREDIT_COST`, show toast and abort
+**File**: `src/pages/Sprints.tsx`
 
-Changes to `UserGateContext.tsx`: None. Already exposes `setUserGate`.
+Modify `handleSave` (wizard completion):
+1. Import and use `supabase` client directly
+2. Insert sprint into DB with `gen_random_uuid()` (let DB generate ID)
+3. On success, also bulk-insert `approvedContents` as `sprint_contents` rows
+4. Add the sprint to local state via `addSprint` with the DB-generated UUID
+5. Navigate to `/sprints/{newSprintId}` after save
 
-## Issue 3: Missing AI Usage Logging
+### Fix 2: Wire "Gerar Sugestoes IA" button
 
-**Problem**: The `ai_usage_log` table exists with RLS policies (INSERT/SELECT for own user), but no code ever writes to it. The edge function returns results without logging.
+**File**: `src/pages/SprintDetail.tsx`
 
-**Fix**: Write usage log entry in the edge function (`generate-content-text/index.ts`) after successful AI response, using the authenticated Supabase client.
+Add `onClick` handler to the "Gerar Sugestoes IA" button (line 368):
+1. Validate sprint exists and has an ID
+2. Validate AI credits are available
+3. Call the `suggest-sprint-contents` edge function with sprint context (title, description, theme, pillar)
+4. On success, bulk-insert returned suggestions as `sprint_contents` records via `createContent`
+5. Each record gets: title, format, hook, suggested_cta, intention, framework (from AI)
+6. Reload contents after insertion
+7. Show toast with count of created suggestions or specific error
 
-**Implementation in edge function**:
-- After parsing the AI response successfully, insert into `ai_usage_log`
-- Use the `supabaseClient` from `authenticateRequest()` (already available)
-- Log entry fields:
-  - `user_id`: from authenticated user
-  - `action_type`: `'generate-content-text'`
-  - `model_used`: `'google/gemini-2.5-flash'`
-  - `tokens_input`: from `data.usage?.prompt_tokens` (if available from gateway response)
-  - `tokens_output`: from `data.usage?.completion_tokens` (if available)
-  - `credits_consumed`: 10 (fixed cost constant)
-  - `request_payload`: `{ framework, format, funnelStage, intention }` (minimal, no PII)
-  - `response_preview`: first 200 chars of generatedText
-- Log insertion is fire-and-forget (non-blocking, errors logged to console but do not fail the request)
-- On AI call failure, also log with `credits_consumed: 0` and `response_preview: error message`
+Since this is mock-data mode and there may not be an authenticated user, provide a fallback that generates mock content items locally (using the same `generateMockSuggestions` pattern from `Sprints.tsx`) and inserts them via `createContent`.
 
-```text
-Edge function addition (after line 151, before return):
+### Fix 3: Specific error messages
 
-// Fire-and-forget usage logging
-try {
-  await supabaseClient.from('ai_usage_log').insert({
-    user_id: user.id,
-    action_type: 'generate-content-text',
-    model_used: 'google/gemini-2.5-flash',
-    tokens_input: data.usage?.prompt_tokens || null,
-    tokens_output: data.usage?.completion_tokens || null,
-    credits_consumed: 10,
-    request_payload: { framework, format, funnelStage, intention },
-    response_preview: result.generatedText?.substring(0, 200) || null,
-  });
-} catch (logErr) {
-  console.error('Usage log error:', logErr);
-}
-```
+**File**: `src/hooks/useSprintContents.ts`
 
-For error cases (429, 402, 500), add a similar log block with `credits_consumed: 0` and status info in `response_preview`.
+Replace all generic error toasts with specific ones that include `error.message` or `error.code`:
+- `loadContents`: "Erro ao carregar conteudos: {error.message}"
+- `createContent`: "Erro ao criar conteudo: {error.message}" plus specific check for RLS violation (code `42501` -> "Sprint nao encontrada no banco de dados")
+- `updateContent`: "Erro ao atualizar conteudo: {error.message}"
+- `deleteContent`: "Erro ao remover conteudo: {error.message}"
 
-## File Changes Summary
+### Fix 4: Empty state "Gerar Sugestoes IA" button wiring
+
+**File**: `src/pages/SprintDetail.tsx`
+
+The `EmptyContentsState` component (line 152-165) has a "Gerar Sugestoes IA" button with no onClick. Wire it to the same handler as Fix 2.
+
+Update `EmptyContentsState` props to accept `onGenerateSuggestions` callback and wire it.
+
+## Files Changed
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/sprint/ContentDetailSheet.tsx` | MODIFY | Fix frameworkOrigin: add `suggestedByAI` flag, move origin assignment to confirmation |
-| `src/hooks/useSprintContents.ts` | MODIFY | Add `onCreditsConsumed` and `onLogUsage` callbacks, pre-validate credits, call after success |
-| `src/pages/SprintDetail.tsx` | MODIFY | Pass credit consumption callback, pass credit validation, wire to UserGateContext |
-| `supabase/functions/generate-content-text/index.ts` | MODIFY | Add ai_usage_log insert after AI response (success and error paths) |
+| `src/pages/Sprints.tsx` | MODIFY | Persist sprint + approved contents to DB on wizard save |
+| `src/pages/SprintDetail.tsx` | MODIFY | Wire AI suggestions button, update EmptyContentsState |
+| `src/hooks/useSprintContents.ts` | MODIFY | Add specific error messages with error.message |
 
 ## What Will NOT Change
 
-- No database migrations (ai_usage_log table and RLS already exist)
-- No new components or pages
-- No changes to UserGateContext interface
-- No changes to useGate hook
-- No UX layout or visual changes
-- No changes to other edge functions
+- No new pages or routes
+- No new components
+- No UX redesign
+- No changes to edge functions
+- No changes to AppContext interface
+- No database migrations (tables already exist)
+- No changes to RLS policies
+
+## Deterministic State Transitions
+
+```text
+Sprint Creation (Wizard):
+  Step 7 Confirm → INSERT sprints row → INSERT sprint_contents rows → addSprint(local) → navigate to detail
+
+Sprint Detail (Empty):
+  "Add Content" → INSERT sprint_contents → reload → show in table
+  "Gerar Sugestoes IA" → validate credits → generate mock items → INSERT sprint_contents → reload → show in table
+
+Sprint Detail (With Contents):
+  All existing flows remain unchanged
+```
+
