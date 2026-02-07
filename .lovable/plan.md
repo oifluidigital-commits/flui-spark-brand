@@ -1,97 +1,108 @@
 
 
-# Light Mode Migration and Color System Update
+# Fluin Design System - Shadcn UI Components Restyling
 
 ## Overview
 
-Switch the Flui application from dark-mode-default to light-mode-default, update CSS custom properties to use the new color tokens, and replace all hardcoded dark-mode Tailwind classes with semantic/light-mode equivalents. Zero functional changes.
+Update the base Shadcn UI component files to match the Fluin Design System specifications. Only className strings are modified -- zero logic, props, or structural changes.
 
 ---
 
-## Scope of Changes
+## Components to Update
 
-### 1. CSS Custom Properties (`src/index.css`)
+### 1. Button (`src/components/ui/button.tsx`)
 
-Update `:root` (default) to use light mode values and `.dark` class for dark mode:
+**Current**: `rounded-md`, uses semantic `bg-primary` tokens
+**Changes**:
+- Base class: `rounded-md` to `rounded-lg`
+- Size `sm`: `rounded-md` to `rounded-lg`
+- Size `lg`: `rounded-md` to `rounded-lg`
+- Outline variant: add `dark:border-zinc-700 dark:hover:bg-zinc-800` for dark mode support
+- Ghost variant: add `dark:hover:bg-zinc-800` for dark mode support
+- Primary/destructive already use semantic tokens which map to violet-600 and rose-500 via CSS vars -- no change needed
 
-| Token | Light (new default) | Dark (`.dark` class) |
-|-------|-------------------|---------------------|
-| `--background` | white (0 0% 100%) | zinc-950 (240 10% 3.9%) |
-| `--foreground` | zinc-900 (240 10% 3.9%) | zinc-50 (0 0% 98%) |
-| `--card` | zinc-100 (240 5% 96%) | zinc-900 (240 10% 5.9%) |
-| `--border` | zinc-200 (240 5.9% 90%) | zinc-800 (240 5% 17%) |
-| `--primary` | violet-600 (263 70% 50%) | violet-600 |
-| `--secondary` | zinc-50 (240 5% 96%) | zinc-900 (240 5% 15%) |
-| `--muted` | zinc-50 | zinc-900 |
-| `--destructive` | rose-500 (350 89% 60%) | rose-500 |
+### 2. Card (`src/components/ui/card.tsx`)
 
-- Swap `:root` and `.light` blocks (current `.light` becomes `:root`, current `:root` becomes `.dark`)
-- Update primary from indigo-600 to violet-600 HSL values
-- Update destructive from red to rose-500
-- Update scrollbar colors for light mode
+**Current**: `rounded-lg`, `shadow-sm`, uses `bg-card`
+**Changes**:
+- `rounded-lg` to `rounded-2xl`
+- Add `transition-colors` for hover support from consuming components
+- Keep `bg-card` (already maps to zinc-100 light / zinc-900 dark via CSS vars)
 
-### 2. Tailwind Config (`tailwind.config.ts`)
+### 3. Input (`src/components/ui/input.tsx`)
 
-No structural changes needed -- it already reads from CSS variables. The `darkMode: ["class"]` strategy is already correct.
+**Current**: `rounded-md`, uses `bg-background`, `focus-visible:ring-ring`
+**Changes**:
+- `rounded-md` to `rounded-lg`
+- Already uses semantic tokens (`bg-background` = white in light, `border-input`, `ring-ring` = violet-600)
+- No additional changes needed beyond border radius
 
-### 3. Sonner Theme (`src/components/ui/sonner.tsx`)
+### 4. Textarea (`src/components/ui/textarea.tsx`)
 
-Already uses `useTheme()` from `next-themes` and adapts. No changes needed since it reads the system/class theme.
+**Current**: `rounded-md`
+**Changes**:
+- `rounded-md` to `rounded-lg`
 
-### 4. Hardcoded Color Classes (8 files)
+### 5. Select Trigger (`src/components/ui/select.tsx`)
 
-Replace all hardcoded `bg-zinc-*`, `text-zinc-*`, `border-zinc-*` classes with semantic equivalents, and replace `indigo-*` with `violet-*`:
+**Current**: `rounded-md`
+**Changes**:
+- SelectTrigger: `rounded-md` to `rounded-lg`
 
-**Files to update:**
+### 6. Badge (`src/components/ui/badge.tsx`)
 
-| File | Changes |
-|------|---------|
-| `src/pages/Sprints.tsx` | ~30 replacements: `bg-zinc-950` to `bg-background`, `bg-zinc-900` to `bg-card`, `border-zinc-800` to `border-border`, `text-zinc-50` to `text-foreground`, `text-zinc-400` to `text-muted-foreground`, `bg-zinc-800` to `bg-muted`, `hover:border-zinc-700` to `hover:border-border`, `indigo-*` to `violet-*` |
-| `src/pages/SprintDetail.tsx` | ~10 replacements: status configs `indigo-*` to `violet-*`, `text-zinc-600` to `text-muted-foreground`, `text-zinc-400` to `text-muted-foreground` |
-| `src/components/onboarding/steps/StepExpertiseArea.tsx` | `hover:border-zinc-700` to `hover:border-border` |
-| `src/components/onboarding/steps/StepContentTopics.tsx` | `hover:border-zinc-700` to `hover:border-border` |
-| `src/components/onboarding/steps/StepGoals.tsx` | `hover:border-zinc-700` to `hover:border-border` |
-| `src/components/onboarding/steps/StepAudienceChallenges.tsx` | `hover:border-zinc-700` to `hover:border-border` |
-| `src/components/gates/PlanBadge.tsx` | `indigo-*` to `violet-*` |
-| `src/components/gates/UpgradePrompt.tsx` | `indigo-*` to `violet-*` |
+**Current**: Already `rounded-full`, `px-2.5 py-0.5`, `text-xs` -- matches spec
+**Changes**: None needed -- already matches Fluin spec exactly
 
-### 5. Comment Updates
+### 7. Dialog (`src/components/ui/dialog.tsx`)
 
-Update the design system comment block in `index.css` to reflect the new light-mode-first approach and violet primary.
+**Current**: Overlay `bg-black/80`, content `sm:rounded-lg`, `max-w-lg`
+**Changes**:
+- Overlay: `bg-black/80` to `bg-black/50`
+- Content: `sm:rounded-lg` to `sm:rounded-2xl`
 
----
+### 8. Alert Dialog (`src/components/ui/alert-dialog.tsx`)
 
-## Color Mapping Reference
+**Current**: Overlay `bg-black/80`, content `sm:rounded-lg`
+**Changes**:
+- Overlay: `bg-black/80` to `bg-black/50`
+- Content: `sm:rounded-lg` to `sm:rounded-2xl`
 
-```text
-HARDCODED CLASS          -->  REPLACEMENT
-bg-zinc-950                   bg-background
-bg-zinc-900                   bg-card
-bg-zinc-900/50                bg-card/50
-bg-zinc-800                   bg-muted
-border-zinc-800               border-border
-border-zinc-700               border-border
-hover:border-zinc-700         hover:border-border
-text-zinc-50                  text-foreground
-text-zinc-400                 text-muted-foreground
-text-zinc-600                 text-muted-foreground
-indigo-500                    violet-500
-indigo-400                    violet-400
-indigo-600                    violet-600
-indigo-500/20                 violet-500/20
-indigo-500/30                 violet-500/30
-indigo-500/10                 violet-500/10
-indigo-500/5                  violet-500/5
-```
+### 9. Tabs (`src/components/ui/tabs.tsx`)
+
+**Current**: Pill-style tabs with `rounded-md bg-muted` list and `rounded-sm` triggers with `data-[state=active]:bg-background`
+**Changes**:
+- TabsList: Remove `rounded-md bg-muted p-1`, replace with `border-b border-border bg-transparent rounded-none` for flat indicator style
+- TabsTrigger: Remove `rounded-sm`, replace active state from `data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm` to `data-[state=active]:border-b-2 data-[state=active]:border-violet-600 data-[state=active]:text-violet-600 rounded-none border-b-2 border-transparent -mb-px`
+
+### 10. Table (`src/components/ui/table.tsx`)
+
+**Current**: Uses semantic tokens, header has no background
+**Changes**:
+- TableHead: Add `bg-muted dark:bg-zinc-800` for header background
+- TableRow: Already has `hover:bg-muted/50` -- matches spec
 
 ---
+
+## Files Modified (10 total)
+
+| File | Change Summary |
+|------|----------------|
+| `button.tsx` | `rounded-md` to `rounded-lg` (base + sizes), dark mode classes on outline/ghost |
+| `card.tsx` | `rounded-lg` to `rounded-2xl`, add `transition-colors` |
+| `input.tsx` | `rounded-md` to `rounded-lg` |
+| `textarea.tsx` | `rounded-md` to `rounded-lg` |
+| `select.tsx` | SelectTrigger `rounded-md` to `rounded-lg` |
+| `badge.tsx` | No changes (already matches spec) |
+| `dialog.tsx` | Overlay `bg-black/80` to `/50`, content `rounded-lg` to `rounded-2xl` |
+| `alert-dialog.tsx` | Overlay `bg-black/80` to `/50`, content `rounded-lg` to `rounded-2xl` |
+| `tabs.tsx` | Pill style to flat bottom-border indicator style |
+| `table.tsx` | Add header background `bg-muted` |
 
 ## What Will NOT Change
 
-- No component structure, props, or event handlers modified
+- No component logic, state, or event handlers
+- No props or data flow modifications
 - No new components created
-- No data structures, API calls, or state management changed
-- No routing or business logic altered
-- No dependencies added or removed
-- All spacing and layout preserved
-
+- No dependencies added
+- Badge component already matches spec -- untouched
