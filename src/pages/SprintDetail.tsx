@@ -79,7 +79,7 @@
    RefreshCw,
  } from 'lucide-react';
  import { Sprint, SprintStatus } from '@/types';
- import { formatDatePTBR, mockPillars, mockSprints } from '@/data/mockData';
+ import { formatDatePTBR } from '@/data/mockData';
  import { cn } from '@/lib/utils';
  import { format, isBefore, startOfDay } from 'date-fns';
  import { ptBR } from 'date-fns/locale';
@@ -828,13 +828,14 @@
  export default function SprintDetail() {
    const { sprintId } = useParams<{ sprintId: string }>();
    const navigate = useNavigate();
-   const { sprints } = useApp();
-   const aiGate = useGate('use-ai');
+  const { sprints, brand } = useApp();
+  const aiGate = useGate('use-ai');
+  const pillars = brand?.pillars ?? [];
  
-   // Find sprint from context or mock data
-   const sprint = useMemo(() => {
-     return sprints.find((s) => s.id === sprintId) || mockSprints.find((s) => s.id === sprintId);
-   }, [sprints, sprintId]);
+  // Find sprint from context only (no mock fallback)
+  const sprint = useMemo(() => {
+    return sprints.find((s) => s.id === sprintId);
+  }, [sprints, sprintId]);
  
    // State
    const [contents, setContents] = useState<SprintContent[]>(
@@ -957,7 +958,7 @@
    };
  
    // Find pillar
-   const pillar = mockPillars.find((p) => p.id === sprint?.pillarId);
+   const pillar = pillars.find((p) => p.id === sprint?.pillarId);
  
    // Render
    if (isLoading) {

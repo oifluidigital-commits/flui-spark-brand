@@ -7,17 +7,21 @@ import {
   Framework,
   Trend,
 } from '@/types';
-import {
-  mockUser,
-  mockBrand,
-  mockSprints,
-  mockIdeas,
-  mockFrameworks,
-  mockTrends,
-} from '@/data/mockData';
 import { DiagnosticResult } from '@/data/onboardingData';
 import { Strategy } from '@/data/strategyData';
 import { useAuth, Profile } from '@/hooks/useAuth';
+
+// Default empty user (no mock data)
+const defaultUser: User = {
+  id: '',
+  name: '',
+  email: '',
+  onboardingStatus: 'not_started',
+  onboardingStep: 0,
+  plan: 'free',
+  aiCredits: { total: 0, used: 0 },
+  createdAt: new Date().toISOString(),
+};
 
 interface AppContextType {
   // User state
@@ -33,8 +37,8 @@ interface AppContextType {
   refreshProfile: () => Promise<void>;
   
   // Brand state
-  brand: Brand;
-  setBrand: React.Dispatch<React.SetStateAction<Brand>>;
+  brand: Brand | null;
+  setBrand: React.Dispatch<React.SetStateAction<Brand | null>>;
   
   // Diagnostic state
   diagnosticResult: DiagnosticResult | null;
@@ -81,58 +85,84 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Real auth from Supabase
   const auth = useAuth();
   
-  // Legacy auth state (will sync with real auth)
+  // Legacy auth state (syncs with real auth)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // User state (will sync with profile)
-  const [user, setUser] = useState<User>(mockUser);
-  
-  // Brand state
-  const [brand, setBrand] = useState<Brand>(mockBrand);
-  
-  // Diagnostic state
+  // All state initialized empty — no mock data
+  const [user, setUser] = useState<User>(defaultUser);
+  const [brand, setBrand] = useState<Brand | null>(null);
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
-  
-  // Strategy state
   const [strategy, setStrategy] = useState<Strategy | null>(null);
-
-  // Sprints state
-  const [sprints, setSprints] = useState<Sprint[]>(mockSprints);
-  
-  // Ideas state
-  const [ideas, setIdeas] = useState<Idea[]>(mockIdeas);
-  
-  // Frameworks state
-  const [frameworks, setFrameworks] = useState<Framework[]>(mockFrameworks);
-  
-  // Trends state (read-only mock)
-  const [trends] = useState<Trend[]>(mockTrends);
-  
-  // Sidebar state
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [frameworks, setFrameworks] = useState<Framework[]>([]);
+  const [trends] = useState<Trend[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Sync auth state with real Supabase auth
   useEffect(() => {
     setIsAuthenticated(auth.isAuthenticated);
     
-    // Sync user data with profile
+    // Populate user exclusively from authenticated profile
     if (auth.profile) {
-      setUser((prev) => ({
-        ...prev,
-        id: auth.profile!.user_id,
-        name: auth.profile!.name || prev.name,
-        email: auth.profile!.email || prev.email,
-        avatar: auth.profile!.avatar_url || prev.avatar,
-        onboardingStatus: auth.profile!.onboarding_status,
-        onboardingStep: auth.profile!.onboarding_step,
-        plan: auth.profile!.plan,
+      setUser({
+        id: auth.profile.user_id,
+        name: auth.profile.name || '',
+        email: auth.profile.email || '',
+        avatar: auth.profile.avatar_url || undefined,
+        onboardingStatus: auth.profile.onboarding_status,
+        onboardingStep: auth.profile.onboarding_step,
+        plan: auth.profile.plan,
         aiCredits: {
-          total: auth.profile!.ai_credits_total,
-          used: auth.profile!.ai_credits_used,
+          total: auth.profile.ai_credits_total,
+          used: auth.profile.ai_credits_used,
         },
-      }));
+        createdAt: auth.profile.created_at || new Date().toISOString(),
+      });
     }
   }, [auth.isAuthenticated, auth.profile]);
+
+  // Derive brand from strategy when strategy changes
+  useEffect(() => {
+    if (strategy) {
+      setBrand({
+        id: `brand-${user.id}`,
+        userId: user.id,
+        name: user.name || 'Minha Marca',
+        colors: {
+          primary: '#6366f1',
+          secondary: '#10b981',
+          accent: '#f59e0b',
+        },
+        typography: {
+          headingFont: 'Inter',
+          bodyFont: 'Inter',
+        },
+        voice: {
+          tone: strategy.diagnosticSummary.dominantTone
+            ? strategy.diagnosticSummary.dominantTone.split(',').map((t) => t.trim())
+            : [],
+          personality: strategy.diagnosticSummary.brandArchetype
+            ? [strategy.diagnosticSummary.brandArchetype]
+            : [],
+          examples: [],
+        },
+        positioning: {
+          valueProposition: strategy.strategicGoal.statement,
+          differentiators: strategy.contentPillars.map((p) => p.name),
+          targetAudience: strategy.diagnosticSummary.targetAudience,
+        },
+        pillars: strategy.contentPillars.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          percentage: p.focusPercentage,
+          color: p.color,
+        })),
+        competitors: [],
+      });
+    }
+  }, [strategy, user.id, user.name]);
   
   // Sprint CRUD
   const addSprint = (sprint: Sprint) => {

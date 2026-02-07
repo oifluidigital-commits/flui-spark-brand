@@ -8,7 +8,6 @@
  import { Progress } from '@/components/ui/progress';
  import { StrategyLoadingState } from '@/components/strategy/StrategyLoadingState';
  import { StrategyBlockedState } from '@/components/strategy/StrategyBlockedState';
- import { mockStrategy } from '@/data/strategyData';
  import type { Strategy } from '@/data/strategyData';
   import { useStrategy } from '@/hooks/useStrategy';
   import { toast } from 'sonner';
@@ -77,10 +76,10 @@
          }
        };
        generate();
-     } else {
-       // No diagnostic result available, use mock for demo
-       setLocalStrategy(mockStrategy);
-     }
+    } else {
+      // No diagnostic result available — show error state
+      setHasError(true);
+    }
    }, [diagnosticCompleted, diagnosticResult, cachedStrategy, generateStrategy, setCachedStrategy]);
  
    const handleRetry = async () => {

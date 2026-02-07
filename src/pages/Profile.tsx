@@ -1,5 +1,5 @@
 import { useState } from 'react';
- import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   User,
   Mail,
@@ -20,13 +21,13 @@ import {
   Clock,
   Sparkles,
   Camera,
+  ClipboardList,
 } from 'lucide-react';
-import { formatDatePTBR, mockActivities } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
 export default function Profile() {
-  const { user, setUser } = useApp();
-   const navigate = useNavigate();
+  const { user, setUser, isAuthLoading } = useApp();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user.name,
@@ -54,6 +55,7 @@ export default function Profile() {
   };
   
   const getInitials = (name: string) => {
+    if (!name) return '?';
     return name
       .split(' ')
       .map((n) => n[0])
@@ -61,21 +63,20 @@ export default function Profile() {
       .toUpperCase()
       .slice(0, 2);
   };
-  
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'publicou':
-        return 'bg-success/10 text-success';
-      case 'criou':
-        return 'bg-primary/10 text-primary';
-      case 'atualizou':
-        return 'bg-warning/10 text-warning';
-      case 'editou':
-        return 'bg-secondary text-secondary-foreground';
-      default:
-        return 'bg-secondary text-secondary-foreground';
-    }
-  };
+
+  // Skeleton loading
+  if (isAuthLoading) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-48 rounded-lg" />
+          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-64 rounded-lg" />
+        </div>
+      </MainLayout>
+    );
+  }
   
   return (
     <MainLayout>
@@ -107,17 +108,21 @@ export default function Profile() {
                   </Button>
                 </div>
                 <div>
-                  <CardTitle className="text-xl">{user.name}</CardTitle>
-                  <CardDescription>{user.email}</CardDescription>
+                  <CardTitle className="text-xl">{user.name || 'Sem nome'}</CardTitle>
+                  <CardDescription>{user.email || 'Sem email'}</CardDescription>
                   <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className="text-xs">
-                      <Building className="h-3 w-3 mr-1" />
-                      {user.company}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      <Briefcase className="h-3 w-3 mr-1" />
-                      {user.role}
-                    </Badge>
+                    {user.company && (
+                      <Badge variant="outline" className="text-xs">
+                        <Building className="h-3 w-3 mr-1" />
+                        {user.company}
+                      </Badge>
+                    )}
+                    {user.role && (
+                      <Badge variant="outline" className="text-xs">
+                        <Briefcase className="h-3 w-3 mr-1" />
+                        {user.role}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -172,28 +177,28 @@ export default function Profile() {
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="text-sm text-muted-foreground">Nome</div>
-                    <div className="font-medium">{user.name}</div>
+                    <div className="font-medium">{user.name || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="text-sm text-muted-foreground">Email</div>
-                    <div className="font-medium">{user.email}</div>
+                    <div className="font-medium">{user.email || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Building className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="text-sm text-muted-foreground">Empresa</div>
-                    <div className="font-medium">{user.company}</div>
+                    <div className="font-medium">{user.company || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Briefcase className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="text-sm text-muted-foreground">Cargo</div>
-                    <div className="font-medium">{user.role}</div>
+                    <div className="font-medium">{user.role || '—'}</div>
                   </div>
                 </div>
               </div>
@@ -225,25 +230,27 @@ export default function Profile() {
               </div>
               <div className="text-center p-4 bg-secondary rounded-lg">
                 <div className="text-3xl font-bold">
-                  {Math.round((user.aiCredits.used / user.aiCredits.total) * 100)}%
+                  {user.aiCredits.total > 0
+                    ? Math.round((user.aiCredits.used / user.aiCredits.total) * 100)
+                    : 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">Consumo Mensal</div>
               </div>
             </div>
 
-             {/* Upgrade CTA when credits are low */}
-             {(user.aiCredits.total - user.aiCredits.used) / user.aiCredits.total < 0.2 && (
-               <div className="pt-4 border-t border-border mt-4">
-                 <Button
-                   variant="outline"
-                   className="w-full gap-2"
-                   onClick={() => navigate('/pricing')}
-                 >
-                   <Sparkles className="h-4 w-4" />
-                   Obter mais créditos
-                 </Button>
-               </div>
-             )}
+            {user.aiCredits.total > 0 &&
+              (user.aiCredits.total - user.aiCredits.used) / user.aiCredits.total < 0.2 && (
+                <div className="pt-4 border-t border-border mt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => navigate('/pricing')}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Obter mais créditos
+                  </Button>
+                </div>
+              )}
           </CardContent>
         </Card>
         
@@ -313,7 +320,7 @@ export default function Profile() {
           </CardContent>
         </Card>
         
-        {/* Activity History */}
+        {/* Activity History - empty state */}
         <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -322,23 +329,12 @@ export default function Profile() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center gap-4">
-                  <div className={cn('h-8 w-8 rounded-full flex items-center justify-center', getActionIcon(activity.action))}>
-                    <Clock className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium">{activity.action}</span>{' '}
-                      <span className="text-muted-foreground">{activity.target}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDatePTBR(activity.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center py-8">
+              <ClipboardList className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="font-medium mb-1">Nenhuma atividade registrada ainda</p>
+              <p className="text-sm text-muted-foreground">
+                Suas ações recentes aparecerão aqui conforme você usar a plataforma.
+              </p>
             </div>
           </CardContent>
         </Card>

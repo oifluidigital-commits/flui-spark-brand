@@ -61,7 +61,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { Sprint, SprintStatus } from '@/types';
-import { formatDatePTBR, mockPillars } from '@/data/mockData';
+import { formatDatePTBR } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -141,7 +141,9 @@ interface SprintCardProps {
 }
 
  const SprintCard = ({ sprint, onEdit, onDuplicate, onArchive, onDelete, onViewDetails }: SprintCardProps) => {
-  const pillar = mockPillars.find((p) => p.id === sprint.pillarId);
+  const { brand } = useApp();
+  const pillars = brand?.pillars ?? [];
+  const pillar = pillars.find((p) => p.id === sprint.pillarId);
   const progressPercentage =
     sprint.contentsPlanned > 0
       ? Math.round((sprint.contentsPublished / sprint.contentsPlanned) * 100)
@@ -472,7 +474,8 @@ const mockCtas: Record<string, string[]> = {
 };
 
 export default function Sprints() {
-  const { sprints, addSprint, updateSprint, deleteSprint } = useApp();
+  const { sprints, brand, addSprint, updateSprint, deleteSprint } = useApp();
+  const pillars = brand?.pillars ?? [];
    const { userGate, getPlanLimits } = useUserGate();
    const createSprintGate = useGate('create-sprint');
    const navigate = useNavigate();
@@ -600,7 +603,7 @@ export default function Sprints() {
     if (editingSprint) {
       updateSprint(editingSprint.id, formData);
     } else {
-      const pillar = mockPillars.find(p => p.id === wizardData.pillarId);
+      const pillar = pillars.find(p => p.id === wizardData.pillarId);
       const newSprint: Sprint = {
         id: `sprint-${Date.now()}`,
         title: wizardData.title,
@@ -942,7 +945,7 @@ export default function Sprints() {
       <div className="space-y-3">
         <Label>Em qual pilar este conteúdo se encaixa?</Label>
         <div className="grid grid-cols-2 gap-3">
-          {mockPillars.map((pillar) => {
+          {pillars.map((pillar) => {
             const iconConfig = pillarIconConfig[pillar.id];
             const IconComponent = iconConfig?.icon || Circle;
             return (
@@ -1311,7 +1314,7 @@ export default function Sprints() {
 
   // Step 5 - AI Suggestions
   const renderWizardStep5Suggestions = () => {
-    const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
+    const selectedPillar = pillars.find((p) => p.id === wizardData.pillarId);
 
     const intentionLabel = (intention: string) => {
       switch (intention) {
@@ -1683,7 +1686,7 @@ export default function Sprints() {
 
   // Step 7 - Final Confirmation
   const renderWizardStep7Confirmation = () => {
-    const selectedPillar = mockPillars.find((p) => p.id === wizardData.pillarId);
+    const selectedPillar = pillars.find((p) => p.id === wizardData.pillarId);
 
     const intentionLabel = (intention: string) => {
       switch (intention) {
@@ -1863,7 +1866,7 @@ export default function Sprints() {
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {mockPillars.map((pillar) => (
+              {pillars.map((pillar) => (
                 <SelectItem key={pillar.id} value={pillar.id}>
                   {pillar.name}
                 </SelectItem>
