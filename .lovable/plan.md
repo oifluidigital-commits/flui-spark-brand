@@ -1,108 +1,90 @@
 
 
-# Fluin Design System - Shadcn UI Components Restyling
+# Final Visual Polish - Design System Consistency
 
 ## Overview
 
-Update the base Shadcn UI component files to match the Fluin Design System specifications. Only className strings are modified -- zero logic, props, or structural changes.
+Apply typography hierarchy, spacing consistency, and component styling fixes across all pages. This pass addresses page headings, empty states, the Brand page tabs override, and stat card typography to ensure DS compliance.
 
 ---
 
-## Components to Update
+## Changes
 
-### 1. Button (`src/components/ui/button.tsx`)
+### 1. Typography Hierarchy Standardization (All Pages)
 
-**Current**: `rounded-md`, uses semantic `bg-primary` tokens
-**Changes**:
-- Base class: `rounded-md` to `rounded-lg`
-- Size `sm`: `rounded-md` to `rounded-lg`
-- Size `lg`: `rounded-md` to `rounded-lg`
-- Outline variant: add `dark:border-zinc-700 dark:hover:bg-zinc-800` for dark mode support
-- Ghost variant: add `dark:hover:bg-zinc-800` for dark mode support
-- Primary/destructive already use semantic tokens which map to violet-600 and rose-500 via CSS vars -- no change needed
+Page headings currently use `text-2xl font-bold`. Update to the DS spec: `text-[28px] font-semibold leading-tight`.
 
-### 2. Card (`src/components/ui/card.tsx`)
+**Files affected:**
+- `src/pages/Dashboard.tsx` - no page heading (uses cards), skip
+- `src/pages/ContentLab.tsx` - line 72: `text-2xl font-bold` to `text-[28px] font-semibold leading-tight`
+- `src/pages/Sprints.tsx` - line 1920: same update
+- `src/pages/Ideas.tsx` - line 153: same update
+- `src/pages/Frameworks.tsx` - line 104: same update
+- `src/pages/Radar.tsx` - lines 78, 100: same update (two instances, gated/ungated)
+- `src/pages/Brand.tsx` - line 78: same update
+- `src/pages/Profile.tsx` - line 85: same update
+- `src/pages/Pricing.tsx` - line 54 (`text-3xl font-bold` to `text-[28px] font-semibold leading-tight`), line 116 (`text-2xl font-bold` to `text-[22px] font-semibold leading-tight`)
+- `src/pages/Strategy.tsx` - headings already use `text-lg font-semibold` (correct for Heading M), no change needed
+- `src/components/onboarding/DiagnosticResults.tsx` - line 32: `text-2xl font-bold` to `text-[28px] font-semibold leading-tight`
 
-**Current**: `rounded-lg`, `shadow-sm`, uses `bg-card`
-**Changes**:
-- `rounded-lg` to `rounded-2xl`
-- Add `transition-colors` for hover support from consuming components
-- Keep `bg-card` (already maps to zinc-100 light / zinc-900 dark via CSS vars)
+Stat values in cards (e.g., ContentLab stats `text-2xl font-bold`, Radar stats `text-2xl font-bold`, Profile stats `text-3xl font-bold`) remain as-is since they are data values, not headings.
 
-### 3. Input (`src/components/ui/input.tsx`)
+### 2. Brand.tsx - Tab Styling Override Fix
 
-**Current**: `rounded-md`, uses `bg-background`, `focus-visible:ring-ring`
-**Changes**:
-- `rounded-md` to `rounded-lg`
-- Already uses semantic tokens (`bg-background` = white in light, `border-input`, `ring-ring` = violet-600)
-- No additional changes needed beyond border radius
+The Brand page TabsTriggers (lines 91-113) override the new flat tab style with `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`. These overrides conflict with the DS flat bottom-indicator style already applied in `tabs.tsx`.
 
-### 4. Textarea (`src/components/ui/textarea.tsx`)
+**Fix:** Remove the `className` overrides from all 6 TabsTriggers and remove `bg-secondary` from the TabsList. The base component styles will apply automatically.
 
-**Current**: `rounded-md`
-**Changes**:
-- `rounded-md` to `rounded-lg`
+### 3. Brand.tsx - TabsList Background
 
-### 5. Select Trigger (`src/components/ui/select.tsx`)
+Line 90: `TabsList className="bg-secondary"` should be removed (or set to empty string) so the flat border-bottom style from the updated base component renders correctly.
 
-**Current**: `rounded-md`
-**Changes**:
-- SelectTrigger: `rounded-md` to `rounded-lg`
+### 4. Empty State Consistency Check
 
-### 6. Badge (`src/components/ui/badge.tsx`)
+Review all empty states to ensure they follow the DS pattern: icon (size-12), headline (Heading M), description (body, max 2 lines), single CTA.
 
-**Current**: Already `rounded-full`, `px-2.5 py-0.5`, `text-xs` -- matches spec
-**Changes**: None needed -- already matches Fluin spec exactly
+**Pages with empty states already well-formed:**
+- Dashboard (sprint empty, tasks empty, AI suggestions empty) -- uses h-12 icons, descriptive text, CTA buttons. Already compliant.
+- Brand.tsx (empty brand state) -- uses h-10 icon, could bump to h-12 for consistency but it's minor.
+- Radar.tsx (EmptyTrends component) -- uses h-8 icon. Update in `src/components/radar/EmptyTrends.tsx` from `h-8 w-8` to `h-12 w-12`, and icon container from `h-16 w-16` to `h-20 w-20`.
+- Frameworks empty search result (line 266) -- minimal, add icon and structure.
 
-### 7. Dialog (`src/components/ui/dialog.tsx`)
+### 5. Skeleton Background Consistency
 
-**Current**: Overlay `bg-black/80`, content `sm:rounded-lg`, `max-w-lg`
-**Changes**:
-- Overlay: `bg-black/80` to `bg-black/50`
-- Content: `sm:rounded-lg` to `sm:rounded-2xl`
+The DS spec says skeleton should use `bg-zinc-200 animate-pulse`. The current Skeleton component uses `bg-muted animate-pulse`. Since `--muted` maps to `zinc-50` in light mode, update the Skeleton to use `bg-zinc-200 dark:bg-zinc-800` for proper visibility.
 
-### 8. Alert Dialog (`src/components/ui/alert-dialog.tsx`)
+**File:** `src/components/ui/skeleton.tsx`
 
-**Current**: Overlay `bg-black/80`, content `sm:rounded-lg`
-**Changes**:
-- Overlay: `bg-black/80` to `bg-black/50`
-- Content: `sm:rounded-lg` to `sm:rounded-2xl`
+### 6. Frameworks Empty Search State Enhancement
 
-### 9. Tabs (`src/components/ui/tabs.tsx`)
-
-**Current**: Pill-style tabs with `rounded-md bg-muted` list and `rounded-sm` triggers with `data-[state=active]:bg-background`
-**Changes**:
-- TabsList: Remove `rounded-md bg-muted p-1`, replace with `border-b border-border bg-transparent rounded-none` for flat indicator style
-- TabsTrigger: Remove `rounded-sm`, replace active state from `data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm` to `data-[state=active]:border-b-2 data-[state=active]:border-violet-600 data-[state=active]:text-violet-600 rounded-none border-b-2 border-transparent -mb-px`
-
-### 10. Table (`src/components/ui/table.tsx`)
-
-**Current**: Uses semantic tokens, header has no background
-**Changes**:
-- TableHead: Add `bg-muted dark:bg-zinc-800` for header background
-- TableRow: Already has `hover:bg-muted/50` -- matches spec
+Line 265-268 in `src/pages/Frameworks.tsx`: currently just a `<p>` tag. Enhance to match DS empty state pattern with icon, heading, and description -- without adding new components or changing structure, just wrapping the existing content with proper styling classes.
 
 ---
 
-## Files Modified (10 total)
+## Technical Details - File-by-File
 
-| File | Change Summary |
-|------|----------------|
-| `button.tsx` | `rounded-md` to `rounded-lg` (base + sizes), dark mode classes on outline/ghost |
-| `card.tsx` | `rounded-lg` to `rounded-2xl`, add `transition-colors` |
-| `input.tsx` | `rounded-md` to `rounded-lg` |
-| `textarea.tsx` | `rounded-md` to `rounded-lg` |
-| `select.tsx` | SelectTrigger `rounded-md` to `rounded-lg` |
-| `badge.tsx` | No changes (already matches spec) |
-| `dialog.tsx` | Overlay `bg-black/80` to `/50`, content `rounded-lg` to `rounded-2xl` |
-| `alert-dialog.tsx` | Overlay `bg-black/80` to `/50`, content `rounded-lg` to `rounded-2xl` |
-| `tabs.tsx` | Pill style to flat bottom-border indicator style |
-| `table.tsx` | Add header background `bg-muted` |
+| File | Line(s) | Change |
+|------|---------|--------|
+| `ContentLab.tsx` | 72 | `text-2xl font-bold` to `text-[28px] font-semibold leading-tight` |
+| `Sprints.tsx` | 1920 | Same heading update |
+| `Ideas.tsx` | 153 | Same heading update |
+| `Frameworks.tsx` | 104 | Same heading update |
+| `Frameworks.tsx` | 265-268 | Enhance empty state with icon + structured text |
+| `Radar.tsx` | 78, 100 | Same heading update (both instances) |
+| `Brand.tsx` | 78 | Same heading update |
+| `Brand.tsx` | 90-113 | Remove `bg-secondary` from TabsList, remove all `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground` overrides from TabsTriggers |
+| `Profile.tsx` | 85 | Same heading update |
+| `Pricing.tsx` | 54 | `text-3xl font-bold` to `text-[28px] font-semibold leading-tight` |
+| `Pricing.tsx` | 116 | `text-2xl font-bold` to `text-[22px] font-semibold leading-tight` |
+| `DiagnosticResults.tsx` | 32 | `text-2xl font-bold` to `text-[28px] font-semibold leading-tight` |
+| `EmptyTrends.tsx` | 14-15 | Icon container `h-16 w-16` to `h-20 w-20`, icon `h-8 w-8` to `h-12 w-12` |
+| `skeleton.tsx` | 4 | `bg-muted` to `bg-zinc-200 dark:bg-zinc-800` |
 
 ## What Will NOT Change
 
-- No component logic, state, or event handlers
-- No props or data flow modifications
+- No routing, navigation, or page structure modifications
+- No data fetching, mutations, or business logic changes
 - No new components created
 - No dependencies added
-- Badge component already matches spec -- untouched
+- All event handlers and form logic preserved
+
