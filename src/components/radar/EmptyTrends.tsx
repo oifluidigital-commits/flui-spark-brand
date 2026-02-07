@@ -11,8 +11,8 @@
    return (
      <Card className="border-border border-dashed">
        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-         <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-           <TrendingUp className="h-8 w-8 text-primary" />
+          <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+            <TrendingUp className="h-12 w-12 text-primary" />
          </div>
          
          <h3 className="text-xl font-semibold mb-2">

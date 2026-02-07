@@ -1917,7 +1917,7 @@ export default function Sprints() {
           {/* Page Header */}
           <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">Sprints de Conteúdo</h2>
+              <h2 className="text-[28px] font-semibold leading-tight text-foreground">Sprints de Conteúdo</h2>
               <p className="text-muted-foreground">
                 Organize suas campanhas estratégicas e ciclos de produção
               </p>

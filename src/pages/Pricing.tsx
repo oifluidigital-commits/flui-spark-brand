@@ -51,7 +51,7 @@ export default function Pricing() {
          </div>
 
         <div className="text-center">
-          <h2 className="text-3xl font-bold">Escolha seu plano</h2>
+          <h2 className="text-[28px] font-semibold leading-tight">Escolha seu plano</h2>
           <p className="text-muted-foreground mt-2">
             Comece grátis e escale conforme sua necessidade
           </p>
@@ -113,7 +113,7 @@ export default function Pricing() {
         
         {/* FAQ */}
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-2xl font-bold text-center mb-6">Perguntas Frequentes</h3>
+          <h3 className="text-[22px] font-semibold leading-tight text-center mb-6">Perguntas Frequentes</h3>
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
               <AccordionItem key={index} value={`item-${index}`}>

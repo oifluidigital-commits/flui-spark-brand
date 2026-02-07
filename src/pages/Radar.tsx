@@ -75,7 +75,7 @@
        <MainLayout>
          <div className="space-y-6">
            <div>
-             <h2 className="text-2xl font-bold">Radar</h2>
+              <h2 className="text-[28px] font-semibold leading-tight">Radar</h2>
              <p className="text-muted-foreground">
                Tendências e oportunidades de conteúdo
              </p>
@@ -97,7 +97,7 @@
        <div className="space-y-6">
          <div className="flex items-center justify-between">
            <div>
-             <h2 className="text-2xl font-bold">Radar</h2>
+             <h2 className="text-[28px] font-semibold leading-tight">Radar</h2>
              <p className="text-muted-foreground">
                Tendências e oportunidades de conteúdo
                {lastUpdated && (

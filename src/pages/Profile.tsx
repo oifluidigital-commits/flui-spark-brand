@@ -82,7 +82,7 @@ export default function Profile() {
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Perfil</h2>
+          <h2 className="text-[28px] font-semibold leading-tight">Perfil</h2>
           <p className="text-muted-foreground">
             Gerencie suas informações e configurações
           </p>
