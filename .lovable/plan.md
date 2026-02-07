@@ -1,110 +1,86 @@
 
 
-# QA Fix: Sprint Creation → AI Suggestions → Content Display
+# Fix Critical Auth Flow - Email Validation and Google Signup
 
-## Root Cause Analysis
+## Problem Summary
 
-Five blocking issues identified through code tracing:
+Three blocking issues in the current auth flow:
 
-### B1 (Critical): Sprint exists only in client memory, not in database
-`Sprints.tsx` line 607-623 creates a Sprint via `addSprint()` which pushes to React state only (`AppContext.setSprints`). The sprint is NEVER inserted into the `sprints` table in the database. When `SprintDetail` loads and calls `useSprintContents(sprintId)`, all Supabase operations fail silently because RLS on `sprint_contents` requires `EXISTS (SELECT 1 FROM sprints WHERE sprints.id = sprint_contents.sprint_id AND sprints.user_id = auth.uid())`.
-
-**Result**: "Add Content" always fails with generic error. All content CRUD is blocked.
-
-### B2 (Critical): "Gerar Sugestoes IA" button has no onClick handler
-`SprintDetail.tsx` line 368-371: the button is rendered but has no `onClick` prop. It is a dead button that does nothing when clicked.
-
-### B3 (Critical): Sprint ID format mismatch
-Sprints are created with `id: sprint-${Date.now()}` (line 608) which is NOT a valid UUID. The `sprints.id` column is `uuid` type. Even if an insert were attempted, it would fail on type validation.
-
-### B4 (Medium): Wizard-approved contents are discarded
-`handleSave` (line 602-625) only saves the sprint shell. The `wizardData.approvedContents` array (populated in steps 5-6 with themes, formats, frameworks, hooks, CTAs) is never persisted as `sprint_contents` records.
-
-### B5 (Medium): Error messages are generic
-`useSprintContents.ts` lines 96-97 and 69-70 show generic toasts ("Erro ao criar conteudo", "Erro ao carregar conteudos") without surfacing the actual Supabase error message.
+1. **Email signup blocks users**: After signup, `data.user && !data.session` is true (email not confirmed), showing a full-page "Verifique seu email" card with no skip option. Users cannot proceed.
+2. **Google signup redirect**: Google OAuth redirects back to `/` which maps to `/login`. The `onAuthStateChange` listener picks up the session, but if the profile trigger hasn't created the profile yet (race condition), the user gets stuck.
+3. **Separate Login/Signup pages**: The prompt requests a unified page with tabs/toggle.
 
 ## Fix Plan
 
-### Fix 1: Persist sprints to database on creation
+### Step 1: Enable Auto-Confirm Email Signups
 
-**File**: `src/hooks/useSprintContents.ts`
+Use the `configure-auth` tool to enable auto-confirm for email signups. This means `signUp` will return a session immediately, eliminating the email confirmation blocker. The soft verification modal becomes cosmetic only (future-ready).
 
-Add a new exported function `createSprint` that:
-1. Inserts into `sprints` table via Supabase with proper UUID (`crypto.randomUUID()`)
-2. Returns the created sprint row
-3. Shows specific error on failure
+### Step 2: Unified Login Page (`/login`)
 
-**File**: `src/pages/Sprints.tsx`
+Replace the current separate `Login.tsx` and `Signup.tsx` with a single unified page containing:
 
-Modify `handleSave` (wizard completion):
-1. Import and use `supabase` client directly
-2. Insert sprint into DB with `gen_random_uuid()` (let DB generate ID)
-3. On success, also bulk-insert `approvedContents` as `sprint_contents` rows
-4. Add the sprint to local state via `addSprint` with the DB-generated UUID
-5. Navigate to `/sprints/{newSprintId}` after save
+- **Tab toggle**: "Entrar" / "Criar conta" (no Shadcn Tabs -- use simple inline toggle buttons)
+- **Login form**: Email + Password + show/hide toggle + "Esqueceu a senha?" link
+- **Signup form**: Nome + Email + Password (min 8 chars) + Confirmar senha + privacy checkbox
+- **Google button**: Below both forms with divider "ou continue com"
+- **Footer**: Links to Privacy Policy
 
-### Fix 2: Wire "Gerar Sugestoes IA" button
+Design tokens:
+- Card: `bg-white rounded-2xl border-zinc-200 shadow-md max-w-[400px]`
+- Primary button: `bg-violet-600 hover:bg-violet-500 text-white rounded-lg`
+- Google button: `border-zinc-200 hover:bg-zinc-50 rounded-lg`
+- Input focus: `ring-2 ring-violet-600`
+- Error: `border-rose-500`, `text-rose-600`
 
-**File**: `src/pages/SprintDetail.tsx`
+### Step 3: Soft Email Verification Modal
 
-Add `onClick` handler to the "Gerar Sugestoes IA" button (line 368):
-1. Validate sprint exists and has an ID
-2. Validate AI credits are available
-3. Call the `suggest-sprint-contents` edge function with sprint context (title, description, theme, pillar)
-4. On success, bulk-insert returned suggestions as `sprint_contents` records via `createContent`
-5. Each record gets: title, format, hook, suggested_cta, intention, framework (from AI)
-6. Reload contents after insertion
-7. Show toast with count of created suggestions or specific error
+After email signup success, show a non-blocking Dialog (not full-page) with:
+- Mail icon (Lucide)
+- "Verifique seu email" heading
+- Email address shown
+- Countdown timer (60s) then "Reenviar email" button
+- "Pular verificacao por agora" ghost button that closes modal and redirects to `/onboarding`
+- Close (X) button
 
-Since this is mock-data mode and there may not be an authenticated user, provide a fallback that generates mock content items locally (using the same `generateMockSuggestions` pattern from `Sprints.tsx`) and inserts them via `createContent`.
+Since auto-confirm is enabled, the user already has a session. The modal is informational only.
 
-### Fix 3: Specific error messages
+### Step 4: Fix Google OAuth Flow
 
-**File**: `src/hooks/useSprintContents.ts`
+The current `signInWithGoogle` implementation is correct (uses `lovable.auth.signInWithOAuth`). The issue is the redirect back to origin. After OAuth redirect:
+- `onAuthStateChange` fires with `SIGNED_IN`
+- `handleSession` fetches profile
+- If profile exists with name -> redirect to dashboard/onboarding
+- If profile has no name -> redirect to `/complete-profile`
 
-Replace all generic error toasts with specific ones that include `error.message` or `error.code`:
-- `loadContents`: "Erro ao carregar conteudos: {error.message}"
-- `createContent`: "Erro ao criar conteudo: {error.message}" plus specific check for RLS violation (code `42501` -> "Sprint nao encontrada no banco de dados")
-- `updateContent`: "Erro ao atualizar conteudo: {error.message}"
-- `deleteContent`: "Erro ao remover conteudo: {error.message}"
+The fix: add a small retry loop in `handleSession` for profile fetch (the DB trigger may have a slight delay after OAuth). Add 2 retries with 500ms delay if profile is null on first attempt.
 
-### Fix 4: Empty state "Gerar Sugestoes IA" button wiring
+### Step 5: Remove `/signup` Route
 
-**File**: `src/pages/SprintDetail.tsx`
+- Delete `Signup.tsx` (functionality merged into `Login.tsx`)
+- Update `App.tsx`: remove Signup import and route, redirect `/signup` to `/login`
+- Update `AuthLayout.tsx`: apply Flui Design System styling (light mode, violet primary)
 
-The `EmptyContentsState` component (line 152-165) has a "Gerar Sugestoes IA" button with no onClick. Wire it to the same handler as Fix 2.
+### Step 6: Password Visibility Toggle
 
-Update `EmptyContentsState` props to accept `onGenerateSuggestions` callback and wire it.
+Add show/hide password toggle (Eye/EyeOff icons) to all password fields in both login and signup forms.
 
 ## Files Changed
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/pages/Sprints.tsx` | MODIFY | Persist sprint + approved contents to DB on wizard save |
-| `src/pages/SprintDetail.tsx` | MODIFY | Wire AI suggestions button, update EmptyContentsState |
-| `src/hooks/useSprintContents.ts` | MODIFY | Add specific error messages with error.message |
+| `src/pages/Login.tsx` | REWRITE | Unified login/signup with tabs, soft verification modal, password toggle |
+| `src/pages/Signup.tsx` | DELETE | Merged into Login.tsx |
+| `src/components/layout/AuthLayout.tsx` | MODIFY | Update styling to Flui Design System |
+| `src/hooks/useAuth.ts` | MODIFY | Add profile fetch retry for OAuth, password min 8 chars |
+| `src/App.tsx` | MODIFY | Remove Signup route, add /signup redirect to /login |
 
 ## What Will NOT Change
 
-- No new pages or routes
-- No new components
-- No UX redesign
-- No changes to edge functions
+- No new pages or routes (beyond redirect)
+- No database migrations
+- No edge function changes
 - No changes to AppContext interface
-- No database migrations (tables already exist)
+- No changes to onboarding flow
 - No changes to RLS policies
-
-## Deterministic State Transitions
-
-```text
-Sprint Creation (Wizard):
-  Step 7 Confirm → INSERT sprints row → INSERT sprint_contents rows → addSprint(local) → navigate to detail
-
-Sprint Detail (Empty):
-  "Add Content" → INSERT sprint_contents → reload → show in table
-  "Gerar Sugestoes IA" → validate credits → generate mock items → INSERT sprint_contents → reload → show in table
-
-Sprint Detail (With Contents):
-  All existing flows remain unchanged
-```
 
