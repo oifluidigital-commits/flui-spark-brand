@@ -42,7 +42,7 @@ import {
    ArrowRight,
 } from 'lucide-react';
 import { Idea, IdeaStatus, ContentFormat } from '@/types';
-import { getStatusLabel, getFormatLabel, formatDatePTBR, mockPillars } from '@/data/mockData';
+import { getStatusLabel, getFormatLabel, formatDatePTBR } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
 const statusColors: Record<IdeaStatus, string> = {
@@ -55,7 +55,7 @@ const statusColors: Record<IdeaStatus, string> = {
 };
 
 export default function Ideas() {
-  const { ideas, sprints, addIdea, updateIdea, deleteIdea } = useApp();
+  const { ideas, sprints, brand, addIdea, updateIdea, deleteIdea } = useApp();
    const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -138,9 +138,11 @@ export default function Ideas() {
     setIsDialogOpen(false);
   };
   
+  const pillars = brand?.pillars ?? [];
+
   const getPillarName = (pillarId?: string) => {
     if (!pillarId) return null;
-    return mockPillars.find((p) => p.id === pillarId)?.name;
+    return pillars.find((p) => p.id === pillarId)?.name;
   };
   
   return (
@@ -242,7 +244,7 @@ export default function Ideas() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">Nenhum</SelectItem>
-                        {mockPillars.map((pillar) => (
+                        {pillars.map((pillar) => (
                           <SelectItem key={pillar.id} value={pillar.id}>
                             {pillar.name}
                           </SelectItem>
