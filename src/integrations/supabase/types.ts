@@ -174,6 +174,7 @@ export type Database = {
           example: string | null
           id: string
           is_custom: boolean | null
+          metadata: Json | null
           name: string
           structure: string[] | null
           user_id: string | null
@@ -185,6 +186,7 @@ export type Database = {
           example?: string | null
           id?: string
           is_custom?: boolean | null
+          metadata?: Json | null
           name: string
           structure?: string[] | null
           user_id?: string | null
@@ -196,6 +198,7 @@ export type Database = {
           example?: string | null
           id?: string
           is_custom?: boolean | null
+          metadata?: Json | null
           name?: string
           structure?: string[] | null
           user_id?: string | null

@@ -31,14 +31,12 @@ import {
   Sparkles,
   Check,
   AlertTriangle,
-  Bot,
-  User,
   RefreshCw,
   Copy,
   Loader2,
-  Lock,
 } from 'lucide-react';
 import { PlanBadge } from '@/components/gates/PlanBadge';
+import { FrameworkPreview } from '@/components/sprint/FrameworkPreview';
 import type { SprintContentItem } from '@/hooks/useSprintContents';
 import type { FrameworkDB } from '@/hooks/useFrameworksDB';
 import { cn } from '@/lib/utils';
@@ -233,81 +231,44 @@ export function ContentDetailSheet({
 
             {/* State: Framework confirmed (read-only view) */}
             {!isEditingFramework && framework && (
-              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {frameworkOrigin === 'ai' ? (
-                      <Bot className="h-4 w-4 text-primary" />
-                    ) : (
-                      <User className="h-4 w-4 text-primary" />
-                    )}
-                    <span className="font-medium text-foreground">{currentFramework?.name || framework}</span>
-                    <Lock className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-xs',
-                      frameworkOrigin === 'ai'
-                        ? 'bg-violet-500/20 text-violet-400 border-violet-500/30'
-                        : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
-                    )}
-                  >
-                    {frameworkOrigin === 'ai' ? 'Sugerido pela IA' : 'Definido manualmente'}
-                  </Badge>
-                </div>
-
-                {/* Framework structure (read-only) */}
-                {currentFramework?.structure && (
-                  <div className="space-y-1 mb-3">
-                    {currentFramework.structure.map((step, i) => (
-                      <p key={i} className="text-xs text-muted-foreground flex gap-2">
-                        <span className="text-primary font-mono">{i + 1}.</span>
-                        {step}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {frameworkReason && (
-                  <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
-                    "{frameworkReason}"
-                  </p>
-                )}
-
-                {generatedText ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 w-full"
-                    onClick={handleClearFrameworkAndText}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Trocar Framework (limpa texto gerado)
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 w-full"
-                    onClick={handleChangeFramework}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Alterar framework
-                  </Button>
-                )}
-              </div>
+              <FrameworkPreview
+                frameworkName={currentFramework?.name || framework}
+                frameworkOrigin={frameworkOrigin}
+                frameworkReason={frameworkReason}
+                structure={currentFramework?.structure || null}
+                hasGeneratedText={!!generatedText}
+                onChangeFramework={handleChangeFramework}
+                onClearFrameworkAndText={handleClearFrameworkAndText}
+              />
             )}
 
             {/* State: Selecting framework */}
             {isEditingFramework && (
               <div className="space-y-4">
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <p className="text-sm text-amber-500 flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <p className="text-sm text-warning flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4" />
                     Selecione um framework para este conteúdo
                   </p>
                 </div>
+
+                {/* AI Suggest button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={!aiAllowed || frameworks.length === 0}
+                  onClick={() => {
+                    if (frameworks.length > 0) {
+                      setTempFramework(frameworks[0].id);
+                      setFrameworkOrigin('ai');
+                      toast({ title: 'Sugestão de framework pela IA' });
+                    }
+                  }}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Sugerir Framework com IA
+                  {!aiAllowed && <span className="ml-2"><PlanBadge requiredPlan="pro" /></span>}
+                </Button>
 
                 {frameworksLoading ? (
                   <div className="space-y-2">
@@ -317,32 +278,49 @@ export function ContentDetailSheet({
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                    {frameworks.map((fw) => (
-                      <button
-                        key={fw.id}
-                        type="button"
-                        onClick={() => setTempFramework(fw.id)}
-                        className={cn(
-                          'w-full p-4 rounded-lg border text-left transition-all',
-                          tempFramework === fw.id
-                            ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                            : 'border-border hover:border-primary/50 bg-card'
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-foreground flex items-center gap-2">
-                            {tempFramework === fw.id && <Check className="h-4 w-4 text-primary" />}
-                            {fw.name}
-                          </span>
-                          {fw.category && (
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {fw.category}
-                            </Badge>
+                    {frameworks.map((fw) => {
+                      const funnel = fw.metadata?.recommendedFunnelStage;
+                      const funnelColors: Record<string, string> = {
+                        tofu: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+                        mofu: 'bg-primary/10 text-primary border-primary/20',
+                        bofu: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
+                      };
+                      const funnelLabels: Record<string, string> = { tofu: 'ToFu', mofu: 'MoFu', bofu: 'BoFu' };
+
+                      return (
+                        <button
+                          key={fw.id}
+                          type="button"
+                          onClick={() => setTempFramework(fw.id)}
+                          className={cn(
+                            'w-full p-4 rounded-lg border text-left transition-all',
+                            tempFramework === fw.id
+                              ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                              : 'border-border hover:border-primary/50 bg-card'
                           )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{fw.description}</p>
-                      </button>
-                    ))}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-foreground flex items-center gap-2">
+                              {tempFramework === fw.id && <Check className="h-4 w-4 text-primary" />}
+                              {fw.name}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {fw.category && (
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {fw.category}
+                                </Badge>
+                              )}
+                              {funnel && (
+                                <Badge variant="outline" className={cn('text-xs rounded-full', funnelColors[funnel])}>
+                                  {funnelLabels[funnel]}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{fw.description}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 

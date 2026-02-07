@@ -1,20 +1,17 @@
 import { useState } from 'react';
- import { useNavigate } from 'react-router-dom';
-import { useApp } from '@/contexts/AppContext';
+import { useFrameworksDB, type FrameworkDB } from '@/hooks/useFrameworksDB';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -24,20 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Plus,
-  Search,
-  Filter,
-  BookOpen,
-  Copy,
-  ArrowRight,
-} from 'lucide-react';
- import { useToast } from '@/hooks/use-toast';
-import { Framework, FrameworkCategory } from '@/types';
-import { getCategoryLabel } from '@/data/mockData';
+import { Search, BookOpen, Copy, Filter } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-const categoryColors: Record<FrameworkCategory, string> = {
+const categoryColors: Record<string, string> = {
   storytelling: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
   educational: 'bg-success/10 text-success border-success/20',
   sales: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -46,151 +34,57 @@ const categoryColors: Record<FrameworkCategory, string> = {
   personal: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
 };
 
+const categoryLabels: Record<string, string> = {
+  storytelling: 'Storytelling',
+  educational: 'Educacional',
+  sales: 'Vendas',
+  engagement: 'Engajamento',
+  authority: 'Autoridade',
+  personal: 'Pessoal',
+};
+
+const funnelColors: Record<string, string> = {
+  tofu: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+  mofu: 'bg-primary/10 text-primary border-primary/20',
+  bofu: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
+};
+
+const funnelLabels: Record<string, string> = {
+  tofu: 'ToFu',
+  mofu: 'MoFu',
+  bofu: 'BoFu',
+};
+
 export default function Frameworks() {
-  const { frameworks, addFramework } = useApp();
-   const { toast } = useToast();
-   const navigate = useNavigate();
+  const { frameworks, isLoading } = useFrameworksDB();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [selectedFramework, setSelectedFramework] = useState<Framework | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: 'educational' as FrameworkCategory,
-    structure: '',
-    example: '',
-  });
-  
-  const filteredFrameworks = frameworks.filter((framework) => {
-    const matchesSearch = framework.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      framework.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || framework.category === categoryFilter;
+  const [selectedFramework, setSelectedFramework] = useState<FrameworkDB | null>(null);
+
+  const filteredFrameworks = frameworks.filter((fw) => {
+    const matchesSearch =
+      fw.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (fw.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || fw.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
-  
-  const handleCreateFramework = () => {
-    const newFramework: Framework = {
-      id: `framework-${Date.now()}`,
-      name: formData.name,
-      description: formData.description,
-      category: formData.category,
-      structure: formData.structure.split('\n').filter(Boolean),
-      example: formData.example,
-      isCustom: true,
-      createdAt: new Date().toISOString(),
-    };
-    addFramework(newFramework);
-    setIsCreateDialogOpen(false);
-    setFormData({
-      name: '',
-      description: '',
-      category: 'educational',
-      structure: '',
-      example: '',
-    });
-  };
-  
+
   const handleCopyExample = (example: string) => {
     navigator.clipboard.writeText(example);
+    toast({ title: 'Exemplo copiado!' });
   };
-  
+
+  const MAX_VISIBLE_STEPS = 4;
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[28px] font-semibold leading-tight">Frameworks</h2>
-            <p className="text-muted-foreground">
-              Templates e estruturas para seus conteúdos
-            </p>
-          </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Framework
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Novo Framework</DialogTitle>
-                <DialogDescription>
-                  Crie um framework customizado para seu conteúdo
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Nome do framework"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Breve descrição do framework"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value as FrameworkCategory })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="storytelling">Storytelling</SelectItem>
-                      <SelectItem value="educational">Educacional</SelectItem>
-                      <SelectItem value="sales">Vendas</SelectItem>
-                      <SelectItem value="engagement">Engajamento</SelectItem>
-                      <SelectItem value="authority">Autoridade</SelectItem>
-                      <SelectItem value="personal">Pessoal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="structure">Estrutura (uma etapa por linha)</Label>
-                  <Textarea
-                    id="structure"
-                    value={formData.structure}
-                    onChange={(e) => setFormData({ ...formData, structure: e.target.value })}
-                    placeholder="Etapa 1: Descrição&#10;Etapa 2: Descrição&#10;Etapa 3: Descrição"
-                    rows={4}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="example">Exemplo de uso</Label>
-                  <Textarea
-                    id="example"
-                    value={formData.example}
-                    onChange={(e) => setFormData({ ...formData, example: e.target.value })}
-                    placeholder="Um exemplo prático do framework..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreateFramework}>
-                  Criar Framework
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        {/* Header */}
+        <div>
+          <h2 className="text-[28px] font-semibold leading-tight">Frameworks</h2>
+          <p className="text-muted-foreground">Guias de estrutura para seus conteúdos</p>
         </div>
-        
+
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
           <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -209,136 +103,217 @@ export default function Frameworks() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Categorias</SelectItem>
-              <SelectItem value="storytelling">Storytelling</SelectItem>
-              <SelectItem value="educational">Educacional</SelectItem>
-              <SelectItem value="sales">Vendas</SelectItem>
-              <SelectItem value="engagement">Engajamento</SelectItem>
-              <SelectItem value="authority">Autoridade</SelectItem>
-              <SelectItem value="personal">Pessoal</SelectItem>
+              {Object.entries(categoryLabels).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        
-        {/* Frameworks Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFrameworks.map((framework) => (
-            <Card
-              key={framework.id}
-              className="border-border hover:border-primary/30 transition-colors cursor-pointer"
-              onClick={() => setSelectedFramework(framework)}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-primary" />
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-[260px] rounded-2xl" />
+            ))}
+          </div>
+        )}
+
+        {/* Grid */}
+        {!isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFrameworks.map((fw) => {
+              const funnel = fw.metadata?.recommendedFunnelStage;
+              const steps = fw.structure || [];
+              const visibleSteps = steps.slice(0, MAX_VISIBLE_STEPS);
+              const remainingCount = steps.length - MAX_VISIBLE_STEPS;
+
+              return (
+                <Card
+                  key={fw.id}
+                  className="rounded-2xl border-border hover:border-primary/30 transition-colors cursor-pointer"
+                  onClick={() => setSelectedFramework(fw)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-lg">{fw.name}</CardTitle>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg">{framework.name}</CardTitle>
-                      <Badge variant="outline" className={cn('mt-1', categoryColors[framework.category])}>
-                        {getCategoryLabel(framework.category)}
-                      </Badge>
+                    <div className="flex items-center gap-2 pt-2">
+                      {fw.category && (
+                        <Badge variant="outline" className={cn('rounded-full text-xs', categoryColors[fw.category])}>
+                          {categoryLabels[fw.category] || fw.category}
+                        </Badge>
+                      )}
+                      {funnel && (
+                        <Badge variant="outline" className={cn('rounded-full text-xs', funnelColors[funnel])}>
+                          {funnelLabels[funnel]}
+                        </Badge>
+                      )}
                     </div>
-                  </div>
-                  {framework.isCustom && (
-                    <Badge variant="secondary" className="text-xs">
-                      Customizado
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                  {framework.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {framework.structure.length} etapas
-                  </span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        {filteredFrameworks.length === 0 && (
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {fw.description}
+                    </p>
+                    <div className="space-y-1">
+                      {visibleSteps.map((step, i) => (
+                        <p key={i} className="text-xs text-muted-foreground flex gap-2">
+                          <span className="text-primary font-mono font-medium">{i + 1}.</span>
+                          <span className="line-clamp-1">{step}</span>
+                        </p>
+                      ))}
+                      {remainingCount > 0 && (
+                        <p className="text-xs text-muted-foreground/60">+{remainingCount} mais</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      {steps.length} etapas
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && filteredFrameworks.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center py-16">
             <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-6">
               <Search className="h-12 w-12 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold leading-tight mb-2">Nenhum framework encontrado</h3>
-            <p className="text-sm text-muted-foreground max-w-md">Tente ajustar os filtros ou o termo de busca para encontrar o que procura.</p>
+            <p className="text-sm text-muted-foreground max-w-md">
+              Tente ajustar os filtros ou o termo de busca para encontrar o que procura.
+            </p>
           </div>
         )}
-        
-        {/* Framework Detail Dialog */}
+
+        {/* Detail Dialog */}
         <Dialog open={!!selectedFramework} onOpenChange={() => setSelectedFramework(null)}>
           {selectedFramework && (
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <BookOpen className="h-6 w-6 text-primary" />
                   </div>
                   <div>
                     <DialogTitle className="text-xl">{selectedFramework.name}</DialogTitle>
-                    <Badge variant="outline" className={cn('mt-1', categoryColors[selectedFramework.category])}>
-                      {getCategoryLabel(selectedFramework.category)}
-                    </Badge>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selectedFramework.category && (
+                        <Badge variant="outline" className={cn('rounded-full text-xs', categoryColors[selectedFramework.category])}>
+                          {categoryLabels[selectedFramework.category] || selectedFramework.category}
+                        </Badge>
+                      )}
+                      {selectedFramework.metadata?.recommendedFunnelStage && (
+                        <Badge variant="outline" className={cn('rounded-full text-xs', funnelColors[selectedFramework.metadata.recommendedFunnelStage])}>
+                          {funnelLabels[selectedFramework.metadata.recommendedFunnelStage]}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <DialogDescription className="pt-2">
                   {selectedFramework.description}
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-6 py-4">
-                <div>
-                  <h4 className="font-medium mb-3">Estrutura</h4>
-                  <div className="space-y-2">
-                    {selectedFramework.structure.map((step, index) => (
-                      <div key={index} className="flex gap-3 p-3 bg-secondary rounded-lg">
-                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-medium text-primary">{index + 1}</span>
+                {/* Primary Goal */}
+                {selectedFramework.metadata?.primaryGoal && (
+                  <div>
+                    <h4 className="font-medium mb-2 text-sm">Objetivo</h4>
+                    <p className="text-sm text-muted-foreground">{selectedFramework.metadata.primaryGoal}</p>
+                  </div>
+                )}
+
+                {/* Structure */}
+                {selectedFramework.structure && selectedFramework.structure.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 text-sm">Estrutura</h4>
+                    <div className="space-y-2">
+                      {selectedFramework.structure.map((step, i) => (
+                        <div key={i} className="flex gap-3 p-3 bg-secondary rounded-lg">
+                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-medium text-primary">{i + 1}</span>
+                          </div>
+                          <span className="text-sm">{step}</span>
                         </div>
-                        <span className="text-sm">{step}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Exemplo</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyExample(selectedFramework.example)}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copiar
-                    </Button>
+                )}
+
+                {/* Best For */}
+                {selectedFramework.metadata?.bestFor && selectedFramework.metadata.bestFor.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-2 text-sm">Melhor para</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFramework.metadata.bestFor.map((item, i) => (
+                        <Badge key={i} variant="outline" className="rounded-full text-xs bg-primary/5 text-primary border-primary/20">
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <div className="p-4 bg-secondary rounded-lg italic text-sm text-muted-foreground">
-                    "{selectedFramework.example}"
+                )}
+
+                {/* Avoid When */}
+                {selectedFramework.metadata?.avoidWhen && selectedFramework.metadata.avoidWhen.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-2 text-sm">Evitar quando</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFramework.metadata.avoidWhen.map((item, i) => (
+                        <Badge key={i} variant="outline" className="rounded-full text-xs bg-destructive/5 text-destructive border-destructive/20">
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Example */}
+                {selectedFramework.example && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-sm">Exemplo</h4>
+                      <Button variant="ghost" size="sm" onClick={() => handleCopyExample(selectedFramework.example!)}>
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copiar
+                      </Button>
+                    </div>
+                    <div className="p-4 bg-secondary rounded-lg italic text-sm text-muted-foreground">
+                      "{selectedFramework.example}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Guidelines */}
+                {(selectedFramework.metadata?.toneGuidelines || selectedFramework.metadata?.lengthGuidelines || selectedFramework.metadata?.ctaGuidelines) && (
+                  <div>
+                    <h4 className="font-medium mb-3 text-sm">Diretrizes</h4>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      {selectedFramework.metadata.toneGuidelines && (
+                        <p><span className="font-medium text-foreground">Tom:</span> {selectedFramework.metadata.toneGuidelines}</p>
+                      )}
+                      {selectedFramework.metadata.lengthGuidelines && (
+                        <p><span className="font-medium text-foreground">Tamanho:</span> {selectedFramework.metadata.lengthGuidelines}</p>
+                      )}
+                      {selectedFramework.metadata.ctaGuidelines && (
+                        <p><span className="font-medium text-foreground">CTA:</span> {selectedFramework.metadata.ctaGuidelines}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setSelectedFramework(null)}>
                   Fechar
-                </Button>
-                 <Button onClick={() => {
-                   toast({
-                     title: 'Framework copiado!',
-                     description: 'Use-o ao criar seu próximo conteúdo.',
-                   });
-                   setSelectedFramework(null);
-                   navigate('/content-lab/ideas');
-                 }}>
-                  Usar Framework
                 </Button>
               </DialogFooter>
             </DialogContent>
