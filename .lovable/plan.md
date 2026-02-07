@@ -1,153 +1,116 @@
 
 
-# Redesign Framework UI: Library, Selector, and Preview
+# Fix Blocking Issues: frameworkOrigin, Credit Consumption, AI Usage Logging
 
 ## Overview
 
-Three UI surfaces for content frameworks, all read-only. The current `Frameworks.tsx` page must be rebuilt (it has a "Criar Framework" button and uses mock data from context). The `ContentDetailSheet.tsx` selector needs refinement. A new inline preview component is needed for content review.
+Three backend logic fixes in the AI generation workflow. No new features, no UX changes, no new pages.
 
-## Current State
+## Issue 1: Premature frameworkOrigin Assignment
 
-- **`Frameworks.tsx`**: Uses `useApp()` context with mock `frameworks` array. Has a creation dialog, detail dialog with "Usar Framework" button. Does NOT use `useFrameworksDB` hook (DB data).
-- **`ContentDetailSheet.tsx`**: Already has a working framework selector (cards with name, category badge, description) and a read-only locked view. Functional but missing funnel stage badge in selector cards and "suggest with AI" action.
-- **DB**: 10 frameworks with `name`, `category`, `structure[]`, `example`, `description`. No `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen` columns -- these fields only exist in the JSON prompt output, not persisted.
+**Problem**: In `ContentDetailSheet.tsx` line 263, clicking "Sugerir Framework com IA" immediately sets `setFrameworkOrigin('ai')` before the user confirms. If the user then selects a different framework manually and confirms, the origin remains incorrectly set to `'ai'`.
 
-## Database Consideration
+**Fix**: Remove `setFrameworkOrigin('ai')` from the AI suggest button handler (line 263). Instead, track a local `suggestedByAI` boolean flag. In `handleConfirmFramework`, determine origin based on whether the confirmed framework matches the AI suggestion:
 
-The user's framework JSON schema includes `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen`, `toneGuidelines`, `lengthGuidelines`, `ctaGuidelines`. None of these exist as DB columns. Two options:
-
-**Chosen approach**: Add a `metadata` jsonb column to the `frameworks` table to store these extended fields without altering the core schema. This keeps the table clean while allowing the Library page to display rich information. A migration will add the column and update existing rows with metadata.
-
-## Changes
-
-### 1. Database Migration: Add `metadata` jsonb column
-
-Add `metadata` column (nullable jsonb, default `null`) to `frameworks` table. Update existing 10 rows with structured metadata containing `primaryGoal`, `recommendedFunnelStage`, `bestFor`, `avoidWhen`, `toneGuidelines`, `lengthGuidelines`, `ctaGuidelines`.
-
-### 2. Update `useFrameworksDB.ts`
-
-- Add `metadata` to the SELECT query and to the `FrameworkDB` interface
-- Interface addition:
-  ```text
-  metadata: {
-    primaryGoal?: string;
-    recommendedFunnelStage?: 'tofu' | 'mofu' | 'bofu';
-    bestFor?: string[];
-    avoidWhen?: string[];
-    toneGuidelines?: string;
-    lengthGuidelines?: string;
-    ctaGuidelines?: string;
-  } | null;
-  ```
-
-### 3. Rebuild `Frameworks.tsx` (Surface 1: Frameworks Library)
-
-**Remove entirely**: Creation dialog, form state, `addFramework` call, `useApp()` dependency, `getCategoryLabel` import.
-
-**Replace with**: Read-only discovery page using `useFrameworksDB()`.
-
-**Layout**:
-- Page header: "Frameworks" (text-[28px] font-semibold) + subtitle "Guias de estrutura para seus conteudos"
-- No action buttons in header (no "Criar")
-- Filter bar: Search input (left) + Category select filter (right)
-- Grid: 3 cols desktop, 2 cols tablet, 1 col mobile, gap-6
-
-**Card structure** (each framework):
-- Top: Icon container (BookOpen, size-5, `text-violet-600`, in `bg-violet-600/10 rounded-lg h-10 w-10`) + Name (text-lg font-medium)
-- Below name: Category badge (rounded-full, existing `categoryColors` map) + Funnel stage badge (`tofu`/`mofu`/`bofu` with teal/violet/fuchsia colors)
-- Description: text-sm text-muted-foreground, line-clamp-2
-- Structure steps: Numbered list, text-xs, showing step names only (from `structure[]`), max 4 visible + "+N mais" if more
-- Footer: step count label
-- Card click opens detail dialog
-
-**Detail Dialog** (read-only, max-w-2xl):
-- Header: Icon + Name + Category badge + Funnel badge
-- Section "Objetivo": `primaryGoal` text
-- Section "Estrutura": Full numbered steps with `bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3`
-- Section "Melhor para": `bestFor[]` as chip badges
-- Section "Evitar quando": `avoidWhen[]` as chip badges (rose tint)
-- Section "Exemplo": Blockquote style, italic, with Copy button
-- Section "Diretrizes": Tone + Length + CTA guidelines in compact format
-- Footer: single "Fechar" button (no "Usar Framework")
-
-**States**:
-- Loading: 6 skeleton cards (h-[260px])
-- Empty (no results): Standard empty state with Search icon, "Nenhum framework encontrado", subtitle about adjusting filters
-- Error: Not needed (silent fallback to empty array)
-
-### 4. Refine `ContentDetailSheet.tsx` (Surface 2: Framework Selector)
-
-Minor refinements to the existing selector within the Sheet:
-
-**Selector cards** (already exist, lines 319-345):
-- Add funnel stage badge next to category badge
-- Keep: name, category, description (short)
-- Do NOT add steps or examples (per spec: "Do NOT show full steps or long examples")
-
-**Add "Sugerir com IA" button**:
-- Placed above the framework list, after the warning banner
-- Button: `variant="outline"`, Sparkles icon, "Sugerir Framework com IA"
-- On click: sets `frameworkOrigin` to `'ai'` and auto-selects the first framework as placeholder (simulated suggestion with toast "Sugestao de framework pela IA")
-- Gate: disabled if `!aiAllowed`, shows PlanBadge
-
-**No other changes** to the confirmed/locked state (Surface 3 handles the preview).
-
-### 5. New Component: `FrameworkPreview.tsx` (Surface 3: Read-Only Preview)
-
-**Location**: `src/components/sprint/FrameworkPreview.tsx`
-
-**Purpose**: Inline read-only execution guide shown inside `ContentDetailSheet` when framework is confirmed.
-
-**This replaces** the current inline framework display (lines 235-299 in ContentDetailSheet) with a dedicated component.
-
-**Layout**:
-- Container: `rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4`
-- Header row: Framework name (font-medium) + Origin badge (AI/Manual) + Lock icon
-- Numbered steps: Each step in its own row with `text-primary font-mono` number + step text (text-sm)
-- No edit affordance on steps (no hover, no cursor-pointer, no icons suggesting editability)
-- Footer: "Trocar Framework" button (outline, RefreshCw icon)
-  - If `generatedText` exists, label becomes "Trocar Framework (limpa texto gerado)"
-  - On click: clears framework + generated text, resets status to idea
-
-**Props**:
 ```text
-interface FrameworkPreviewProps {
-  frameworkName: string;
-  frameworkOrigin: 'ai' | 'manual' | null;
-  frameworkReason?: string;
-  structure: string[] | null;
-  hasGeneratedText: boolean;
-  onChangeFramework: () => void;
-  onClearFrameworkAndText: () => void;
+ContentDetailSheet.tsx changes:
+- Add state: suggestedByAI (boolean, default false)
+- AI suggest button: set suggestedByAI = true, set tempFramework, do NOT set frameworkOrigin
+- handleConfirmFramework: set frameworkOrigin = suggestedByAI && tempFramework matches suggestion ? 'ai' : 'manual'
+- Reset suggestedByAI when entering editing mode or selecting a different card manually
+```
+
+## Issue 2: Missing AI Credit Consumption
+
+**Problem**: `useGate('use-ai')` checks `contentCredits > 0` but credits are never decremented after successful generation. The `UserGateContext` state remains unchanged.
+
+**Fix**: Add credit consumption in `useSprintContents.generateText` after successful AI call. Since there is no real auth and credits are mock state in `UserGateContext`, the hook needs access to `setUserGate` to decrement credits.
+
+**Implementation**:
+- `useSprintContents` will accept a `consumeCredits` callback parameter
+- `SprintDetail.tsx` will pass a callback that calls `setUserGate` to decrement `contentCredits`
+- The decrement happens AFTER successful text persistence, BEFORE usage log
+- Fixed cost per generation: 10 credits (constant, configurable)
+- If credits reach 0, subsequent calls are blocked by existing `useGate` check
+
+```text
+Orchestration order in generateText:
+1. Validate framework exists (already done)
+2. Validate credits > 0 via callback (NEW)
+3. Assemble prompt and call edge function (already done)
+4. Persist generated_text + status update (already done)
+5. Consume credits via callback (NEW)
+6. Write usage log (NEW - see Issue 3)
+```
+
+Changes to `useSprintContents.ts`:
+- Add parameter: `onCreditsConsumed?: (cost: number) => void`
+- Add parameter: `onLogUsage?: (log: UsageLogEntry) => void`
+- After successful updateContent, call `onCreditsConsumed(CREDIT_COST)`
+
+Changes to `SprintDetail.tsx`:
+- Pass `onCreditsConsumed` callback that calls `setUserGate(prev => ({ ...prev, contentCredits: Math.max(0, prev.contentCredits - cost) }))`
+- Add pre-generation credit validation: if `userGate.contentCredits < CREDIT_COST`, show toast and abort
+
+Changes to `UserGateContext.tsx`: None. Already exposes `setUserGate`.
+
+## Issue 3: Missing AI Usage Logging
+
+**Problem**: The `ai_usage_log` table exists with RLS policies (INSERT/SELECT for own user), but no code ever writes to it. The edge function returns results without logging.
+
+**Fix**: Write usage log entry in the edge function (`generate-content-text/index.ts`) after successful AI response, using the authenticated Supabase client.
+
+**Implementation in edge function**:
+- After parsing the AI response successfully, insert into `ai_usage_log`
+- Use the `supabaseClient` from `authenticateRequest()` (already available)
+- Log entry fields:
+  - `user_id`: from authenticated user
+  - `action_type`: `'generate-content-text'`
+  - `model_used`: `'google/gemini-2.5-flash'`
+  - `tokens_input`: from `data.usage?.prompt_tokens` (if available from gateway response)
+  - `tokens_output`: from `data.usage?.completion_tokens` (if available)
+  - `credits_consumed`: 10 (fixed cost constant)
+  - `request_payload`: `{ framework, format, funnelStage, intention }` (minimal, no PII)
+  - `response_preview`: first 200 chars of generatedText
+- Log insertion is fire-and-forget (non-blocking, errors logged to console but do not fail the request)
+- On AI call failure, also log with `credits_consumed: 0` and `response_preview: error message`
+
+```text
+Edge function addition (after line 151, before return):
+
+// Fire-and-forget usage logging
+try {
+  await supabaseClient.from('ai_usage_log').insert({
+    user_id: user.id,
+    action_type: 'generate-content-text',
+    model_used: 'google/gemini-2.5-flash',
+    tokens_input: data.usage?.prompt_tokens || null,
+    tokens_output: data.usage?.completion_tokens || null,
+    credits_consumed: 10,
+    request_payload: { framework, format, funnelStage, intention },
+    response_preview: result.generatedText?.substring(0, 200) || null,
+  });
+} catch (logErr) {
+  console.error('Usage log error:', logErr);
 }
 ```
 
-**States**:
-- Default: shows name, steps, origin badge
-- With generated text: "Trocar" button shows destructive warning label
-- Disabled: N/A (this is always read-only display)
+For error cases (429, 402, 500), add a similar log block with `credits_consumed: 0` and status info in `response_preview`.
 
-### 6. Update `ContentDetailSheet.tsx` to use `FrameworkPreview`
-
-Replace the inline framework display block (lines 234-299) with `<FrameworkPreview />` component. Pass the relevant props from existing local state.
-
-## Files Summary
+## File Changes Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| Migration SQL | CREATE | Add `metadata` jsonb column, seed extended data for 10 frameworks |
-| `src/hooks/useFrameworksDB.ts` | MODIFY | Add `metadata` to SELECT and interface |
-| `src/pages/Frameworks.tsx` | REWRITE | Read-only library with DB data, detail dialog, no creation |
-| `src/components/sprint/FrameworkPreview.tsx` | CREATE | Reusable read-only framework execution guide |
-| `src/components/sprint/ContentDetailSheet.tsx` | MODIFY | Use FrameworkPreview, add AI suggest button, add funnel badge to selector |
+| `src/components/sprint/ContentDetailSheet.tsx` | MODIFY | Fix frameworkOrigin: add `suggestedByAI` flag, move origin assignment to confirmation |
+| `src/hooks/useSprintContents.ts` | MODIFY | Add `onCreditsConsumed` and `onLogUsage` callbacks, pre-validate credits, call after success |
+| `src/pages/SprintDetail.tsx` | MODIFY | Pass credit consumption callback, pass credit validation, wire to UserGateContext |
+| `supabase/functions/generate-content-text/index.ts` | MODIFY | Add ai_usage_log insert after AI response (success and error paths) |
 
 ## What Will NOT Change
 
-- No new routes (Frameworks is already at `/content-lab/frameworks`)
-- No changes to `useSprintContents.ts`
-- No changes to edge functions
-- No changes to AppContext
-- No changes to types/index.ts
-- No RLS policy changes
-- No changes to navigation/sidebar
-
+- No database migrations (ai_usage_log table and RLS already exist)
+- No new components or pages
+- No changes to UserGateContext interface
+- No changes to useGate hook
+- No UX layout or visual changes
+- No changes to other edge functions
