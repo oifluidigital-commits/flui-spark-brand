@@ -39,17 +39,9 @@ interface SignUpResult {
   needsEmailConfirmation?: boolean;
 }
 
-export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    session: null,
-    profile: null,
-    isLoading: true,
-    isInitialized: false,
-  });
-
-  // Fetch user profile from database
-  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+// Fetch profile with retry for OAuth race condition
+async function fetchProfileWithRetry(userId: string, retries = 2, delayMs = 500): Promise<Profile | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -59,8 +51,13 @@ export function useAuth() {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // Profile not found - trigger should have created it
-          console.warn('Profile not found for user:', userId);
+          // Profile not found - may be race condition with DB trigger
+          if (attempt < retries) {
+            console.warn(`Profile not found for user ${userId}, retrying in ${delayMs}ms (attempt ${attempt + 1}/${retries})`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            continue;
+          }
+          console.warn('Profile not found after all retries:', userId);
           return null;
         }
         console.error('Error fetching profile:', error);
@@ -72,6 +69,22 @@ export function useAuth() {
       console.error('Exception fetching profile:', err);
       return null;
     }
+  }
+  return null;
+}
+
+export function useAuth() {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    profile: null,
+    isLoading: true,
+    isInitialized: false,
+  });
+
+  // Fetch user profile from database
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+    return fetchProfileWithRetry(userId);
   }, []);
 
   // Update profile in database
@@ -97,7 +110,7 @@ export function useAuth() {
   // Handle session changes
   const handleSession = useCallback(async (session: Session | null) => {
     if (session?.user) {
-      const profile = await fetchProfile(session.user.id);
+      const profile = await fetchProfileWithRetry(session.user.id);
       setState({
         user: session.user,
         session,
@@ -114,23 +127,19 @@ export function useAuth() {
         isInitialized: true,
       });
     }
-  }, [fetchProfile]);
+  }, []);
 
   // Initialize auth state and listen for changes
   useEffect(() => {
-    // Set up auth state listener BEFORE getting session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
-        
-        // Use setTimeout to avoid potential deadlocks with Supabase client
         setTimeout(() => {
           handleSession(session);
         }, 0);
       }
     );
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session);
     });
@@ -152,19 +161,15 @@ export function useAuth() {
 
       if (error) {
         setState(prev => ({ ...prev, isLoading: false }));
-        
-        // Map error messages to user-friendly Portuguese
         let message = 'Erro ao fazer login. Tente novamente.';
         if (error.message.includes('Invalid login credentials')) {
           message = 'Email ou senha incorretos';
         } else if (error.message.includes('Email not confirmed')) {
           message = 'Por favor, confirme seu email antes de fazer login';
         }
-        
         return { error: new Error(message) };
       }
 
-      // Profile will be fetched by onAuthStateChange
       return { error: null };
     } catch (err) {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -183,11 +188,10 @@ export function useAuth() {
 
       if (error) {
         setState(prev => ({ ...prev, isLoading: false }));
-        toast.error('Erro ao conectar com Google');
+        toast.error('Erro ao conectar com Google. Tente novamente.');
         return { error };
       }
 
-      // If we get here without redirect, something went wrong
       return { error: null };
     } catch (err) {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -198,6 +202,12 @@ export function useAuth() {
   // Sign up with email and password
   const signUp = useCallback(async (email: string, password: string, name: string): Promise<SignUpResult> => {
     setState(prev => ({ ...prev, isLoading: true }));
+
+    // Client-side password validation
+    if (password.length < 8) {
+      setState(prev => ({ ...prev, isLoading: false }));
+      return { error: new Error('Senha deve ter no mínimo 8 caracteres') };
+    }
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -213,25 +223,22 @@ export function useAuth() {
 
       if (error) {
         setState(prev => ({ ...prev, isLoading: false }));
-        
         let message = 'Erro ao criar conta. Tente novamente.';
-        if (error.message.includes('already registered')) {
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
           message = 'Este email já está cadastrado';
         } else if (error.message.includes('Password')) {
-          message = 'Senha muito fraca. Use pelo menos 6 caracteres';
+          message = 'Senha muito fraca. Use pelo menos 8 caracteres';
         }
-        
         return { error: new Error(message) };
       }
 
       setState(prev => ({ ...prev, isLoading: false }));
 
-      // Check if email confirmation is required
+      // With auto-confirm enabled, session should exist immediately
       if (data.user && !data.session) {
         return { error: null, needsEmailConfirmation: true };
       }
 
-      // If session exists, user is logged in
       return { error: null, needsEmailConfirmation: false };
     } catch (err) {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -242,7 +249,6 @@ export function useAuth() {
   // Sign out
   const signOut = useCallback(async (): Promise<void> => {
     setState(prev => ({ ...prev, isLoading: true }));
-    
     try {
       await supabase.auth.signOut();
       setState({
@@ -266,11 +272,9 @@ export function useAuth() {
     }
   }, [state.user, fetchProfile]);
 
-  // Derived state: user needs to provide their name
   const needsNameCollection = !!state.session && !!state.profile && (!state.profile.name || state.profile.name.trim() === '');
 
   return {
-    // State
     user: state.user,
     session: state.session,
     profile: state.profile,
@@ -278,8 +282,6 @@ export function useAuth() {
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.session,
     needsNameCollection,
-
-    // Methods
     signInWithEmail,
     signInWithGoogle,
     signUp,
