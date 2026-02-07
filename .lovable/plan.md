@@ -1,163 +1,97 @@
 
-# Plano: Fluxo de Autenticacao com Coleta de Nome e Route Guards Estritos
 
-## Problema Atual
+# Light Mode Migration and Color System Update
 
-1. O `ProtectedRoute` verifica apenas autenticacao, mas NAO bloqueia acesso a `/dashboard`, `/strategy`, `/content-lab` etc. quando `onboarding_status !== 'completed'`
-2. Nao existe tela de coleta de nome para usuarios Google OAuth que nao possuem `full_name`
-3. A `TopNavigation` e exibida mesmo durante o onboarding, permitindo navegacao lateral
+## Overview
 
----
-
-## Alteracoes por Arquivo
-
-### 1. `src/App.tsx`
-
-**O que muda:**
-- Criar um novo componente `OnboardingGuardedRoute` que:
-  - Verifica `isAuthenticated` (senao, redireciona para `/login`)
-  - Verifica `profile.name` (se vazio/null, redireciona para `/complete-profile`)
-  - Verifica `profile.onboarding_status === 'completed'` (senao, redireciona para `/onboarding`)
-  - Somente se todas as condicoes forem satisfeitas, renderiza `children`
-- Aplicar `OnboardingGuardedRoute` em todas as rotas protegidas (`/dashboard`, `/strategy`, `/brand`, `/content-lab/*`, `/profile`, `/pricing`)
-- Adicionar rota `/complete-profile` com `ProtectedRoute` (requer auth, mas nao onboarding)
-- Manter `/onboarding` com `ProtectedRoute` simples (requer auth, mas nao onboarding completo)
-
-### 2. `src/pages/CompleteProfile.tsx` (NOVO)
-
-**O que faz:**
-- Tela minimalista de coleta de nome
-- Campo unico: nome completo
-- Validacao: minimo 2 caracteres
-- CTA: "Continuar diagnostico"
-- Ao submeter:
-  1. Atualiza `profiles.name` no banco via Supabase
-  2. Atualiza `user.name` no AppContext
-  3. Chama `refreshProfile()`
-  4. Redireciona para `/onboarding`
-- Layout: centrado, sem navegacao, usando `AuthLayout`
-- Mostra email do usuario como texto informativo (read-only)
-
-### 3. `src/components/layout/MainLayout.tsx`
-
-**O que muda:**
-- Receber prop opcional `hideNavigation?: boolean`
-- Quando `hideNavigation` e `true`, nao renderizar `TopNavigation`
-- Alternativa: verificar `user.onboardingStatus` internamente e esconder a navegacao se nao for `completed`
-
-### 4. `src/components/layout/TopNavigation.tsx`
-
-**O que muda:**
-- Adicionar verificacao de `user.onboardingStatus`
-- Se `onboardingStatus !== 'completed'`, desabilitar todos os links de navegacao (opacity reduzida, sem click handlers, cursor-not-allowed)
-- Manter apenas o logo e o menu do usuario (para permitir logout)
-
-### 5. `src/hooks/useAuth.ts`
-
-**O que muda:**
-- Na funcao `handleSession`, apos carregar o profile, verificar se `profile.name` esta vazio/null
-- Expor um novo campo `needsNameCollection: boolean` que indica se o usuario precisa preencher o nome
-- Isso e derivado de: `isAuthenticated && profile && (!profile.name || profile.name.trim() === '')`
-
-### 6. `src/contexts/AppContext.tsx`
-
-**O que muda:**
-- Expor `needsNameCollection` derivado do auth state
-- Adicionar ao contexto para que route guards possam consumir
+Switch the Flui application from dark-mode-default to light-mode-default, update CSS custom properties to use the new color tokens, and replace all hardcoded dark-mode Tailwind classes with semantic/light-mode equivalents. Zero functional changes.
 
 ---
 
-## Fluxo Completo
+## Scope of Changes
+
+### 1. CSS Custom Properties (`src/index.css`)
+
+Update `:root` (default) to use light mode values and `.dark` class for dark mode:
+
+| Token | Light (new default) | Dark (`.dark` class) |
+|-------|-------------------|---------------------|
+| `--background` | white (0 0% 100%) | zinc-950 (240 10% 3.9%) |
+| `--foreground` | zinc-900 (240 10% 3.9%) | zinc-50 (0 0% 98%) |
+| `--card` | zinc-100 (240 5% 96%) | zinc-900 (240 10% 5.9%) |
+| `--border` | zinc-200 (240 5.9% 90%) | zinc-800 (240 5% 17%) |
+| `--primary` | violet-600 (263 70% 50%) | violet-600 |
+| `--secondary` | zinc-50 (240 5% 96%) | zinc-900 (240 5% 15%) |
+| `--muted` | zinc-50 | zinc-900 |
+| `--destructive` | rose-500 (350 89% 60%) | rose-500 |
+
+- Swap `:root` and `.light` blocks (current `.light` becomes `:root`, current `:root` becomes `.dark`)
+- Update primary from indigo-600 to violet-600 HSL values
+- Update destructive from red to rose-500
+- Update scrollbar colors for light mode
+
+### 2. Tailwind Config (`tailwind.config.ts`)
+
+No structural changes needed -- it already reads from CSS variables. The `darkMode: ["class"]` strategy is already correct.
+
+### 3. Sonner Theme (`src/components/ui/sonner.tsx`)
+
+Already uses `useTheme()` from `next-themes` and adapts. No changes needed since it reads the system/class theme.
+
+### 4. Hardcoded Color Classes (8 files)
+
+Replace all hardcoded `bg-zinc-*`, `text-zinc-*`, `border-zinc-*` classes with semantic equivalents, and replace `indigo-*` with `violet-*`:
+
+**Files to update:**
+
+| File | Changes |
+|------|---------|
+| `src/pages/Sprints.tsx` | ~30 replacements: `bg-zinc-950` to `bg-background`, `bg-zinc-900` to `bg-card`, `border-zinc-800` to `border-border`, `text-zinc-50` to `text-foreground`, `text-zinc-400` to `text-muted-foreground`, `bg-zinc-800` to `bg-muted`, `hover:border-zinc-700` to `hover:border-border`, `indigo-*` to `violet-*` |
+| `src/pages/SprintDetail.tsx` | ~10 replacements: status configs `indigo-*` to `violet-*`, `text-zinc-600` to `text-muted-foreground`, `text-zinc-400` to `text-muted-foreground` |
+| `src/components/onboarding/steps/StepExpertiseArea.tsx` | `hover:border-zinc-700` to `hover:border-border` |
+| `src/components/onboarding/steps/StepContentTopics.tsx` | `hover:border-zinc-700` to `hover:border-border` |
+| `src/components/onboarding/steps/StepGoals.tsx` | `hover:border-zinc-700` to `hover:border-border` |
+| `src/components/onboarding/steps/StepAudienceChallenges.tsx` | `hover:border-zinc-700` to `hover:border-border` |
+| `src/components/gates/PlanBadge.tsx` | `indigo-*` to `violet-*` |
+| `src/components/gates/UpgradePrompt.tsx` | `indigo-*` to `violet-*` |
+
+### 5. Comment Updates
+
+Update the design system comment block in `index.css` to reflect the new light-mode-first approach and violet primary.
+
+---
+
+## Color Mapping Reference
 
 ```text
-Login/Signup
-  -> Google OAuth sucesso
-  -> Supabase cria sessao
-  -> fetchProfile() carrega perfil
-  -> profile.name vazio?
-     -> SIM: redireciona para /complete-profile
-       -> Usuario preenche nome
-       -> Salva no DB
-       -> Redireciona para /onboarding
-     -> NAO: profile.onboarding_status?
-       -> "completed": redireciona para /dashboard
-       -> outro: redireciona para /onboarding
+HARDCODED CLASS          -->  REPLACEMENT
+bg-zinc-950                   bg-background
+bg-zinc-900                   bg-card
+bg-zinc-900/50                bg-card/50
+bg-zinc-800                   bg-muted
+border-zinc-800               border-border
+border-zinc-700               border-border
+hover:border-zinc-700         hover:border-border
+text-zinc-50                  text-foreground
+text-zinc-400                 text-muted-foreground
+text-zinc-600                 text-muted-foreground
+indigo-500                    violet-500
+indigo-400                    violet-400
+indigo-600                    violet-600
+indigo-500/20                 violet-500/20
+indigo-500/30                 violet-500/30
+indigo-500/10                 violet-500/10
+indigo-500/5                  violet-500/5
 ```
 
 ---
 
-## Logica de Route Guards
+## What Will NOT Change
 
-| Rota | Guard | Comportamento |
-|------|-------|---------------|
-| `/login`, `/signup` | PublicRoute | Se autenticado, redireciona conforme status |
-| `/complete-profile` | ProtectedRoute | Requer auth, sem verificacao de onboarding |
-| `/onboarding` | ProtectedRoute | Requer auth, sem verificacao de onboarding |
-| `/dashboard` | OnboardingGuardedRoute | Requer auth + nome + onboarding completo |
-| `/strategy` | OnboardingGuardedRoute | Requer auth + nome + onboarding completo |
-| `/brand` | OnboardingGuardedRoute | Requer auth + nome + onboarding completo |
-| `/content-lab/*` | OnboardingGuardedRoute | Requer auth + nome + onboarding completo |
-| `/profile` | OnboardingGuardedRoute | Requer auth + nome + onboarding completo |
-| `/pricing` | ProtectedRoute | Requer auth apenas (acessivel sem onboarding) |
-| `/privacy-policy` | ProtectedRoute | Requer auth apenas |
+- No component structure, props, or event handlers modified
+- No new components created
+- No data structures, API calls, or state management changed
+- No routing or business logic altered
+- No dependencies added or removed
+- All spacing and layout preserved
 
----
-
-## Secao Tecnica
-
-### Componente OnboardingGuardedRoute
-
-```typescript
-function OnboardingGuardedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAuthLoading, profile, user } = useApp();
-
-  if (isAuthLoading) return <Loader />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (profile && (!profile.name || profile.name.trim() === '')) {
-    return <Navigate to="/complete-profile" replace />;
-  }
-  if (profile && profile.onboarding_status !== 'completed') {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  return <>{children}</>;
-}
-```
-
-### CompleteProfile Page (estrutura)
-
-- `AuthLayout` wrapper (sem navegacao)
-- `Card` com:
-  - Titulo: "Qual e o seu nome?"
-  - Descricao: "Precisamos do seu nome para personalizar sua experiencia"
-  - Email do usuario exibido como texto informativo
-  - Input de nome com validacao zod
-  - Button: "Continuar diagnostico" (disabled ate nome valido)
-  - Loader state durante persistencia
-
-### Desabilitar navegacao no TopNavigation
-
-- Envolver os botoes de menu em condicional:
-  ```typescript
-  const isOnboardingComplete = user.onboardingStatus === 'completed';
-  // Menu items: pointer-events-none opacity-50 quando !isOnboardingComplete
-  ```
-- Manter funcional: logo, avatar/logout
-
-### Arquivos afetados
-
-| Arquivo | Acao |
-|---------|------|
-| `src/App.tsx` | Novo guard + rota /complete-profile |
-| `src/pages/CompleteProfile.tsx` | NOVO - tela de coleta de nome |
-| `src/components/layout/TopNavigation.tsx` | Desabilitar menus se onboarding incompleto |
-| `src/contexts/AppContext.tsx` | Expor needsNameCollection |
-| `src/hooks/useAuth.ts` | Adicionar needsNameCollection |
-
-### Ordem de execucao
-
-1. Atualizar `useAuth.ts` com `needsNameCollection`
-2. Atualizar `AppContext.tsx` para expor o novo campo
-3. Criar `CompleteProfile.tsx`
-4. Atualizar `App.tsx` com `OnboardingGuardedRoute` e nova rota
-5. Atualizar `TopNavigation.tsx` para desabilitar menus
