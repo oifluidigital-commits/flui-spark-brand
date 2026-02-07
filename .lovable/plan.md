@@ -1,88 +1,130 @@
 
 
-# Fix Strategy Persistence After Onboarding
+# Migrate Strategy & Diagnostic from localStorage to Database
 
 ## Problem
 
-The strategy generated after onboarding is stored only in React Context (in-memory). When the user refreshes the page or navigates away and returns to `/strategy`, the data is lost and the page either shows loading indefinitely or tries to re-generate via the AI edge function.
+After onboarding, `diagnosticResult` and `strategy` are stored in localStorage (and React Context in-memory). This means data is lost across devices and browsers, and is not properly tied to `user_id`.
 
-The same issue affects `diagnosticResult` -- both are ephemeral.
+## Current State (What Already Works)
 
-## Solution
+- **Diagnostics ARE already saved to DB** during onboarding (Onboarding.tsx line 179) with `form_data` and `result` as jsonb
+- The `strategies` table exists with the correct schema but is **never written to**
+- The `useStrategy` hook calls the `generate-strategy` edge function and returns a `Strategy` object, but only stores it in React Context + localStorage
 
-Add localStorage persistence for `strategy` and `diagnosticResult` in `AppContext.tsx`. When either value is set, it is also saved to localStorage. On mount, the context restores both from localStorage if available. This ensures the `/strategy` page always has data after onboarding completes, without requiring new data structures, services, or components.
+## Actual DB Schema (differs from prompt)
 
-## Approach
+The user prompt assumed individual columns, but the actual schema is:
 
-**No new files, no new types, no new interfaces.** The existing `Strategy` and `DiagnosticResult` types are sufficient. We simply add read/write to localStorage in the existing `AppContext`.
+- **`diagnostics`**: `id`, `user_id`, `form_data` (jsonb), `result` (jsonb), `ai_model_used`, `tokens_consumed`, `created_at`
+- **`strategies`**: `id`, `user_id`, `diagnostic_id` (FK), `data` (jsonb), `is_active` (boolean), `created_at`, `updated_at`
 
----
+No schema changes needed -- the existing tables support this migration as-is.
 
 ## Changes
 
-### 1. `src/contexts/AppContext.tsx`
+### 1. `src/hooks/useStrategy.ts` -- Save strategy to DB after generation
 
-**Add localStorage persistence for `diagnosticResult` and `strategy`:**
+After the edge function returns a strategy, persist it to the `strategies` table:
 
-- Define storage keys: `flui_diagnostic_result` and `flui_strategy`
-- Initialize both states from localStorage (with JSON.parse fallback to null)
-- Add `useEffect` hooks that write to localStorage whenever `diagnosticResult` or `strategy` changes
-- Clear both keys on `signOut` (so a different user starts fresh)
+- Get the authenticated user via `supabase.auth.getUser()`
+- Find the user's latest diagnostic ID from the `diagnostics` table
+- Archive any existing active strategies (`is_active = false`)
+- Insert the new strategy with `data` = full Strategy object, `is_active = true`, `diagnostic_id` = latest diagnostic
 
-Specifically:
+Add a new function `loadActiveStrategy` that:
+- Fetches the user's strategy where `is_active = true`
+- Returns the `data` field cast as `Strategy`, or null
 
-**Initialization (lines 96-97):**
-```typescript
-const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(() => {
-  try {
-    const stored = localStorage.getItem('flui_diagnostic_result');
-    return stored ? JSON.parse(stored) : null;
-  } catch { return null; }
-});
+### 2. `src/pages/Strategy.tsx` -- Load from DB instead of context
 
-const [strategy, setStrategy] = useState<Strategy | null>(() => {
-  try {
-    const stored = localStorage.getItem('flui_strategy');
-    return stored ? JSON.parse(stored) : null;
-  } catch { return null; }
-});
+Replace the current logic that depends on `cachedStrategy` from AppContext:
+
+- On mount, call `loadActiveStrategy()` from the updated hook
+- If a strategy exists in DB, use it directly (no context dependency)
+- If no strategy exists and diagnostic is completed, show error state with retry
+- Also load the diagnostic result from DB to populate the `diagnosticResult` for potential retry
+
+### 3. `src/contexts/AppContext.tsx` -- Remove localStorage persistence
+
+- Remove localStorage initialization for `diagnosticResult` and `strategy` (revert to simple `useState(null)`)
+- Remove the two `useEffect` hooks that sync to localStorage
+- Remove `localStorage.removeItem` calls from `signOut`
+- Keep `setDiagnosticResult` and `setStrategy` in context (still used by onboarding flow for in-session state)
+
+### 4. `src/pages/Onboarding.tsx` -- No changes needed
+
+The onboarding already saves diagnostics to DB (line 179). The strategy generation and save will happen on the `/strategy` page via `useStrategy`, which is the existing flow. No onboarding changes required.
+
+## Technical Details
+
+### Strategy save (in `useStrategy.ts`):
+
+```text
+// After edge function returns successfully:
+const { data: latestDiagnostic } = await supabase
+  .from('diagnostics')
+  .select('id')
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
+// Archive existing
+await supabase
+  .from('strategies')
+  .update({ is_active: false })
+  .eq('is_active', true);
+
+// Insert new
+await supabase
+  .from('strategies')
+  .insert({
+    user_id: user.id,
+    diagnostic_id: latestDiagnostic?.id || null,
+    data: strategy as any,  // Strategy object as jsonb
+    is_active: true,
+  });
 ```
 
-**Sync to localStorage (new effects after existing effects):**
-```typescript
-useEffect(() => {
-  if (diagnosticResult) {
-    localStorage.setItem('flui_diagnostic_result', JSON.stringify(diagnosticResult));
-  }
-}, [diagnosticResult]);
+### Strategy load (new function in `useStrategy.ts`):
 
-useEffect(() => {
-  if (strategy) {
-    localStorage.setItem('flui_strategy', JSON.stringify(strategy));
-  }
-}, [strategy]);
+```text
+const { data } = await supabase
+  .from('strategies')
+  .select('data')
+  .eq('is_active', true)
+  .maybeSingle();
+
+return data ? (data.data as unknown as Strategy) : null;
 ```
 
-**Clear on sign-out:** Wrap the existing `auth.signOut` to also clear localStorage:
-- After `signOut` completes, remove `flui_diagnostic_result`, `flui_strategy`, and reset both states to `null`
-- This is done by creating a wrapped `handleSignOut` function that calls `auth.signOut()` then clears storage
+### Diagnostic load (new function or inline in Strategy.tsx):
 
-### 2. No changes to other files
+```text
+const { data } = await supabase
+  .from('diagnostics')
+  .select('result')
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
-- `Strategy.tsx` already checks for `cachedStrategy` (from context) before generating -- so restoring from localStorage means it will find the cached strategy and skip the edge function call
-- `useStrategy.ts` remains unchanged
-- `Onboarding.tsx` already sets `diagnosticResult` and `strategy` via context, which will trigger the new localStorage write effects
-- No new data structures, services, or mock files needed
+return data?.result ? (data.result as unknown as DiagnosticResult) : null;
+```
 
----
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/hooks/useStrategy.ts` | Add `saveStrategyToDB`, `loadActiveStrategy`, `loadDiagnosticResult` functions; call save after generation |
+| `src/pages/Strategy.tsx` | Load strategy from DB on mount instead of relying on context |
+| `src/contexts/AppContext.tsx` | Remove all localStorage logic for diagnostic/strategy (revert to plain `useState(null)`) |
 
 ## What Will NOT Change
 
+- No database schema changes or migrations
 - No new files created
-- No new TypeScript interfaces or types
-- No changes to routing, navigation, or page structure
-- No changes to edge function calls or business logic
-- No changes to the onboarding wizard flow
-- No UI/visual changes
-- Existing `Strategy` and `DiagnosticResult` types used as-is
-
+- No changes to onboarding flow (already saves diagnostics to DB)
+- No changes to edge functions
+- No changes to UI/visual rendering
+- No changes to RLS policies (already configured correctly)
+- Existing `Strategy` and `DiagnosticResult` types remain unchanged
