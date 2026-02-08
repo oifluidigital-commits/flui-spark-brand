@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +49,7 @@ const signupSchema = z
       .max(255, { message: 'Email muito longo' }),
     password: z
       .string()
-      .min(8, { message: 'Senha deve ter no mínimo 8 caracteres' }),
+      .min(6, { message: 'Mínimo 6 caracteres' }),
     confirmPassword: z.string(),
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: 'Você precisa aceitar os termos' }),
@@ -88,26 +88,23 @@ function GoogleIcon() {
 }
 
 // Password input with show/hide toggle
-function PasswordInput({
-  id,
-  placeholder = '••••••••',
-  error,
-  disabled,
-  ...props
-}: {
-  id: string;
-  placeholder?: string;
-  error?: boolean;
-  disabled?: boolean;
-} & React.InputHTMLAttributes<HTMLInputElement> & { register?: any }) {
+const PasswordInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    id: string;
+    placeholder?: string;
+    error?: boolean;
+    disabled?: boolean;
+  } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>
+>(({ id, placeholder = '••••••••', error, disabled, ...rest }, ref) => {
   const [show, setShow] = useState(false);
-  const { register: _reg, ...rest } = props as any;
 
   return (
     <div className="relative">
       <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
       <Input
         id={id}
+        ref={ref}
         type={show ? 'text' : 'password'}
         placeholder={placeholder}
         className={`pl-10 pr-10 rounded-lg bg-white dark:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-violet-600 ${error ? 'border-rose-500' : 'border-zinc-200 dark:border-zinc-700'}`}
@@ -125,7 +122,8 @@ function PasswordInput({
       </button>
     </div>
   );
-}
+});
+PasswordInput.displayName = 'PasswordInput';
 
 // Verification modal
 function VerificationModal({
@@ -222,11 +220,13 @@ export default function Login() {
   // Login form
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    mode: 'onTouched',
   });
 
   // Signup form
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
+    mode: 'onTouched',
     defaultValues: { acceptTerms: undefined },
   });
 
