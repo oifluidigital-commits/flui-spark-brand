@@ -8,8 +8,8 @@ import { UserGateProvider } from "@/contexts/UserGateContext";
 import { Loader2 } from "lucide-react";
 
 // Pages
+import Index from "./pages/Index";
 import Login from "./pages/Login";
-// Signup removed - unified into Login
 import Onboarding from "./pages/Onboarding";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
@@ -109,8 +109,8 @@ function AppRoutes() {
       <Route path="/profile" element={<OnboardingGuardedRoute><Profile /></OnboardingGuardedRoute>} />
       <Route path="/strategy" element={<OnboardingGuardedRoute><Strategy /></OnboardingGuardedRoute>} />
       
-      {/* Default redirects */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Landing page (public) */}
+      <Route path="/" element={<Index />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
