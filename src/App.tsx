@@ -109,8 +109,8 @@ function AppRoutes() {
       <Route path="/profile" element={<OnboardingGuardedRoute><Profile /></OnboardingGuardedRoute>} />
       <Route path="/strategy" element={<OnboardingGuardedRoute><Strategy /></OnboardingGuardedRoute>} />
       
-      {/* Default redirects */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Landing page (public) */}
+      <Route path="/" element={<Index />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
