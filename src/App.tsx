@@ -8,8 +8,8 @@ import { UserGateProvider } from "@/contexts/UserGateContext";
 import { Loader2 } from "lucide-react";
 
 // Pages
+import Index from "./pages/Index";
 import Login from "./pages/Login";
-// Signup removed - unified into Login
 import Onboarding from "./pages/Onboarding";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
